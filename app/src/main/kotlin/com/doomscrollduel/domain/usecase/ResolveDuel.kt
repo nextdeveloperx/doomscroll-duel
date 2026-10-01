@@ -3,24 +3,16 @@ package com.doomscrollduel.domain.usecase
 enum class DuelOutcome { WIN, LOSS, DRAW }
 
 /**
- * Who wins a duel, from one player's point of view. Pure Kotlin.
+ * Who won, from one player's point of view, judged on the final reel counts only.
+ * The lower count wins, even if both are over the limit; equal counts are a draw.
  *
- * - Reaching the reel limit (reels >= limit) forfeits the stake, unless the other player did too.
- * - Otherwise the lower reel count wins; equal counts are a draw and coins go back.
- *
- * The real result is settled by a Cloud Function; this mirrors it so offline screens agree.
+ * Forfeits (the 10 minute rule) are decided by `DuelSettlement` in `domain.challenge.duel`; this is for
+ * screens that only have the two final numbers.
  */
 object ResolveDuel {
-    fun forMe(myReels: Int, opponentReels: Int, limit: Int): DuelOutcome {
-        val iReachedLimit = myReels >= limit
-        val theyReachedLimit = opponentReels >= limit
-        if (iReachedLimit != theyReachedLimit) {
-            return if (iReachedLimit) DuelOutcome.LOSS else DuelOutcome.WIN
-        }
-        return when {
-            myReels < opponentReels -> DuelOutcome.WIN
-            myReels > opponentReels -> DuelOutcome.LOSS
-            else -> DuelOutcome.DRAW
-        }
+    fun forMe(myReels: Int, opponentReels: Int): DuelOutcome = when {
+        myReels < opponentReels -> DuelOutcome.WIN
+        myReels > opponentReels -> DuelOutcome.LOSS
+        else -> DuelOutcome.DRAW
     }
 }

@@ -149,4 +149,22 @@
     <string name="battery_open_settings">BATTERY SETTINGS KHOLO</string>
     <string name="battery_open_oem_settings">AUTOSTART SETTINGS KHOLO</string>
     <string name="battery_status_done">Battery theek hai. Counter chalta rahega.</string>
+
+    <!-- Forfeit dares: the only dares that exist (see DareCatalog). Safe, funny, at home, nobody else involved. -->
+    <string name="dare_funny_face_selfie">Apna sabse funny face banake selfie lo.</string>
+    <string name="dare_spoon_on_nose">Naak par chammach balance karo aur photo lo.</string>
+    <string name="dare_paper_hat">Kagaz ki topi banao, pehno aur selfie lo.</string>
+    <string name="dare_draw_moustache">Kagaz par moochh banao aur naak ke neeche pakad kar photo lo.</string>
+    <string name="dare_inside_out_tshirt">Ghar par ulti t-shirt pehno aur selfie lo.</string>
+    <string name="dare_animal_sounds">10 second ke video mein teen janwaron ki awaaz nikalo.</string>
+    <string name="dare_tongue_twister">10 second ke video mein koi tongue twister teen baar bolo.</string>
+    <string name="dare_sing_chorus">Apne favourite gaane ka chorus 10 second tak gao.</string>
+    <string name="dare_dance_step">Ghar par apna best dance step 10 second ke video mein karo.</string>
+    <string name="dare_jumping_jacks">10 aasaan jumping jacks ka video bhejo.</string>
+    <string name="dare_film_dialogue">Kisi mashhoor film ka dialogue 10 second mein act karo.</string>
+    <string name="dare_draw_winner">Winner ka cartoon banao aur drawing dikhao.</string>
+    <string name="dare_two_line_poem">Winner par do line ki funny shayari likho aur kagaz dikhao.</string>
+    <string name="dare_tidy_desk">Apni study desk saaf karo aur photo lo.</string>
+    <string name="dare_compliment_video">10 second ke video mein winner ke baare mein teen achhi baatein bolo.</string>
+    <string name="dare_glass_of_water">Ek poora glass paani piyo aur khaali glass dikhao.</string>
 </resources>

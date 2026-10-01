@@ -64,7 +64,7 @@ data class ResultUiState(
     val reelLimit: Int,
     val stakeCoins: Int,
 ) {
-    val outcome: DuelOutcome get() = ResolveDuel.forMe(me.reels, opponent.reels, reelLimit)
+    val outcome: DuelOutcome get() = ResolveDuel.forMe(me.reels, opponent.reels)
 }
 
 /** Text for the system share sheet. Only names and counts, nothing about what was watched. */

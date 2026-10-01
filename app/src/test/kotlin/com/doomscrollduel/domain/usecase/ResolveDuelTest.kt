@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ResolveDuelTest {
-    private fun outcome(mine: Int, theirs: Int, limit: Int = 100) = ResolveDuel.forMe(mine, theirs, limit)
+    private fun outcome(mine: Int, theirs: Int) = ResolveDuel.forMe(mine, theirs)
 
     @Test
     fun `lower count wins when nobody reached the limit`() {
