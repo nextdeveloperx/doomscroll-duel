@@ -1,0 +1,48 @@
+name: Build debug APK
+
+# Builds an installable debug APK on GitHub's servers, so you do not need Android Studio to try the app.
+# Run it from the Actions tab (Run workflow). Download the APK from the run's "Artifacts".
+# Firebase features (sign-in, duels, push) will not work in this build: it uses a dummy google-services.json
+# unless you add your real file as the repository secret GOOGLE_SERVICES_JSON.
+on:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: google-services.json (real if the secret exists, otherwise a dummy so the build can run)
+        env:
+          REAL: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$REAL" ]; then
+            echo "$REAL" > app/google-services.json
+          else
+            python3 - <<'PY'
+          import json
+          def client(pkg):
+              return {
+                  "client_info": {"mobilesdk_app_id": "1:000000000000:android:0000000000000000", "android_client_info": {"package_name": pkg}},
+                  "oauth_client": [],
+                  "api_key": [{"current_key": "dummy-key"}],
+                  "services": {"appinvite_service": {"other_platform_oauth_client": []}},
+              }
+          json.dump({
+              "project_info": {"project_number": "000000000000", "project_id": "dummy-project", "storage_bucket": "dummy-project.appspot.com"},
+              "client": [client("com.doomscrollduel"), client("com.doomscrollduel.debug")],
+              "configuration_version": "1",
+          }, open("app/google-services.json", "w"))
+          PY
+          fi
+      - run: ./gradlew :app:assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: doomscroll-duel-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
