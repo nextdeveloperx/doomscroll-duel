@@ -3,7 +3,11 @@ package com.doomscrollduel.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.doomscrollduel.blocking.BlockingScheduler
+import com.doomscrollduel.billing.EntitlementService
 import com.doomscrollduel.blocking.BuddyDirectory
+import com.doomscrollduel.domain.billing.Access
+import com.doomscrollduel.domain.billing.ProFeature
+import com.doomscrollduel.domain.billing.SettingGate
 import com.doomscrollduel.domain.blocking.BlockingController
 import com.doomscrollduel.domain.blocking.BlockingStatus
 import com.doomscrollduel.domain.blocking.Buddy
@@ -32,6 +36,9 @@ sealed interface SettingsMessage {
     data class WindowRunning(val kind: WindowKind, val remainingMs: Long) : SettingsMessage
     data object NeedsBuddy : SettingsMessage
     data object LimitOutOfRange : SettingsMessage
+
+    /** Soft upgrade prompt: this change is a Pro feature. Nothing was changed. */
+    data class NeedsPro(val feature: ProFeature) : SettingsMessage
 }
 
 data class SettingsUiState(
@@ -39,6 +46,7 @@ data class SettingsUiState(
     val health: TrackingHealth,
     val friends: List<Buddy>,
     val message: SettingsMessage?,
+    val isPro: Boolean = false,
 )
 
 /**
@@ -53,6 +61,7 @@ class SettingsViewModel @Inject constructor(
     buddies: BuddyDirectory,
     private val scheduler: BlockingScheduler,
     private val reels: ReelRepository,
+    private val entitlements: EntitlementService,
 ) : ViewModel() {
 
     private val message = MutableStateFlow<SettingsMessage?>(null)
@@ -63,9 +72,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    val ui: StateFlow<SettingsUiState> = combine(seconds, settings.flow, healthMonitor.observe(), buddies.friends, message) { _, _, health, friends, msg ->
-        SettingsUiState(controller.status(), health, friends, msg)
-    }.stateIn(
+    val ui: StateFlow<SettingsUiState> = combine(
+        combine(seconds, settings.flow, healthMonitor.observe(), buddies.friends, message) { _, _, health, friends, msg ->
+            SettingsUiState(controller.status(), health, friends, msg)
+        },
+        entitlements.view,
+    ) { state, view -> state.copy(isPro = view.isPro) }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = SettingsUiState(controller.status(), healthMonitor.current(), emptyList(), null),
@@ -73,6 +85,12 @@ class SettingsViewModel @Inject constructor(
 
     /** Applies a change unless the commitment rule refuses it; then tells the screen why. */
     fun change(change: SettingChange) {
+        // Pro never takes away a protection that is already set up: only SWITCHING ON or ADDING needs Pro.
+        val gate = SettingGate.check(change, controller.status().settings, entitlements.isPro)
+        if (gate is Access.NeedsPro) {
+            message.value = SettingsMessage.NeedsPro(gate.feature)
+            return
+        }
         viewModelScope.launch {
             val result = controller.change(change)
             message.value = (result as? ChangeResult.Refused)?.let(::toMessage)
@@ -86,6 +104,14 @@ class SettingsViewModel @Inject constructor(
 
     fun dismissMessage() {
         message.value = null
+    }
+
+    /** The focus-hours editor is for Pro. Someone who already has a schedule can still open it to trim or remove it. */
+    fun canOpenFocusEditor(): Boolean {
+        val hasRanges = controller.status().settings.focus.days.values.any { it.isNotEmpty() }
+        if (entitlements.isPro || hasRanges) return true
+        message.value = SettingsMessage.NeedsPro(ProFeature.CUSTOM_SCHEDULES)
+        return false
     }
 
     /** Call when the screen comes back to the front: battery and notification status have no change broadcast. */

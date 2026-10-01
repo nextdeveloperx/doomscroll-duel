@@ -95,3 +95,6 @@ export const respondUnlock = onCall(async (req) => {
   });
   return { ok: true };
 });
+
+export { verifyPurchase, playNotifications, refreshStaleEntitlements } from "./purchases";
+export { claimCheckIn } from "./claimCoins";

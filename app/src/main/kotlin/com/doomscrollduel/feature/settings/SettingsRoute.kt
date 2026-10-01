@@ -18,12 +18,14 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.doomscrollduel.core.common.openAccessibilitySettings
 import com.doomscrollduel.core.common.openAppNotificationSettings
+import com.doomscrollduel.domain.billing.ProFeature
 
 /** Settings wired to the real blocking engine and the live permission status. */
 @Composable
 fun SettingsRoute(
     onOpenBatteryGuide: () -> Unit,
     onOpenFocusHours: () -> Unit,
+    onOpenPaywall: (ProFeature) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -42,11 +44,12 @@ fun SettingsRoute(
     val actions = remember(viewModel, context) {
         SettingsActions(
             onChange = viewModel::change,
-            onOpenFocusHours = onOpenFocusHours,
+            onOpenFocusHours = { if (viewModel.canOpenFocusEditor()) onOpenFocusHours() },
             onFixAccessibility = { context.openAccessibilitySettings() },
             onFixBattery = onOpenBatteryGuide,
             onFixNotifications = { fixNotifications(context) { permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) } },
             onDismissMessage = viewModel::dismissMessage,
+            onSeePro = onOpenPaywall,
         )
     }
     SettingsScreen(ui = ui, actions = actions, modifier = modifier)

@@ -22,3 +22,5 @@ Fonts (`res/font`) are SIL OFL 1.1, licences in `licenses/`.
 androidx.datastore:datastore-preferences, androidx.work:work-runtime-ktx, androidx.lifecycle (runtime/service),
 androidx.savedstate, firebase-auth, firebase-firestore, firebase-functions, firebase-messaging,
 kotlinx-coroutines-play-services. Server: `functions/` (Node 20, `npm test`).
+
+com.android.billingclient:billing-ktx (7.1.x) is needed for `BillingManager`. Server: `@googleapis/androidpublisher`, `google-auth-library`.

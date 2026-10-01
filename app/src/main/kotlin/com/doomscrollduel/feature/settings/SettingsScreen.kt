@@ -40,7 +40,10 @@ import com.doomscrollduel.core.designsystem.components.StepperKind
 import com.doomscrollduel.core.designsystem.components.TabbedScreenPreview
 import com.doomscrollduel.core.designsystem.components.ToggleSwitch
 import com.doomscrollduel.core.designsystem.theme.DuelTheme
+import com.doomscrollduel.domain.billing.ProFeature
 import com.doomscrollduel.domain.blocking.ActiveWindow
+import com.doomscrollduel.feature.paywall.UpgradePrompt
+import com.doomscrollduel.feature.paywall.proFeatureReason
 import com.doomscrollduel.domain.blocking.BedtimeSettings
 import com.doomscrollduel.domain.blocking.BlockingSettings
 import com.doomscrollduel.domain.blocking.BlockingStatus
@@ -70,6 +73,7 @@ class SettingsActions(
     val onFixBattery: () -> Unit,
     val onFixNotifications: () -> Unit,
     val onDismissMessage: () -> Unit,
+    val onSeePro: (ProFeature) -> Unit = {},
 )
 
 @Composable
@@ -91,7 +95,18 @@ fun SettingsScreen(
             style = DuelTheme.typography.title,
             modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
         )
-        ui.message?.let { MessageCard(it, actions.onDismissMessage) }
+        ui.message?.let {
+            if (it is SettingsMessage.NeedsPro) {
+                Spacer(Modifier.height(12.dp))
+                UpgradePrompt(
+                    feature = it.feature,
+                    onSeePro = { actions.onDismissMessage(); actions.onSeePro(it.feature) },
+                    onLater = actions.onDismissMessage,
+                )
+            } else {
+                MessageCard(it, actions.onDismissMessage)
+            }
+        }
 
         // ----- REELS BLOCK ---------------------------------------------------------------------
         SectionLabel(R.string.settings_section_reels)
@@ -99,7 +114,7 @@ fun SettingsScreen(
             LimitRow(settings, enabled = !lockRunning, onChange = actions.onChange)
             RowDivider()
             ToggleRow(
-                title = stringResource(R.string.settings_strict_lock),
+                title = stringResource(R.string.settings_strict_lock) + proSuffix(ui.isPro),
                 subtitle = stringResource(R.string.settings_strict_lock_sub),
                 note = if (lockRunning) stringResource(R.string.settings_lock_running, TimeFormat.clock(ui.status.lockRemainingMs)) else null,
                 checked = settings.strictLockEnabled,
@@ -159,7 +174,7 @@ fun SettingsScreen(
             RowDivider()
             val daysSet = settings.focus.days.count { it.value.isNotEmpty() }
             ToggleRow(
-                title = stringResource(R.string.settings_focus),
+                title = stringResource(R.string.settings_focus) + proSuffix(ui.isPro),
                 subtitle = if (daysSet == 0) stringResource(R.string.settings_focus_summary_none) else stringResource(R.string.settings_focus_summary, daysSet),
                 note = if (focusRunning) windowNote(window!!, ui.status.nowMs) else null,
                 checked = settings.focus.enabled,
@@ -215,6 +230,10 @@ fun SettingsScreen(
 
 // ----- pieces ------------------------------------------------------------------------------------
 
+/** " · PRO" after a row title that needs Pro, for people who are not Pro. */
+@Composable
+private fun proSuffix(isPro: Boolean): String = if (isPro) "" else " · " + stringResource(R.string.settings_pro_tag)
+
 @Composable
 private fun windowNote(window: ActiveWindow, nowMs: Long): String {
     val name = stringResource(if (window.kind == WindowKind.BEDTIME) R.string.window_bedtime else R.string.window_focus)
@@ -231,6 +250,7 @@ private fun MessageCard(message: SettingsMessage, onDismiss: () -> Unit) {
             stringResource(if (message.kind == WindowKind.BEDTIME) R.string.window_bedtime else R.string.window_focus),
             TimeFormat.words(message.remainingMs),
         )
+        is SettingsMessage.NeedsPro -> proFeatureReason(message.feature)
         SettingsMessage.NeedsBuddy -> stringResource(R.string.settings_blocked_needs_buddy)
         SettingsMessage.LimitOutOfRange -> stringResource(R.string.settings_blocked_range)
     }

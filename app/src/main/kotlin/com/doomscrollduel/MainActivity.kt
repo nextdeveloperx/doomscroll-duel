@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.doomscrollduel.billing.BillingManager
+import com.doomscrollduel.billing.EntitlementService
 import com.doomscrollduel.blocking.BlockingScheduler
 import com.doomscrollduel.core.designsystem.theme.DuelTheme
 import com.doomscrollduel.navigation.DuelNavGraph
@@ -14,6 +16,8 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject lateinit var scheduler: BlockingScheduler
+    @Inject lateinit var billing: BillingManager
+    @Inject lateinit var entitlements: EntitlementService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,5 +33,8 @@ class MainActivity : ComponentActivity() {
         TrackingKeepAlive.start(this)
         // Re-arm the wake-up for the lock and for bedtime or focus windows.
         scheduler.schedule()
+        // Pick up renewals, a restored purchase or a new phone, and re-check the clock against the stored entitlement.
+        billing.syncIfStale()
+        entitlements.recheck()
     }
 }

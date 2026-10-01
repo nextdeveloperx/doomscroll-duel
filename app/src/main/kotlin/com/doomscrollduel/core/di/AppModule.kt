@@ -9,6 +9,15 @@ import androidx.room.Room
 import com.doomscrollduel.core.common.DayClock
 import com.doomscrollduel.data.local.AppDatabase
 import com.doomscrollduel.data.local.ReelCountDao
+import com.doomscrollduel.billing.AccountProvider
+import com.doomscrollduel.billing.EntitlementCache
+import com.doomscrollduel.billing.EntitlementService
+import com.doomscrollduel.billing.EntitlementSource
+import com.doomscrollduel.billing.FirebaseAccountProvider
+import com.doomscrollduel.billing.FirebaseFunctionsPurchaseVerifier
+import com.doomscrollduel.billing.FirestoreEntitlementSource
+import com.doomscrollduel.billing.PurchaseVerifier
+import com.doomscrollduel.data.prefs.DataStoreEntitlementCache
 import com.doomscrollduel.blocking.AndroidClockSource
 import com.doomscrollduel.blocking.BuddyDirectory
 import com.doomscrollduel.blocking.EmptyBuddyDirectory
@@ -39,6 +48,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.time.ZoneId
 import javax.inject.Singleton
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -136,6 +148,33 @@ abstract class BindingsModule {
 
     @Binds
     abstract fun buddyDirectory(impl: EmptyBuddyDirectory): BuddyDirectory
+
+    @Binds
+    abstract fun purchaseVerifier(impl: FirebaseFunctionsPurchaseVerifier): PurchaseVerifier
+
+    @Binds
+    abstract fun accountProvider(impl: FirebaseAccountProvider): AccountProvider
+
+    @Binds
+    abstract fun entitlementSource(impl: FirestoreEntitlementSource): EntitlementSource
+
+    @Binds
+    abstract fun entitlementCache(impl: DataStoreEntitlementCache): EntitlementCache
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+object BillingModule {
+    /** One entitlement service for the process, so every screen sees the same Pro answer at the same moment. */
+    @Provides
+    @Singleton
+    fun entitlementService(source: EntitlementSource, cache: EntitlementCache): EntitlementService =
+        EntitlementService(
+            source = source,
+            cache = cache,
+            nowMs = System::currentTimeMillis,
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        )
 }
 
 @Module

@@ -14,9 +14,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -32,7 +39,12 @@ import com.doomscrollduel.feature.duel.result.ResultScreen
 import com.doomscrollduel.feature.duel.result.rememberShareText
 import com.doomscrollduel.feature.battery.BatteryGuideRoute
 import com.doomscrollduel.feature.home.HomeRoute
+import com.doomscrollduel.domain.billing.ProFeature
 import com.doomscrollduel.feature.modes.BattleModesScreen
+import com.doomscrollduel.feature.modes.requiredFeature
+import com.doomscrollduel.feature.paywall.PaywallRoute
+import com.doomscrollduel.feature.paywall.PaywallViewModel
+import com.doomscrollduel.feature.paywall.ProAccessViewModel
 import com.doomscrollduel.feature.settings.FocusHoursRoute
 import com.doomscrollduel.feature.settings.SettingsRoute
 
@@ -45,6 +57,10 @@ object Routes {
     const val SETTINGS = "settings"
     const val BATTERY_GUIDE = "battery_guide"
     const val FOCUS_HOURS = "focus_hours"
+    const val PAYWALL = "paywall?feature={feature}"
+
+    /** The paywall, optionally told which locked thing the person came from so it can say why. */
+    fun paywall(feature: ProFeature? = null): String = if (feature == null) "paywall" else "paywall?feature=${feature.name}"
 }
 
 private const val FadeMillis = 180
@@ -53,7 +69,7 @@ private const val FadeMillis = 180
  * The app's navigation.
  *
  * Tabs (bottom bar): HOME, MODES ("Battles"), SETTINGS. BATTERY_GUIDE opens from the Home banner and Settings;
- * FOCUS_HOURS opens from Settings.
+ * FOCUS_HOURS opens from Settings. PAYWALL opens from the soft upgrade prompts on Battles and Settings.
  * Duel flow: HOME or MODES -> NEW_DUEL -> LIVE -> RESULT, and RESULT -> NEW_DUEL for a rematch.
  * Back stack rules: every step of the duel flow clears back to HOME first, so a duel in progress or a
  * finished result is never on the back stack behind another screen. Back from LIVE or RESULT goes Home;
@@ -111,9 +127,25 @@ fun DuelNavGraph(
                     )
                 }
                 composable(Routes.MODES) {
+                    val access: ProAccessViewModel = hiltViewModel()
+                    val proView by access.view.collectAsStateWithLifecycle()
+                    var prompt by remember { mutableStateOf<ProFeature?>(null) }
                     BattleModesScreen(
-                        // Only the 1v1 flow exists so far; every mode opens it until the others are built.
-                        onModeSelected = { navController.navigate(Routes.NEW_DUEL) },
+                        onModeSelected = { mode ->
+                            val needed = mode.requiredFeature()
+                            if (needed != null && !proView.isPro) {
+                                prompt = needed
+                            } else {
+                                // Only the 1v1 flow exists so far; every mode opens it until the others are built.
+                                navController.navigate(Routes.NEW_DUEL)
+                            }
+                        },
+                        upgradePrompt = prompt,
+                        onSeePro = {
+                            navController.navigate(Routes.paywall(prompt))
+                            prompt = null
+                        },
+                        onDismissPrompt = { prompt = null },
                     )
                 }
                 composable(Routes.NEW_DUEL) {
@@ -154,7 +186,20 @@ fun DuelNavGraph(
                     SettingsRoute(
                         onOpenBatteryGuide = { navController.navigate(Routes.BATTERY_GUIDE) },
                         onOpenFocusHours = { navController.navigate(Routes.FOCUS_HOURS) },
+                        onOpenPaywall = { navController.navigate(Routes.paywall(it)) },
                     )
+                }
+                composable(
+                    route = Routes.PAYWALL,
+                    arguments = listOf(
+                        navArgument(PaywallViewModel.ARG_FEATURE) {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        },
+                    ),
+                ) {
+                    PaywallRoute(onBack = { navController.popBackStack() })
                 }
                 composable(Routes.FOCUS_HOURS) {
                     FocusHoursRoute(onBack = { navController.popBackStack() })

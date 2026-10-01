@@ -44,16 +44,35 @@ import com.doomscrollduel.core.designsystem.components.VsBadge
 import com.doomscrollduel.core.designsystem.components.scaled
 import com.doomscrollduel.core.designsystem.theme.ChunkyMetrics
 import com.doomscrollduel.core.designsystem.theme.DuelTheme
+import com.doomscrollduel.domain.billing.ProFeature
+import com.doomscrollduel.feature.paywall.UpgradePrompt
 
 enum class BattleMode { DUEL, SQUAD, NIGHT_PACT, FORFEIT_DARE, STRICT_LOCK }
 
+/** The Pro feature a mode needs, or null when the mode is free. Agrees with `ProGate` in the domain. */
+fun BattleMode.requiredFeature(): ProFeature? = when (this) {
+    BattleMode.SQUAD -> ProFeature.SQUAD_BATTLE
+    BattleMode.STRICT_LOCK -> ProFeature.STRICT_LOCK
+    BattleMode.DUEL, BattleMode.NIGHT_PACT, BattleMode.FORFEIT_DARE -> null
+}
+
+/**
+ * [upgradePrompt] is set when a non-Pro person tapped a Pro tile. The prompt sits at the bottom, over nothing: the
+ * tiles stay usable and "Baad mein" closes it.
+ */
 @Composable
 fun BattleModesScreen(
     onModeSelected: (BattleMode) -> Unit,
     modifier: Modifier = Modifier,
+    upgradePrompt: ProFeature? = null,
+    onSeePro: () -> Unit = {},
+    onDismissPrompt: () -> Unit = {},
 ) {
     val colors = DuelTheme.colors
-    DuelScreen(modifier = modifier) {
+    DuelScreen(
+        modifier = modifier,
+        bottom = upgradePrompt?.let { feature -> { UpgradePrompt(feature, onSeePro = onSeePro, onLater = onDismissPrompt) } },
+    ) {
         DuelText(
             text = stringResource(R.string.modes_title),
             style = DuelTheme.typography.title,

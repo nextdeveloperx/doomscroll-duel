@@ -44,3 +44,8 @@ The accessibility service now also: listens to `typeWindowStateChanged` (package
 whether a known layout view id is on screen (a yes/no, nothing read), and performs the global Back and Home actions
 when a lock/gate is active. Nothing new is stored or uploaded about what the user watches. The unlock flow uploads
 only: requester uid, friend uid, status and timestamps.
+
+## Billing additions
+Buying Pro sends Google Play's purchase token and the person's Firebase uid to our `verifyPurchase` function. The server
+stores the token (server-only collection, no client access) and the resulting entitlement (status, plan, end time).
+Nothing about reels, apps used or watched content is part of billing. Coins never travel with a purchase.

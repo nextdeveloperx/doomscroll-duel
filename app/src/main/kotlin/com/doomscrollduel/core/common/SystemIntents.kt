@@ -82,3 +82,9 @@ private fun Context.startSafely(intent: Intent) {
         runCatching { startActivity(fallback) }
     }
 }
+
+/** Opens this app's subscription page in Google Play, where the person can cancel, resume or fix the payment. */
+fun Context.openSubscriptionManagement() =
+    startSafely(
+        Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/account/subscriptions?sku=${com.doomscrollduel.domain.billing.ProProduct.PRODUCT_ID}&package=$packageName")),
+    )

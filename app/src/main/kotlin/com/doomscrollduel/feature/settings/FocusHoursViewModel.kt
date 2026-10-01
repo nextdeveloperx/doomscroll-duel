@@ -2,7 +2,10 @@ package com.doomscrollduel.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.doomscrollduel.billing.EntitlementService
 import com.doomscrollduel.blocking.BlockingScheduler
+import com.doomscrollduel.domain.billing.Access
+import com.doomscrollduel.domain.billing.SettingGate
 import com.doomscrollduel.domain.blocking.BlockingController
 import com.doomscrollduel.domain.blocking.ChangeResult
 import com.doomscrollduel.domain.blocking.FocusScheduleEditor
@@ -32,6 +35,9 @@ sealed interface FocusMessage {
 
     /** A focus window is running now; the schedule is locked until it ends. */
     data class Running(val remainingMs: Long) : FocusMessage
+
+    /** Adding or moving ranges is Pro. Trimming is always free. */
+    data object NeedsPro : FocusMessage
 }
 
 /** Edits the per-weekday focus schedule. Every edit goes through [FocusScheduleEditor] and the commitment rule. */
@@ -40,6 +46,7 @@ class FocusHoursViewModel @Inject constructor(
     private val controller: BlockingController,
     settings: ObservableBlockingSettings,
     private val scheduler: BlockingScheduler,
+    private val entitlements: EntitlementService,
 ) : ViewModel() {
 
     private val selected = MutableStateFlow(DayOfWeek.MONDAY)
@@ -85,7 +92,9 @@ class FocusHoursViewModel @Inject constructor(
         val current = controller.status().settings.focus
         when (val r = block(current)) {
             is FocusScheduleEditor.Result.Invalid -> message.value = FocusMessage.Invalid(r.problem)
-            is FocusScheduleEditor.Result.Ok -> when (val applied = controller.change(SettingChange.FocusChanged(r.focus))) {
+            is FocusScheduleEditor.Result.Ok -> if (SettingGate.check(SettingChange.FocusChanged(r.focus), controller.status().settings, entitlements.isPro) is Access.NeedsPro) {
+                message.value = FocusMessage.NeedsPro
+            } else when (val applied = controller.change(SettingChange.FocusChanged(r.focus))) {
                 is ChangeResult.Applied -> {
                     message.value = null
                     scheduler.schedule()

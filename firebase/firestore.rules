@@ -120,6 +120,23 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // What the SERVER knows about a person's Pro subscription. Written only by verifyPurchase / playNotifications
+    // (admin SDK). A phone can read its own and can never write it, so a modified app cannot unlock Pro.
+    match /entitlements/{uid} {
+      allow read: if isSelf(uid);
+      allow write: if false;
+    }
+
+    // Coin wallet: readable by its owner, written only by functions (check-in, settlement). Coins are virtual,
+    // there is no function that sells them and no field that can hold money.
+    match /wallets/{uid} {
+      allow read: if isSelf(uid);
+      allow write: if false;
+    }
+
+    // purchaseTokens/{hash} holds Play purchase tokens for the server's own use: no client access at all
+    // (falls through to the closed default below).
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;

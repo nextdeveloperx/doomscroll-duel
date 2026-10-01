@@ -28,6 +28,8 @@ import com.doomscrollduel.core.designsystem.components.DuelScreen
 import com.doomscrollduel.core.designsystem.components.DuelText
 import com.doomscrollduel.core.designsystem.components.ScreenPreview
 import com.doomscrollduel.core.designsystem.theme.DuelTheme
+import com.doomscrollduel.domain.billing.ProFeature
+import com.doomscrollduel.feature.paywall.proFeatureReason
 import com.doomscrollduel.domain.blocking.FocusScheduleEditor
 import com.doomscrollduel.domain.blocking.FocusSettings
 import com.doomscrollduel.domain.blocking.TimeFormat
@@ -172,6 +174,7 @@ private fun messageText(message: FocusMessage): String = when (message) {
         },
     )
     is FocusMessage.Running -> stringResource(R.string.focus_running, TimeFormat.words(message.remainingMs))
+    FocusMessage.NeedsPro -> proFeatureReason(ProFeature.CUSTOM_SCHEDULES)
 }
 
 private fun DayOfWeek.labelRes(): Int = when (this) {

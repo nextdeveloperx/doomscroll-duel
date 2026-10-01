@@ -74,6 +74,18 @@ against shims only. Not run on a device. Unlock needs sign-in + friends (BuddyDi
 Decisions to review: friend pass also lifts windows; rolling 24 h quota; window edits locked while running; Pro gating
 of Strict Lock not enforced (no billing yet).
 
+## Monetization (turn 7) - built
+Pro subscription (`doomscroll_pro`, base plans monthly/yearly) + virtual coin economy. See `docs/billing.md`,
+`docs/billing-test-plan.md`, `docs/coin-economy.md`. HARD RULE kept: coins are never sold, never given by Pro, never
+cashed out; `scripts/check-coin-money-separation.sh` enforces it. Entitlement is written ONLY by Cloud Functions
+(`verifyPurchase`, `playNotifications`, `refreshStaleEntitlements`); the app reads `entitlements/{uid}` via
+`EntitlementService` (cache + clock-tamper fail-closed). `BillingManager` never grants Pro. Pro never removes a
+protection already set up (`SettingGate`). Pure tests: 418 app + 22 server pass. NOT verified: nothing ran on a device,
+Play, or Firebase; billing-ktx/Firestore/Hilt only shim-compiled; subscriptionsv2 field names unchecked against a live
+response; grace-period expiry semantics open (see billing.md). Not wired yet: free 3-duels/day counter in the UI (needs
+duel persistence; server gate + pure rule exist), analytics screen (per app / per hour; hourly data is not stored yet),
+skin rendering in BrainView, coin shop UI, Firebase sign-in (purchases need it).
+
 ## What is NOT verified or NOT built yet
 - No Gradle project exists yet (Milestone 1). Needed deps: compose-bom, ui, foundation, animation,
   ui-tooling-preview, ui-text, navigation-compose, hilt (+ hilt-navigation-compose), room, lifecycle-runtime-compose,

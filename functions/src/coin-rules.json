@@ -1,0 +1,25 @@
+{
+  "dailyEarnCap": 150,
+  "welcomeCoins": 50,
+  "stakeOptions": [25, 50, 100],
+  "duelWinMinDurationMs": 3600000,
+  "streakDayMin": 2,
+  "streakMilestones": { "7": 50, "30": 200, "100": 500 },
+  "earn": {
+    "daily_check_in": { "coins": 10, "perDayLimit": 1, "countsTowardDailyCap": true },
+    "duel_win": { "coins": 20, "perDayLimit": 3, "countsTowardDailyCap": true },
+    "streak_day": { "coins": 5, "perDayLimit": 1, "countsTowardDailyCap": true },
+    "night_pact": { "coins": 30, "perDayLimit": 1, "countsTowardDailyCap": true },
+    "streak_milestone": { "coins": 0, "perDayLimit": 1, "countsTowardDailyCap": false }
+  },
+  "catalog": [
+    { "id": "skin_cool", "kind": "BRAIN_SKIN", "access": "COINS", "price": 150 },
+    { "id": "skin_sleepy", "kind": "BRAIN_SKIN", "access": "COINS", "price": 250 },
+    { "id": "skin_gold", "kind": "BRAIN_SKIN", "access": "PRO", "price": 0 },
+    { "id": "skin_neon", "kind": "BRAIN_SKIN", "access": "PRO", "price": 0 },
+    { "id": "theme_sunset", "kind": "THEME", "access": "COINS", "price": 200 },
+    { "id": "theme_midnight", "kind": "THEME", "access": "COINS", "price": 400 },
+    { "id": "sticker_roast_basic", "kind": "ROAST_STICKER", "access": "COINS", "price": 20 },
+    { "id": "sticker_roast_spicy", "kind": "ROAST_STICKER", "access": "COINS", "price": 50 }
+  ]
+}
