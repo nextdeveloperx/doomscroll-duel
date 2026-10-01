@@ -21,6 +21,9 @@ and Flow, Room, Firebase Auth / Firestore / Cloud Functions / FCM. Min SDK 26. O
    `tracking/`.
 3. Everything the user sees must work offline first and sync later (Room is the source of truth for the UI).
 4. Production quality. No placeholder TODOs unless the user asks.
+5. Analytics and crash reports carry no personal data and stay OFF until the person says yes (`domain/analytics`,
+   `docs/analytics-events.md`). Nothing sold through Google Play touches coins (`scripts/check-coin-money-separation.sh`).
+6. The reel counter does nothing until the person agreed to the in-app Accessibility disclosure (`AccessibilityConsent`).
 
 ## Working style the user expects
 - Do the work, run what can be run, report outcomes faithfully (say what was NOT verified).
@@ -116,29 +119,41 @@ rollout, week-1 routine). Tests: 459 pure app tests + 31 server tests pass here.
 no screen yet (spec only).
 
 ## What is NOT verified or NOT built yet
-- (Gradle project now exists, see Launch readiness.) Original dependency notes: compose-bom, ui, foundation, animation,
-  ui-tooling-preview, ui-text, navigation-compose, hilt (+ hilt-navigation-compose), room, lifecycle-runtime-compose,
-  activity-compose, kotlinx-serialization-json, coroutines, junit + coroutines-test. NO material3.
-- Nothing has run on a real phone or in Android Studio. Code was compile-checked only against Compose Desktop and
-  real Android 14 framework jars with Hilt/Room/Lifecycle stubbed. Pure-logic tests (235) really pass.
-- Firestore rules untested (no emulator was available).
-- Still fake: profile name/coins, the duel card's opponent count (see `feature/FakeData.kt`).
-- Not built: Firebase sign-in + Firestore implementations, Cloud Functions for settle/expire/tick (unlock functions exist, undeployed), screens for squad
-  lobby / night pact / dare flow / strict lock, Room tables `night_counts` and `strict_lock` (+ migration 1 to 2),
-  photo/video proof upload, onboarding with the Play accessibility disclosure, Strict Lock enforcement (needs a
-  Play declaration decision), Play Billing for Pro.
+- **Nothing has run on a phone, an emulator, Gradle, Firebase or Google Play.** What did run here: 459 pure app tests, 31 server
+  tests, four guard scripts, and a compile check against Compose Desktop (including the real compose-ui-test API) and real Android
+  framework jars with Hilt, Room, DataStore, WorkManager, Firebase and Billing stubbed. UI and instrumented tests are
+  compile-checked only. Google Maven is unreachable from this sandbox, so `gradle/libs.versions.toml` versions are unresolved.
+- Firestore and Storage rules, all Cloud Functions (unlock, purchases, coins, deletion), the Play subscription mapping (field names
+  and grace-period expiry unchecked against a live response) and the FCM flow are untested.
+- Still fake: profile name/coins, the duel card's opponent count, Live and Result data (`feature/FakeData.kt`). `duel_created` and
+  `duel_finished` analytics fire on that sample data.
+- Launch blockers (see `docs/play/review-checklist.md`): Firebase sign-in, age confirmation, report/block screens, 7-day dare-proof
+  auto-delete function, hosted privacy/terms/deletion pages and real addresses in `legal_links.xml`, onboarding screen
+  (`onboarding_completed` event has no caller), accept-invite screen (`duel_accepted` has no caller), free 3-duels-a-day counter in
+  the UI (rule and server gate exist), analytics screen (hourly data not stored), skin rendering and coin shop UI, squad lobby /
+  night pact / dare flow screens, Room `night_counts` and `strict_lock` tables, remote update of `surface_rules.json`.
+- Unverified view ids: Facebook Reels and Snapchat Spotlight have none; Instagram and YouTube ids are unverified (`verified: false`).
+- Open decisions for the owner: minimum age (texts say 16; 18 is safer under India's DPDP Act), app name (working name), prices,
+  Firebase region, support mailbox and grievance contact.
 
 ## Suggested next steps (in order)
-1. Gradle scaffolding (settings, version catalog, AGP, Hilt, KSP, Room schema export) so it builds in Android Studio;
-   run the unit tests for real; fix whatever the first real build finds.
-2. Run the manual test checklist on a real phone; find and fill the view ids for all four apps.
-3. Onboarding with the full-screen accessibility disclosure and notification permission.
-4. Firebase Auth (Google + phone), friends by username/invite link, Firestore sync with an outbox.
-5. Cloud Functions for duel settlement/expiry using the same rules, plus emulator tests for `firestore.rules`.
-6. Screens for the remaining modes.
+1. Open the project in Android Studio, fix the first Gradle sync (versions), run `./gradlew :app:testDebugUnitTest` and lint.
+2. Run `connectedDebugAndroidTest` on an emulator; fix what the UI and reel counter tests find.
+3. Run `docs/device-test-matrix.md` on real phones; fill the real view ids for all four apps.
+4. Firebase Auth (Google + phone) with an age confirmation, friends by username/invite link, Firestore sync with an outbox;
+   deploy and emulator-test rules and functions.
+5. Duel persistence and settlement functions using the same pure rules; wire the free-duel counter, `duel_accepted` and onboarding.
+6. Report/block screens, dare-proof auto-delete, host the legal pages, then the closed beta (`docs/beta-plan.md`) and launch
+   (`docs/launch-checklist.md`).
 
 ## Handy commands
-- Privacy guard: `scripts/check-service-privacy.sh`
+- Privacy guard: `scripts/check-service-privacy.sh` (run before any commit touching `tracking/` or `blocking/`)
+- Coins vs money guard: `scripts/check-coin-money-separation.sh`
 - Dare strings match catalog: `scripts/check-dare-strings.sh`
+- Play readiness guard: `scripts/check-play-readiness.sh` (`--release` before upload; `--update-hash` after deliberately changing
+  the Accessibility disclosure text, and bump `AccessibilityConsent.DISCLOSURE_VERSION`)
+- Legal pages: `python3 scripts/build-legal-pages.py` (needs `scripts/legal-config.json` from the template)
+- Store images: `scripts/prepare-store-assets.sh <raw> <ready>` after `StoreAssetsTest`
 - Unit tests: `./gradlew :app:testDebugUnitTest`; UI + instrumented: `./gradlew :app:connectedDebugAndroidTest`
-- Play readiness guard: `scripts/check-play-readiness.sh` (`--release` before upload)
+- Server tests: `cd functions && npm test`
+- Release bundle: `./gradlew :app:bundleRelease` (refuses to run without signing; see `docs/launch-checklist.md`)
