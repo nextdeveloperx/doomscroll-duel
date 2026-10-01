@@ -59,6 +59,10 @@ fun Context.openOemAutostartSettings(oem: OemFamily): Boolean {
     return false
 }
 
+/** The app's own notification settings page, for when notifications are switched off. */
+fun Context.openAppNotificationSettings() =
+    startSafely(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+
 /** Shares plain text through the system share sheet. */
 fun Context.shareText(text: String) {
     val send = Intent(Intent.ACTION_SEND)

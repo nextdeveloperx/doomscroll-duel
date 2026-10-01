@@ -65,7 +65,24 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <!-- The user changed the clock or the time zone: bedtime and focus windows move with local time. -->
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
+
+        <!-- Approve / Deny buttons on a friend's unlock-request notification. -->
+        <receiver
+            android:name=".blocking.unlock.UnlockActionReceiver"
+            android:exported="false" />
+
+        <!-- Push messages for friend unlock (request to the friend, answer to the person who asked). -->
+        <service
+            android:name=".blocking.unlock.UnlockMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

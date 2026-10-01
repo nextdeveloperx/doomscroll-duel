@@ -2,6 +2,7 @@ package com.doomscrollduel.feature.home
 
 import com.doomscrollduel.core.designsystem.brain.BrainState
 import com.doomscrollduel.core.designsystem.brain.ReelUsage
+import com.doomscrollduel.domain.blocking.ActiveWindow
 import com.doomscrollduel.tracking.health.TrackingIssue
 import com.doomscrollduel.tracking.model.TrackedApp
 
@@ -27,6 +28,8 @@ data class HomeUiState(
     val issue: TrackingIssue,
     /** Null when no duel is running. */
     val battle: ActiveBattleUi?,
+    /** A bedtime or focus window running now: the reel limit is zero until it ends. Null otherwise. */
+    val window: ActiveWindow? = null,
 ) {
     val percentUsed: Int get() = ReelUsage.percentUsed(reelsToday, reelLimit)
     val brainState: BrainState get() = BrainState.fromPercentUsed(percentUsed)

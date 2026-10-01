@@ -1,30 +1,31 @@
 package com.doomscrollduel.domain.challenge.lock
 
+import com.doomscrollduel.core.common.DayKeys
+import com.doomscrollduel.domain.blocking.ClockSample
+import com.doomscrollduel.domain.blocking.LockClock
 import com.doomscrollduel.domain.challenge.ChallengeMode
 import com.doomscrollduel.domain.challenge.PlayerId
 import com.doomscrollduel.domain.challenge.ProGate
 import java.time.Duration
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * STRICT LOCK (Pro to set up). The user sets a daily reel cap. When the cap is reached, the reel
- * screens of the tracked apps are blocked until the lock timer ends. While locked, the lock cannot be
- * switched off or loosened. The only exception is a friend unlock. It is a personal mode: no opponent,
- * no coins.
+ * STRICT TIMER-LOCK (Pro to set up). When today's reels reach the daily limit, a lock timer starts. While it
+ * runs, the reel screens of the tracked apps are blocked and the lock cannot be switched off or loosened.
+ * The only exception is a friend's 15 minute pass (see `FriendPass`, `UnlockCoordinator`).
  *
- * Only the reel screens are blocked (the same surfaces the counter recognises), never a whole app.
+ * Time is real time, not the calendar: the lock adds up elapsed time (`LockClock`), so moving the phone clock,
+ * changing the time zone, killing the app or rebooting cannot shorten it.
  *
- * Honest limit: Android lets the user turn the accessibility service off or uninstall the app, and the
- * lock cannot stop that. The app shows that enforcement was lost and the lock keeps running; it is a
- * commitment tool, not a parental-control system.
+ * Honest limit: Android lets a user turn the accessibility service off or uninstall the app. The lock cannot
+ * stop that; it is a commitment tool, not parental control.
  */
 sealed interface LockLength {
-    /** Lock until local midnight, when the new day gives a fresh cap. */
+    /** Lock until local midnight, when the new day gives a fresh limit. */
     data object UntilMidnight : LockLength
 
-    /** Lock for a fixed number of hours (1 to 12). When it ends, a fresh allowance of one cap starts. */
+    /** Lock for a fixed number of hours (1 to 12). When it ends, a fresh allowance of one limit starts. */
     data class Hours(val hours: Int) : LockLength {
         init {
             require(hours in 1..12) { "hours must be 1..12" }
@@ -33,73 +34,68 @@ sealed interface LockLength {
 }
 
 data class StrictLockConfig(
+    /** The daily reel limit. Hitting it starts the lock. */
     val dailyCap: Int,
     val lockLength: LockLength,
     /** The one friend who may unlock. Null means nobody can, and the lock is absolute. */
     val unlockBuddy: PlayerId?,
-    val maxFriendPassesPerLock: Int = DEFAULT_PASSES_PER_LOCK,
-    /** A raised cap waits here until the given day. Lowering the cap is immediate. */
+    /** A raised limit waits here until the given day. Lowering the limit is immediate. */
     val pendingCap: PendingCap? = null,
 ) {
     init {
         require(dailyCap in MIN_CAP..MAX_CAP) { "dailyCap must be $MIN_CAP..$MAX_CAP" }
-        require(maxFriendPassesPerLock in 0..MAX_PASSES) { "passes per lock must be 0..$MAX_PASSES" }
     }
 
-    /** The cap that applies on [day]. */
+    /** The limit that applies on [day]. */
     fun capOn(day: LocalDate): Int = if (pendingCap != null && !day.isBefore(pendingCap.from)) pendingCap.cap else dailyCap
 
     companion object {
         const val MIN_CAP = 10
         const val MAX_CAP = 1_000
-        const val DEFAULT_PASSES_PER_LOCK = 2
-        const val MAX_PASSES = 5
-        val PASS_LENGTH: Duration = Duration.ofMinutes(15)
     }
 }
 
 data class PendingCap(val cap: Int, val from: LocalDate)
 
 /**
- * `Idle -> Locked -> (FriendPass -> Locked)* -> Idle`.
- * [Idle.baseline] is the day's total when the last lock ended; the cap counts reels since then.
+ * `Idle -> Locked -> Idle`. [Idle.baseline] is the day's total when the last lock ended; the limit counts
+ * reels since then.
  */
 sealed interface StrictLockState {
     data class Idle(val day: LocalDate, val baseline: Int = 0) : StrictLockState
 
+    /**
+     * [totalMs] is how long the lock lasts and [progressMs] how much of it has really elapsed. [lastSample] is
+     * the reading at which [progressMs] was last brought up to date. [lockedAtWallMs] is for display only.
+     */
     data class Locked(
         val day: LocalDate,
-        val lockedAt: Instant,
-        val endsAt: Instant,
+        val lockedAtWallMs: Long,
+        val totalMs: Long,
+        val progressMs: Long,
+        val lastSample: ClockSample,
         /** Day total when the lock started. Becomes the next baseline. */
         val totalAtLock: Int,
-        val passesUsed: Int = 0,
-        /** Monotonic clock reading and boot id at lock time, to resist the user moving the phone clock. */
-        val lockedAtElapsedMs: Long? = null,
-        val bootId: String? = null,
-    ) : StrictLockState
-
-    /** A friend unlocked for [passUntil]. The lock timer keeps running underneath. */
-    data class FriendPass(val locked: Locked, val passUntil: Instant) : StrictLockState
+    ) : StrictLockState {
+        val remainingMs: Long get() = (totalMs - progressMs).coerceAtLeast(0L)
+        val remaining: Duration get() = Duration.ofMillis(remainingMs)
+    }
 }
 
-/** What the reel screens should do right now. */
+/** What the reel screens should do right now because of the timer lock. */
 sealed interface LockDecision {
     data object Allow : LockDecision
 
-    /** Block the reel screen. [canAskFriend] says whether the "ask a friend" button is offered. */
-    data class Block(val remaining: Duration, val canAskFriend: Boolean) : LockDecision
+    data class Block(val remaining: Duration) : LockDecision
 }
 
+/** The state brought up to date, and what it means. Persist [state]: it holds the new progress. */
+data class LockEvaluation(val state: StrictLockState, val decision: LockDecision)
+
 enum class LockReject {
-    /** Switching off or changing a locked lock. */
+    /** Switching off or changing a lock that is running. */
     LOCKED,
     NEEDS_PRO,
-    NO_BUDDY,
-    NOT_THE_BUDDY,
-    NOT_LOCKED,
-    NO_PASSES_LEFT,
-    PASS_ALREADY_ACTIVE,
 }
 
 sealed interface LockChange {
@@ -107,141 +103,80 @@ sealed interface LockChange {
     data class Rejected(val reason: LockReject) : LockChange
 }
 
-sealed interface LockStep {
-    data class Moved(val state: StrictLockState) : LockStep
-    data class Rejected(val reason: LockReject) : LockStep
-}
-
 object StrictLock {
 
     /** Only Pro users can set a lock up. A lapsed Pro keeps the lock that is running but cannot start new ones. */
     fun canSetUp(isPro: Boolean) = ProGate.canCreate(ChallengeMode.STRICT_LOCK, isPro)
 
-    fun isLocked(state: StrictLockState) = state !is StrictLockState.Idle
+    fun isLocked(state: StrictLockState) = state is StrictLockState.Locked
 
     /** Midnight rolls an Idle state to the new day with a fresh baseline. A running lock is left alone. */
     fun rollDay(state: StrictLockState, today: LocalDate): StrictLockState =
         if (state is StrictLockState.Idle && state.day != today) StrictLockState.Idle(today, baseline = 0) else state
 
     /**
-     * Called every time the counter counts a reel. [dayTotal] is today's total including that reel.
-     * The reel that crosses the cap is already counted; the lock starts right after it.
+     * Brings [state] up to date with [now]: adds the real time that passed to a running lock and ends it when it
+     * is used up. When a lock ends, the baseline moves to the total at lock time (same day) or resets (new day).
+     * Safe to call as often as you like.
      */
-    fun onReelCounted(
-        config: StrictLockConfig,
-        state: StrictLockState,
-        now: Instant,
-        zone: ZoneId,
-        dayTotal: Int,
-        elapsedMs: Long? = null,
-        bootId: String? = null,
-    ): StrictLockState {
-        val today = now.atZone(zone).toLocalDate()
-        val current = rollDay(state, today)
-        if (current !is StrictLockState.Idle) return current
-        val sinceBaseline = dayTotal - current.baseline
-        if (sinceBaseline < config.capOn(today)) return current
-        return StrictLockState.Locked(
-            day = today,
-            lockedAt = now,
-            endsAt = lockEnd(config.lockLength, now, zone),
-            totalAtLock = dayTotal,
-            lockedAtElapsedMs = elapsedMs,
-            bootId = bootId,
-        )
-    }
-
-    fun lockEnd(length: LockLength, now: Instant, zone: ZoneId): Instant = when (length) {
-        LockLength.UntilMidnight -> now.atZone(zone).toLocalDate().plusDays(1).atStartOfDay(zone).toInstant()
-        is LockLength.Hours -> now.plus(Duration.ofHours(length.hours.toLong()))
-    }
-
-    /**
-     * Time left on a lock. Moving the phone clock forward must not shorten it: while the phone has not
-     * rebooted we also measure with the monotonic clock and trust the SMALLER elapsed time. After a reboot
-     * only the wall clock is left, and a clock moved back only makes the lock longer.
-     */
-    fun remaining(locked: StrictLockState.Locked, now: Instant, elapsedMs: Long? = null, bootId: String? = null): Duration {
-        val total = Duration.between(locked.lockedAt, locked.endsAt)
-        var elapsed = Duration.between(locked.lockedAt, now).coerceAtLeast(Duration.ZERO)
-        val sameBoot = bootId != null && bootId == locked.bootId
-        if (sameBoot && elapsedMs != null && locked.lockedAtElapsedMs != null) {
-            val mono = Duration.ofMillis((elapsedMs - locked.lockedAtElapsedMs).coerceAtLeast(0))
-            if (mono < elapsed) elapsed = mono
-        }
-        return (total - elapsed).coerceAtLeast(Duration.ZERO)
-    }
-
-    /**
-     * Moves time forward: ends a finished friend pass, and ends a finished lock (back to Idle with the
-     * baseline set to the total at lock time, or to a fresh day).
-     */
-    fun tick(state: StrictLockState, now: Instant, zone: ZoneId, elapsedMs: Long? = null, bootId: String? = null): StrictLockState {
-        val today = now.atZone(zone).toLocalDate()
+    fun advance(state: StrictLockState, now: ClockSample, zone: ZoneId): StrictLockState {
+        val today = DayKeys.dateOf(now.calendarMs, zone)
         return when (state) {
             is StrictLockState.Idle -> rollDay(state, today)
-            is StrictLockState.FriendPass ->
-                if (now.isBefore(state.passUntil)) state else tick(state.locked, now, zone, elapsedMs, bootId)
-            is StrictLockState.Locked ->
-                if (remaining(state, now, elapsedMs, bootId) > Duration.ZERO) {
-                    state
-                } else if (state.endsAt.atZone(zone).toLocalDate() != state.day || today != state.day) {
-                    StrictLockState.Idle(today, baseline = 0)
-                } else {
-                    StrictLockState.Idle(today, baseline = state.totalAtLock)
+            is StrictLockState.Locked -> {
+                val progress = state.progressMs + LockClock.advanceMs(state.lastSample, now)
+                when {
+                    progress < state.totalMs -> state.copy(progressMs = progress, lastSample = now)
+                    today != state.day -> StrictLockState.Idle(today, baseline = 0)
+                    else -> StrictLockState.Idle(today, baseline = state.totalAtLock)
                 }
-        }
-    }
-
-    fun decide(
-        config: StrictLockConfig,
-        state: StrictLockState,
-        now: Instant,
-        elapsedMs: Long? = null,
-        bootId: String? = null,
-    ): LockDecision = when (state) {
-        is StrictLockState.Idle -> LockDecision.Allow
-        is StrictLockState.FriendPass ->
-            if (now.isBefore(state.passUntil)) LockDecision.Allow else decide(config, state.locked, now, elapsedMs, bootId)
-        is StrictLockState.Locked -> {
-            val left = remaining(state, now, elapsedMs, bootId)
-            if (left == Duration.ZERO) {
-                LockDecision.Allow
-            } else {
-                LockDecision.Block(
-                    remaining = left,
-                    canAskFriend = config.unlockBuddy != null && state.passesUsed < config.maxFriendPassesPerLock,
-                )
             }
         }
     }
 
-    // ----- friend unlock ---------------------------------------------------------------------------
-
-    /** The friend approves one 15 minute pass. Nobody else can. */
-    fun friendApproves(config: StrictLockConfig, state: StrictLockState, by: PlayerId, now: Instant): LockStep {
-        val locked = when (state) {
-            is StrictLockState.Locked -> state
-            is StrictLockState.FriendPass -> return LockStep.Rejected(LockReject.PASS_ALREADY_ACTIVE)
-            is StrictLockState.Idle -> return LockStep.Rejected(LockReject.NOT_LOCKED)
-        }
-        val buddy = config.unlockBuddy ?: return LockStep.Rejected(LockReject.NO_BUDDY)
-        if (by != buddy) return LockStep.Rejected(LockReject.NOT_THE_BUDDY)
-        if (locked.passesUsed >= config.maxFriendPassesPerLock) return LockStep.Rejected(LockReject.NO_PASSES_LEFT)
-        val used = locked.copy(passesUsed = locked.passesUsed + 1)
-        // A pass never runs past the lock itself.
-        val until = minOf(now.plus(StrictLockConfig.PASS_LENGTH), locked.endsAt)
-        return LockStep.Moved(StrictLockState.FriendPass(used, until))
+    fun evaluate(state: StrictLockState, now: ClockSample, zone: ZoneId): LockEvaluation {
+        val current = advance(state, now, zone)
+        val decision = if (current is StrictLockState.Locked) LockDecision.Block(current.remaining) else LockDecision.Allow
+        return LockEvaluation(current, decision)
     }
 
-    // ----- changing the settings -----------------------------------------------------------------
+    /**
+     * Called every time the counter counts a reel. [dayTotal] is today's total including that reel.
+     * The reel that reaches the limit is already counted; the lock starts right after it.
+     */
+    fun onReelCounted(
+        config: StrictLockConfig,
+        state: StrictLockState,
+        now: ClockSample,
+        zone: ZoneId,
+        dayTotal: Int,
+    ): StrictLockState {
+        val current = advance(state, now, zone)
+        if (current !is StrictLockState.Idle) return current
+        val today = DayKeys.dateOf(now.calendarMs, zone)
+        if (dayTotal - current.baseline < config.capOn(today)) return current
+        return StrictLockState.Locked(
+            day = today,
+            lockedAtWallMs = now.wallMs,
+            totalMs = lockMillis(config.lockLength, now, zone),
+            progressMs = 0L,
+            lastSample = now,
+            totalAtLock = dayTotal,
+        )
+    }
 
-    /** Switching the mode off. Not possible while locked, with or without a pass. */
+    /** How long a lock started at [now] lasts. For "until midnight" that is the time left today. */
+    fun lockMillis(length: LockLength, now: ClockSample, zone: ZoneId): Long = when (length) {
+        LockLength.UntilMidnight -> DayKeys.millisUntilNextDay(now.calendarMs, zone)
+        is LockLength.Hours -> length.hours * 3_600_000L
+    }
+
+    /** Switching the mode off. Not possible while locked. */
     fun canSwitchOff(state: StrictLockState): Boolean = state is StrictLockState.Idle
 
     /**
-     * Changing the cap. While locked: not allowed. Otherwise a LOWER cap applies at once and a HIGHER cap
-     * applies from tomorrow, so nobody can raise the cap right before hitting it.
+     * Changing the limit. While locked: not allowed. Otherwise a LOWER limit applies at once and a HIGHER one
+     * applies from tomorrow, so nobody can raise the limit right before hitting it.
      */
     fun changeCap(config: StrictLockConfig, state: StrictLockState, newCap: Int, today: LocalDate): LockChange {
         if (state !is StrictLockState.Idle) return LockChange.Rejected(LockReject.LOCKED)
@@ -250,7 +185,8 @@ object StrictLock {
             when {
                 newCap < current -> config.copy(dailyCap = newCap, pendingCap = null)
                 newCap > current -> config.copy(dailyCap = current, pendingCap = PendingCap(newCap, today.plusDays(1)))
-                else -> config
+                // Back to today's limit: a raise that was waiting for tomorrow is cancelled.
+                else -> config.copy(dailyCap = current, pendingCap = null)
             },
         )
     }

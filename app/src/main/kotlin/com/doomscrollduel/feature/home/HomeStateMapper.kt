@@ -1,5 +1,6 @@
 package com.doomscrollduel.feature.home
 
+import com.doomscrollduel.domain.blocking.ActiveWindow
 import com.doomscrollduel.domain.model.DailyReelStats
 import com.doomscrollduel.tracking.health.TrackingHealth
 import com.doomscrollduel.tracking.model.TrackedApp
@@ -20,6 +21,7 @@ object HomeStateMapper {
         health: TrackingHealth,
         profile: Profile,
         battle: ActiveBattleUi?,
+        window: ActiveWindow? = null,
     ): HomeUiState = HomeUiState(
         userName = profile.name,
         streakDays = streak,
@@ -30,5 +32,6 @@ object HomeStateMapper {
         issue = health.issue,
         // A duel's own count starts at its start time; until duels are real this mirrors today's total.
         battle = battle?.copy(myReels = stats.total),
+        window = window,
     )
 }

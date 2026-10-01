@@ -12,6 +12,7 @@ import java.time.ZoneId
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
@@ -48,6 +49,9 @@ class RoomReelRepository(
                 DailyReelStats(date, perApp, updated)
             }
         }
+
+    override suspend fun todayTotal(): Int =
+        dao.observeDay(DayKeys.key(dayClock.nowDate())).first().sumOf { it.count }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeStreak(limit: Flow<Int>): Flow<Int> {

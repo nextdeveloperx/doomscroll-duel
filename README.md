@@ -17,3 +17,8 @@ Gradle scaffolding (Milestone 1) is not in this folder yet. The design system ne
 - `namespace` must be `com.doomscrollduel` (the code imports `com.doomscrollduel.R`).
 
 Fonts (`res/font`) are SIL OFL 1.1, licences in `licenses/`.
+
+## Added dependencies (blocking engine)
+androidx.datastore:datastore-preferences, androidx.work:work-runtime-ktx, androidx.lifecycle (runtime/service),
+androidx.savedstate, firebase-auth, firebase-firestore, firebase-functions, firebase-messaging,
+kotlinx-coroutines-play-services. Server: `functions/` (Node 20, `npm test`).

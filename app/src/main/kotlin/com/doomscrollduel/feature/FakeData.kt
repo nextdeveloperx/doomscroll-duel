@@ -9,7 +9,6 @@ import com.doomscrollduel.feature.duel.result.ResultUiState
 import com.doomscrollduel.feature.home.ActiveBattleUi
 import com.doomscrollduel.feature.home.AppCount
 import com.doomscrollduel.feature.home.HomeUiState
-import com.doomscrollduel.feature.settings.SettingsUiState
 import com.doomscrollduel.tracking.health.TrackingIssue
 import com.doomscrollduel.tracking.model.TrackedApp
 
@@ -63,15 +62,5 @@ object FakeData {
         opponent = ResultFighter("Aman", 38),
         reelLimit = 100,
         stakeCoins = 50,
-    )
-
-    val settings = SettingsUiState(
-        strictLock = true,
-        friendUnlock = false,
-        wait10Gate = true,
-        bedtimeMode = true,
-        focusHours = false,
-        accessibilityEnabled = true,
-        batteryUnrestricted = false,
     )
 }

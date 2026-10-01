@@ -66,6 +66,14 @@ Other docs: `docs/manual-test-checklist.md`, `docs/privacy-data-flow.md`, `docs/
   and deleted after 7 days. Strict Lock cannot stop the user turning the service off; say so honestly.
 - Sign-in will be Google or Indian phone number. Friends by username or invite link, NO contact upload.
 
+## Blocking engine (turn 6) - built
+Pure core `domain/blocking/*` + glue `blocking/*`, overlay `feature/blocking`, Settings fully wired, Focus hours
+screen, Cloud Functions `functions/` (requestUnlock/respondUnlock), rules for unlockRequests/fcmTokens.
+See `docs/blocking-engine.md` and `docs/blocking-test-plan.md`. 361 pure tests pass; full Android code compile-checked
+against shims only. Not run on a device. Unlock needs sign-in + friends (BuddyDirectory is empty until then).
+Decisions to review: friend pass also lifts windows; rolling 24 h quota; window edits locked while running; Pro gating
+of Strict Lock not enforced (no billing yet).
+
 ## What is NOT verified or NOT built yet
 - No Gradle project exists yet (Milestone 1). Needed deps: compose-bom, ui, foundation, animation,
   ui-tooling-preview, ui-text, navigation-compose, hilt (+ hilt-navigation-compose), room, lifecycle-runtime-compose,
@@ -74,7 +82,7 @@ Other docs: `docs/manual-test-checklist.md`, `docs/privacy-data-flow.md`, `docs/
   real Android 14 framework jars with Hilt/Room/Lifecycle stubbed. Pure-logic tests (235) really pass.
 - Firestore rules untested (no emulator was available).
 - Still fake: profile name/coins, the duel card's opponent count (see `feature/FakeData.kt`).
-- Not built: Firebase sign-in + Firestore implementations, Cloud Functions (expire/settle/tick), screens for squad
+- Not built: Firebase sign-in + Firestore implementations, Cloud Functions for settle/expire/tick (unlock functions exist, undeployed), screens for squad
   lobby / night pact / dare flow / strict lock, Room tables `night_counts` and `strict_lock` (+ migration 1 to 2),
   photo/video proof upload, onboarding with the Play accessibility disclosure, Strict Lock enforcement (needs a
   Play declaration decision), Play Billing for Pro.

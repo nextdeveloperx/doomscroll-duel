@@ -13,6 +13,11 @@ enum class TrackingIssue {
 data class TrackingHealth(
     val accessibilityEnabled: Boolean,
     val batteryUnrestricted: Boolean,
+    /**
+     * Notifications can be shown. Counting works without them, but friend-unlock requests would not reach the
+     * phone and the quiet counter notification would be hidden. Shown on Settings, not as a Home banner.
+     */
+    val notificationsEnabled: Boolean = true,
 ) {
     val issue: TrackingIssue
         get() = when {

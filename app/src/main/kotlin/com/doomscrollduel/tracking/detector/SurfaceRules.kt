@@ -26,6 +26,9 @@ class SurfaceRules(rules: List<SurfaceRule>) {
 
     fun isConfigured(app: TrackedApp): Boolean = byApp[app]?.viewIds?.isNotEmpty() == true
 
+    /** The pager view ids of [app], used to tell whether its reel screen is open. Empty when unknown. */
+    fun viewIdsOf(app: TrackedApp): Set<String> = byApp[app]?.viewIds.orEmpty()
+
     fun matchesScroll(app: TrackedApp, className: String?, viewId: String?): Boolean {
         val rule = byApp[app] ?: return false
         if (rule.viewIds.isEmpty() || viewId == null) return false

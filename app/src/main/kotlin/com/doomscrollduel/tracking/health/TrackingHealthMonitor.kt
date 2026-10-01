@@ -44,6 +44,7 @@ class TrackingHealthMonitor @Inject constructor(
         accessibilityEnabled = isAccessibilityEnabled(),
         batteryUnrestricted = context.getSystemService(PowerManager::class.java)
             .isIgnoringBatteryOptimizations(context.packageName),
+        notificationsEnabled = context.getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled(),
     )
 
     private fun isAccessibilityEnabled(): Boolean {

@@ -43,6 +43,8 @@ import com.doomscrollduel.core.designsystem.components.TabbedScreenPreview
 import com.doomscrollduel.core.designsystem.components.VsBadge
 import com.doomscrollduel.core.designsystem.components.scaled
 import com.doomscrollduel.core.designsystem.theme.DuelTheme
+import com.doomscrollduel.domain.blocking.TimeFormat
+import com.doomscrollduel.domain.blocking.WindowKind
 import com.doomscrollduel.feature.FakeData
 import com.doomscrollduel.feature.common.accent
 import com.doomscrollduel.feature.common.label
@@ -98,6 +100,17 @@ fun HomeScreen(
             color = DuelTheme.colors.textMuted,
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
+        state.window?.let { window ->
+            Spacer(Modifier.height(8.dp))
+            StatusPill(
+                text = stringResource(
+                    if (window.kind == WindowKind.BEDTIME) R.string.home_window_bedtime else R.string.home_window_focus,
+                    TimeFormat.time12(window.end.atZone(java.time.ZoneId.systemDefault()).toLocalTime()),
+                ),
+                fill = DuelTheme.colors.lavender,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+        }
         Spacer(Modifier.height(12.dp.scaled()))
         DuelText(
             text = stringResource(R.string.home_brain_hp),

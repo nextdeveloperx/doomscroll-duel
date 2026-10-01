@@ -38,3 +38,9 @@ totals are uploaded for the duel, and only the opponent in that duel can read th
 ## Disclosure text the user must see before enabling
 The text in `a11y_service_description` must also be shown in a full-screen prominent disclosure with an
 explicit "Haan, chalu karo" / "Nahi" choice before opening Accessibility settings (onboarding milestone).
+
+## Blocking engine additions
+The accessibility service now also: listens to `typeWindowStateChanged` (package name only), asks `ReelScreenProbe`
+whether a known layout view id is on screen (a yes/no, nothing read), and performs the global Back and Home actions
+when a lock/gate is active. Nothing new is stored or uploaded about what the user watches. The unlock flow uploads
+only: requester uid, friend uid, status and timestamps.

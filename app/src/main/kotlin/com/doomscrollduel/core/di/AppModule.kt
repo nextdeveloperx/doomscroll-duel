@@ -9,7 +9,21 @@ import androidx.room.Room
 import com.doomscrollduel.core.common.DayClock
 import com.doomscrollduel.data.local.AppDatabase
 import com.doomscrollduel.data.local.ReelCountDao
-import com.doomscrollduel.data.prefs.SharedPrefsReelLimitStore
+import com.doomscrollduel.blocking.AndroidClockSource
+import com.doomscrollduel.blocking.BuddyDirectory
+import com.doomscrollduel.blocking.EmptyBuddyDirectory
+import com.doomscrollduel.blocking.SystemZoneSource
+import com.doomscrollduel.blocking.unlock.FirebaseUnlockRepository
+import com.doomscrollduel.blocking.unlock.UnlockRepository
+import com.doomscrollduel.data.prefs.DataStoreBlockingSettings
+import com.doomscrollduel.data.prefs.DataStoreBlockingState
+import com.doomscrollduel.data.prefs.SettingsBackedReelLimitStore
+import com.doomscrollduel.domain.blocking.BlockingController
+import com.doomscrollduel.domain.blocking.BlockingSettingsSource
+import com.doomscrollduel.domain.blocking.BlockingStateStore
+import com.doomscrollduel.domain.blocking.ClockSource
+import com.doomscrollduel.domain.blocking.ObservableBlockingSettings
+import com.doomscrollduel.domain.blocking.ZoneSource
 import com.doomscrollduel.data.repository.RoomReelRepository
 import com.doomscrollduel.domain.repository.ReelLimitStore
 import com.doomscrollduel.domain.repository.ReelRepository
@@ -100,5 +114,40 @@ object AppModule {
 @InstallIn(SingletonComponent::class)
 abstract class BindingsModule {
     @Binds
-    abstract fun reelLimitStore(impl: SharedPrefsReelLimitStore): ReelLimitStore
+    abstract fun reelLimitStore(impl: SettingsBackedReelLimitStore): ReelLimitStore
+
+    @Binds
+    abstract fun observableSettings(impl: DataStoreBlockingSettings): ObservableBlockingSettings
+
+    @Binds
+    abstract fun settingsSource(impl: DataStoreBlockingSettings): BlockingSettingsSource
+
+    @Binds
+    abstract fun stateStore(impl: DataStoreBlockingState): BlockingStateStore
+
+    @Binds
+    abstract fun clockSource(impl: AndroidClockSource): ClockSource
+
+    @Binds
+    abstract fun zoneSource(impl: SystemZoneSource): ZoneSource
+
+    @Binds
+    abstract fun unlockRepository(impl: FirebaseUnlockRepository): UnlockRepository
+
+    @Binds
+    abstract fun buddyDirectory(impl: EmptyBuddyDirectory): BuddyDirectory
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+object BlockingModule {
+    /** One controller for the whole process: the service, Settings, the worker and FCM all talk to the same one. */
+    @Provides
+    @Singleton
+    fun blockingController(
+        settings: ObservableBlockingSettings,
+        store: BlockingStateStore,
+        clock: ClockSource,
+        zone: ZoneSource,
+    ): BlockingController = BlockingController(settings, store, clock, zone)
 }

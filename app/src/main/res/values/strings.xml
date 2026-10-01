@@ -14,6 +14,8 @@
     <string name="home_battle_title">Battle chal rahi hai</string>
     <string name="home_time_left">%1$s baaki</string>
     <string name="home_stake_line">Stake: %1$d coins · Kam reels wala jeetega</string>
+    <string name="home_window_bedtime">Bedtime mode chalu: %1$s tak reels band</string>
+    <string name="home_window_focus">Focus hours chalu: %1$s tak reels band</string>
     <string name="home_open_battle">Live battle dekho</string>
     <string name="home_new_battle">NAYI BATTLE SHURU KARO</string>
 
@@ -102,7 +104,7 @@
 
     <!-- App and counter service -->
     <string name="app_name">Doomscroll Duel</string>
-    <string name="a11y_service_description">Reels, Shorts aur Spotlight ginne ke liye. Yeh sirf Instagram, YouTube, Facebook aur Snapchat ka naam aur scroll dekhta hai, aur gin-ti ek number ki tarah phone mein rakhta hai. Yeh kabhi nahi padhta ya bhejta ki tum kya dekh rahe ho: koi text, username, caption ya video nahi. Yeh kuch tap ya type nahi kar sakta.</string>
+    <string name="a11y_service_description">Reels, Shorts aur Spotlight ginne ke liye. Yeh sirf Instagram, YouTube, Facebook aur Snapchat ka naam aur scroll dekhta hai, aur gin-ti ek number ki tarah phone mein rakhta hai. Yeh kabhi nahi padhta ya bhejta ki tum kya dekh rahe ho: koi text, username, caption ya video nahi. Jab tumne limit, bedtime ya focus lagaya ho, tab yeh reels screen se Back ya Home dabake wapas bhej sakta hai. Yeh kuch tap ya type nahi kar sakta.</string>
     <string name="tracking_channel_name">Reel counter</string>
     <string name="tracking_channel_description">Chhota, shaant notification jo counter ko chalta rakhta hai.</string>
     <string name="tracking_notification_title">Reel counter chalu hai</string>
@@ -167,4 +169,101 @@
     <string name="dare_tidy_desk">Apni study desk saaf karo aur photo lo.</string>
     <string name="dare_compliment_video">10 second ke video mein winner ke baare mein teen achhi baatein bolo.</string>
     <string name="dare_glass_of_water">Ek poora glass paani piyo aur khaali glass dikhao.</string>
+
+    <!-- Blocking overlay: Brain bachao -->
+    <string name="overlay_title">Brain bachao!</string>
+    <string name="overlay_reason_lock">Aaj ki limit poori ho gayi. Brain ko aaram do.</string>
+    <string name="overlay_reason_bedtime">Bedtime mode chal raha hai. Reels abhi band hain.</string>
+    <string name="overlay_reason_focus">Focus hours chal rahe hain. Reels abhi band hain.</string>
+    <string name="overlay_time_left_cd">%1$s baaki</string>
+    <string name="overlay_ask_friend">DOST SE UNLOCK MAANGO</string>
+    <string name="overlay_ok">THEEK HAI</string>
+    <string name="overlay_ask_left">%1$d request bachi hain (24 ghante mein 3)</string>
+    <string name="overlay_ask_sending">Request bhej rahe hain...</string>
+    <string name="overlay_ask_waiting">Dost ke jawab ka intezaar... (30 min tak)</string>
+    <string name="overlay_ask_no_network">Internet nahi hai. Request nahi gayi aur ginti mein nahi judi. Dobara try karo.</string>
+    <string name="overlay_ask_quota_used">24 ghante mein 3 request ho chuki hain.</string>
+    <string name="overlay_ask_not_signed_in">Pehle sign in karo.</string>
+    <string name="overlay_ask_failed">Kuch gadbad hui. Dobara try karo.</string>
+    <string name="overlay_ask_ended">Dost ne mana kar diya ya jawab nahi diya.</string>
+
+    <!-- Wait-10 gate -->
+    <string name="gate_title">Ruko. Phir se soch lo.</string>
+    <string name="gate_breathe_in">Saans andar...</string>
+    <string name="gate_breathe_out">Saans bahar...</string>
+    <string name="gate_leave">REHNE DO</string>
+    <string name="gate_continue">DEKHNA HAI</string>
+    <string name="gate_continue_wait">DEKHNA HAI (%1$d)</string>
+
+    <!-- Friend unlock notifications (shown to the friend) -->
+    <string name="unlock_channel_name">Unlock requests</string>
+    <string name="unlock_channel_description">Dost ke unlock maangne ke request</string>
+    <string name="unlock_request_title">%1$s ko unlock chahiye</string>
+    <string name="unlock_request_body">15 minute ke liye reels khol de?</string>
+    <string name="unlock_retry_body">Jawab nahi ja paya. Internet check karke dobara dabao.</string>
+    <string name="unlock_approve">Haan, kholo</string>
+    <string name="unlock_deny">Nahi</string>
+
+    <!-- Settings: reels block -->
+    <string name="settings_lock_running">Lock chal raha hai: %1$s baaki</string>
+    <string name="settings_limit_title">Roz ki limit</string>
+    <string name="settings_limit_sub">Itni reels ke baad lock lagega aur brain zombie banega.</string>
+    <string name="settings_limit_pending">Kal se %1$d. Badhane ka asar kal se hota hai.</string>
+    <string name="settings_limit_value_cd">%1$d reels</string>
+    <string name="settings_lock_length_title">Lock kitni der</string>
+    <string name="lock_len_1h">1 ghanta</string>
+    <string name="lock_len_3h">3 ghante</string>
+    <string name="lock_len_midnight">Raat 12 tak</string>
+    <string name="settings_buddy_title">Unlock wala dost</string>
+    <string name="settings_buddy_none">Koi dost nahi chuna</string>
+    <string name="settings_buddy_empty">Abhi koi dost nahi jude. Pehle dost jodo, phir yahan chuno.</string>
+    <string name="settings_friend_unlock_quota">24 ghante mein 3 request. Dost ke approve karne par 15 minute ka pass.</string>
+
+    <!-- Settings: time -->
+    <string name="settings_bedtime_range">%1$s se %2$s tak reels band.</string>
+    <string name="settings_bedtime_start">Shuru</string>
+    <string name="settings_bedtime_end">Khatam</string>
+    <string name="settings_time_earlier">%1$s 30 minute pehle karo</string>
+    <string name="settings_time_later">%1$s 30 minute baad karo</string>
+    <string name="settings_focus_summary_none">Abhi koi schedule nahi.</string>
+    <string name="settings_focus_summary">%1$d din ka schedule. In time mein reels band.</string>
+    <string name="settings_focus_edit">SCHEDULE BADLO</string>
+    <string name="settings_window_running">%1$s chal raha hai: %2$s baaki</string>
+    <string name="window_bedtime">Bedtime mode</string>
+    <string name="window_focus">Focus hours</string>
+
+    <!-- Settings: refusals -->
+    <string name="settings_blocked_lock">Lock chal raha hai. %1$s baad badal sakte ho.</string>
+    <string name="settings_blocked_window">%1$s chal raha hai. %2$s baad badal sakte ho.</string>
+    <string name="settings_blocked_needs_buddy">Pehle ek dost chuno.</string>
+    <string name="settings_blocked_range">Limit 10 se 1000 ke beech honi chahiye.</string>
+    <string name="settings_message_ok">THEEK HAI</string>
+
+    <!-- Settings: permission health -->
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_notifications_sub">Dost ke unlock request aur counter ka notification yahin aate hain.</string>
+    <string name="settings_fix">FIX KARO</string>
+    <string name="settings_permission_ok_cd">%1$s: theek hai</string>
+    <string name="settings_permission_bad_cd">%1$s: theek karna hai</string>
+
+    <!-- Focus hours screen -->
+    <string name="focus_title">Focus hours</string>
+    <string name="focus_intro">Har din ke liye alag time chuno. Un time mein reel limit zero ho jaati hai aur reels band rehti hain.</string>
+    <string name="day_mon">Som</string>
+    <string name="day_tue">Mang</string>
+    <string name="day_wed">Budh</string>
+    <string name="day_thu">Guru</string>
+    <string name="day_fri">Shuk</string>
+    <string name="day_sat">Shan</string>
+    <string name="day_sun">Ravi</string>
+    <string name="focus_add_range">TIME ADD KARO</string>
+    <string name="focus_remove">Hatao</string>
+    <string name="focus_remove_cd">%1$s ka time hatao</string>
+    <string name="focus_range_label">%1$s se %2$s</string>
+    <string name="focus_empty_day">Is din koi time nahi.</string>
+    <string name="focus_off_hint">Focus hours abhi band hain. Settings mein chalu karo, tab yeh time lagu honge.</string>
+    <string name="focus_running">Focus hours chal rahe hain, isliye schedule %1$s baad badal sakte ho.</string>
+    <string name="focus_problem_short">Kam se kam 30 minute chahiye.</string>
+    <string name="focus_problem_many">Ek din mein 3 se zyada time nahi.</string>
+    <string name="focus_problem_overlap">Yeh time kisi aur time se takra raha hai.</string>
 </resources>

@@ -14,6 +14,9 @@ interface ReelRepository {
     /** Today's counts. Switches to the new day at local midnight by itself. */
     fun observeToday(): Flow<DailyReelStats>
 
+    /** Today's total right now, for the timer-lock to compare with the limit. */
+    suspend fun todayTotal(): Int
+
     /** Days in a row under the daily limit, recomputed when counts or [limit] change. */
     fun observeStreak(limit: Flow<Int>): Flow<Int>
 
@@ -22,10 +25,12 @@ interface ReelRepository {
 }
 
 interface ReelLimitStore {
-    /** Daily reel limit used for the brain and the streak. */
+    /**
+     * The daily reel limit in force today, used for the brain, the streak and the timer-lock. It changes through
+     * Settings only (`SettingChange.DailyLimitChanged`), which applies the commitment rules: lower now, higher
+     * tomorrow, never while a lock runs.
+     */
     val limit: Flow<Int>
-
-    suspend fun setLimit(limit: Int)
 
     companion object {
         const val DEFAULT = 100

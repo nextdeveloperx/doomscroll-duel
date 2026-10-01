@@ -16,15 +16,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.LifecycleResumeEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.doomscrollduel.core.common.openAccessibilitySettings
 import com.doomscrollduel.core.common.shareText
 import com.doomscrollduel.core.designsystem.components.DuelTab
 import com.doomscrollduel.core.designsystem.components.DuelTabBar
@@ -37,8 +33,8 @@ import com.doomscrollduel.feature.duel.result.rememberShareText
 import com.doomscrollduel.feature.battery.BatteryGuideRoute
 import com.doomscrollduel.feature.home.HomeRoute
 import com.doomscrollduel.feature.modes.BattleModesScreen
+import com.doomscrollduel.feature.settings.FocusHoursRoute
 import com.doomscrollduel.feature.settings.SettingsRoute
-import com.doomscrollduel.tracking.health.TrackingHealthViewModel
 
 object Routes {
     const val HOME = "home"
@@ -48,6 +44,7 @@ object Routes {
     const val RESULT = "result"
     const val SETTINGS = "settings"
     const val BATTERY_GUIDE = "battery_guide"
+    const val FOCUS_HOURS = "focus_hours"
 }
 
 private const val FadeMillis = 180
@@ -55,7 +52,8 @@ private const val FadeMillis = 180
 /**
  * The app's navigation.
  *
- * Tabs (bottom bar): HOME, MODES ("Battles"), SETTINGS. BATTERY_GUIDE opens from the Home banner and Settings.
+ * Tabs (bottom bar): HOME, MODES ("Battles"), SETTINGS. BATTERY_GUIDE opens from the Home banner and Settings;
+ * FOCUS_HOURS opens from Settings.
  * Duel flow: HOME or MODES -> NEW_DUEL -> LIVE -> RESULT, and RESULT -> NEW_DUEL for a rematch.
  * Back stack rules: every step of the duel flow clears back to HOME first, so a duel in progress or a
  * finished result is never on the back stack behind another screen. Back from LIVE or RESULT goes Home;
@@ -153,19 +151,13 @@ fun DuelNavGraph(
                     )
                 }
                 composable(Routes.SETTINGS) {
-                    val context = LocalContext.current
-                    val healthModel: TrackingHealthViewModel = hiltViewModel()
-                    val health by healthModel.health.collectAsStateWithLifecycle()
-                    LifecycleResumeEffect(healthModel) {
-                        healthModel.refresh()
-                        onPauseOrDispose { }
-                    }
                     SettingsRoute(
-                        accessibilityEnabled = health.accessibilityEnabled,
-                        batteryUnrestricted = health.batteryUnrestricted,
-                        onOpenAccessibilitySettings = { context.openAccessibilitySettings() },
                         onOpenBatteryGuide = { navController.navigate(Routes.BATTERY_GUIDE) },
+                        onOpenFocusHours = { navController.navigate(Routes.FOCUS_HOURS) },
                     )
+                }
+                composable(Routes.FOCUS_HOURS) {
+                    FocusHoursRoute(onBack = { navController.popBackStack() })
                 }
                 composable(Routes.BATTERY_GUIDE) {
                     BatteryGuideRoute(onBack = { navController.popBackStack() })

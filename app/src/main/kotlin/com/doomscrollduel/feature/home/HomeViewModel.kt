@@ -3,6 +3,7 @@ package com.doomscrollduel.feature.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.doomscrollduel.core.designsystem.brain.BrainState
+import com.doomscrollduel.domain.blocking.BlockingController
 import com.doomscrollduel.domain.model.DailyReelStats
 import com.doomscrollduel.domain.repository.ReelLimitStore
 import com.doomscrollduel.domain.repository.ReelRepository
@@ -10,7 +11,9 @@ import com.doomscrollduel.feature.FakeData
 import com.doomscrollduel.tracking.health.TrackingHealthMonitor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -23,7 +26,16 @@ class HomeViewModel @Inject constructor(
     repository: ReelRepository,
     limitStore: ReelLimitStore,
     private val healthMonitor: TrackingHealthMonitor,
+    private val blocking: BlockingController,
 ) : ViewModel() {
+
+    /** A bedtime or focus window changes at most every few minutes, so a slow tick is plenty. */
+    private val windows = flow {
+        while (true) {
+            emit(blocking.status().window)
+            delay(WINDOW_TICK_MS)
+        }
+    }
 
     /** Everything the Home screen shows. Updates live as reels are counted. */
     val uiState: StateFlow<HomeUiState> = combine(
@@ -31,8 +43,9 @@ class HomeViewModel @Inject constructor(
         limitStore.limit,
         repository.observeStreak(limitStore.limit),
         healthMonitor.observe(),
-    ) { stats, limit, streak, health ->
-        HomeStateMapper.map(stats, limit, streak, health, FakeProfile.current, FakeData.home.battle)
+        windows,
+    ) { stats, limit, streak, health, window ->
+        HomeStateMapper.map(stats, limit, streak, health, FakeProfile.current, FakeData.home.battle, window)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS),
@@ -56,6 +69,7 @@ class HomeViewModel @Inject constructor(
     fun refreshHealth() = healthMonitor.refresh()
 
     private companion object {
+        const val WINDOW_TICK_MS = 30_000L
         const val STOP_TIMEOUT_MILLIS = 5_000L
     }
 }
