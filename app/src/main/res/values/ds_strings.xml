@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brain character (TalkBack descriptions) -->
+    <string name="ds_brain_you_happy">Tumhara brain mast hai</string>
+    <string name="ds_brain_you_fried">Tumhara brain fry ho raha hai</string>
+    <string name="ds_brain_you_zombie">Tumhara brain zombie ban gaya</string>
+    <string name="ds_brain_opponent_happy">Dost ka brain mast hai</string>
+    <string name="ds_brain_opponent_fried">Dost ka brain fry ho raha hai</string>
+    <string name="ds_brain_opponent_zombie">Dost ka brain zombie ban gaya</string>
+    <string name="ds_brain_winner_suffix">%1$s Winner ka crown pehna hai.</string>
+
+    <!-- HP bar -->
+    <string name="ds_hp_label">%1$d HP</string>
+    <string name="ds_hp_description">HP: %1$d bacha hai, 100 mein se</string>
+
+    <!-- Stat chips -->
+    <string name="ds_streak_description">%1$d din ki streak</string>
+    <string name="ds_coins_description">%1$d coins</string>
+
+    <!-- Mode tile -->
+    <string name="ds_tag_free">FREE</string>
+    <string name="ds_tag_pro">PRO</string>
+    <string name="ds_mode_tile_description">%1$s. %2$s. %3$s</string>
+
+    <!-- Stepper -->
+    <string name="ds_stepper_decrease">Kam karo</string>
+    <string name="ds_stepper_increase">Badhao</string>
+</resources>
