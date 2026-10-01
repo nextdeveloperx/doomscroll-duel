@@ -13,7 +13,7 @@
     <string name="home_hp_value">%1$d / 100</string>
     <string name="home_battle_title">Battle chal rahi hai</string>
     <string name="home_time_left">%1$s baaki</string>
-    <string name="home_stake_line">Stake: %1$d coins · Kam reels wala jeetega</string>
+    <string name="home_stake_line">Entry: %1$d coins · Kam reels wala jeetega</string>
     <string name="home_window_bedtime">Bedtime mode chalu: %1$s tak reels band</string>
     <string name="home_window_focus">Focus hours chalu: %1$s tak reels band</string>
     <string name="home_open_battle">Live battle dekho</string>
@@ -37,7 +37,7 @@
     <string name="nd_section_friend">DOST CHUNO</string>
     <string name="nd_section_limit">MAX REELS</string>
     <string name="nd_section_time">KITNE TIME KE LIYE</string>
-    <string name="nd_section_stake">STAKE</string>
+    <string name="nd_section_stake">ENTRY COINS</string>
     <string name="nd_duration_6h">6 ghante</string>
     <string name="nd_duration_24h">24 ghante</string>
     <string name="nd_duration_7d">7 din</string>
@@ -122,6 +122,9 @@
     <string name="banner_off_title">Counting band hai!</string>
     <string name="banner_off_body">Accessibility service band ho gayi, isliye reels gine nahi ja rahe. Ek tap mein chalu karo.</string>
     <string name="banner_off_action">CHALU KARO</string>
+    <string name="banner_consent_title">Pehle ek zaroori jaankari padho</string>
+    <string name="banner_consent_body">Reels gin-ne se pehle batana zaroori hai ki Accessibility service kya karti hai aur kya nahi. Padhne mein 1 minute lagega.</string>
+    <string name="banner_consent_action">PADHO</string>
     <string name="banner_battery_title">Battery saver counting rok sakta hai</string>
     <string name="banner_battery_body">Phone background mein counter band kar de to reels miss ho jayengi.</string>
     <string name="banner_battery_action">THEEK KARO</string>
@@ -270,7 +273,7 @@
     <!-- Pro paywall -->
     <string name="paywall_title">Doomscroll Pro</string>
     <string name="paywall_back">Wapas</string>
-    <string name="paywall_hero_title">Brain ko Pro treatment do</string>
+    <string name="paywall_hero_title">Brain ko Pro mode do</string>
     <string name="paywall_hero_sub">Zyada duels, poori gang ke saath, aur reels pe poora control.</string>
     <string name="paywall_trigger_unlimited_duels">Aaj ke 3 free duels ho gaye. Pro mein koi limit nahi.</string>
     <string name="paywall_trigger_squad">Squad Battle Pro mein hai.</string>
@@ -301,6 +304,7 @@
     <string name="paywall_restore">PURCHASE RESTORE KARO</string>
     <string name="paywall_restore_busy">Dhoondh rahe hain...</string>
     <string name="paywall_manage">SUBSCRIPTION MANAGE KARO</string>
+    <string name="paywall_cta_terms">Auto-renew hota hai. Google Play mein kabhi bhi cancel karo.</string>
     <string name="paywall_fine_print">Subscription khud renew hoti hai. Google Play mein kabhi bhi cancel kar sakte ho; cancel karne par paid time tak Pro chalta rahega.</string>
     <string name="paywall_virtual_promise">Coins Pro se nahi milte, aur coins kisi bhi paise se kharide nahi ja sakte. Coins sirf khelkar kamaye jaate hain, aur kabhi cash nahi hote.</string>
     <string name="paywall_loading">Plans la rahe hain...</string>
@@ -333,4 +337,44 @@
     <string name="upgrade_prompt_later">BAAD MEIN</string>
     <string name="upgrade_prompt_free_note">Baaki sab free hai, koi jaldi nahi.</string>
     <string name="settings_pro_tag">PRO</string>
+
+    <!-- Account and privacy (Settings) -->
+    <string name="settings_section_account">ACCOUNT AUR PRIVACY</string>
+    <string name="settings_privacy_policy">Privacy policy</string>
+    <string name="settings_privacy_policy_sub">Hum kya data lete hain aur kyun.</string>
+    <string name="settings_terms">Terms of use</string>
+    <string name="settings_terms_sub">Dare aur dosti ke rules.</string>
+    <string name="settings_disclosure_again">Accessibility jaankari dobara padho</string>
+    <string name="settings_disclosure_again_sub">Service kya karti hai aur kya nahi.</string>
+    <string name="settings_delete_account">Account delete karo</string>
+    <string name="settings_delete_account_sub">Server se tumhara saara data hat jayega.</string>
+    <string name="settings_open_link">KHOLO</string>
+
+    <!-- Delete account -->
+    <string name="del_title">Account delete karo</string>
+    <string name="del_intro">Ye step wapas nahi liya ja sakta. Pehle neeche padh lo ki kya hat jayega.</string>
+    <string name="del_removed_title">Ye sab hamare server se hat jayega</string>
+    <string name="del_removed_1">Tumhara profile, username aur dosto ki list</string>
+    <string name="del_removed_2">Duel history aur server pe roz ki reel ginti</string>
+    <string name="del_removed_3">Coins, Pro ka record aur unlock requests</string>
+    <string name="del_removed_4">Push notification token aur dare ke proof (photo ya video)</string>
+    <string name="del_kept_title">Ye nahi badlega</string>
+    <string name="del_kept_1">Dost ke duel records mein tumhara naam \"Deleted user\" ho jayega. Unki apni history unke paas rehti hai.</string>
+    <string name="del_kept_2">Is phone ki settings aur chalta hua lock waise hi rahenge. Is phone se reel history hat jayegi.</string>
+    <string name="del_pro_title">Pro subscription alag se cancel karo</string>
+    <string name="del_pro_body">Account delete karne se Google Play ki subscription apne aap band nahi hoti. Hum cancel karne ki koshish karte hain, par Play Store mein ek baar zaroor check karo, warna paise kat sakte hain.</string>
+    <string name="del_pro_action">PLAY MEIN SUBSCRIPTION DEKHO</string>
+    <string name="del_confirm_label">Confirm karne ke liye DELETE likho</string>
+    <string name="del_confirm_hint">DELETE</string>
+    <string name="del_check">Mujhe pata hai ki ye wapas nahi hoga.</string>
+    <string name="del_button">ACCOUNT DELETE KARO</string>
+    <string name="del_cancel">RUKO, WAPAS JAO</string>
+    <string name="del_working">Delete ho raha hai. App band mat karo.</string>
+    <string name="del_done_title">Account delete ho gaya</string>
+    <string name="del_done_body">Tumhara data hamare server se hat gaya hai. Apna Play subscription check karna mat bhoolna.</string>
+    <string name="del_done_action">THEEK HAI</string>
+    <string name="del_err_recent_login">Security ke liye pehle dobara sign in karna padega, phir delete karo. Abhi kuch delete nahi hua.</string>
+    <string name="del_err_no_network">Net nahi hai. Net chalu karke dobara try karo. Abhi kuch delete nahi hua.</string>
+    <string name="del_err_not_signed_in">Tum sign in nahi ho, isliye server pe delete karne ke liye kuch nahi hai.</string>
+    <string name="del_err_failed">Kuch gadbad ho gayi. Dobara try karo, bacha hua data bhi hat jayega.</string>
 </resources>

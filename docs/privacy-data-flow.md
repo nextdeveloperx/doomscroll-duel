@@ -49,3 +49,9 @@ only: requester uid, friend uid, status and timestamps.
 Buying Pro sends Google Play's purchase token and the person's Firebase uid to our `verifyPurchase` function. The server
 stores the token (server-only collection, no client access) and the resulting entitlement (status, plan, end time).
 Nothing about reels, apps used or watched content is part of billing. Coins never travel with a purchase.
+
+## Consent and deletion additions
+- The service does nothing until the person taps Agree on the in-app disclosure; the agreement (version and time) is stored
+  only on the phone. Back and Not now record nothing.
+- Account deletion removes every server-side collection listed in `functions/src/deletion.ts` (`DATA_REGISTRY`); a test keeps
+  that list equal to the collections in `firebase/firestore.rules`. Nothing new is read from the screen.

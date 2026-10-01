@@ -107,6 +107,14 @@ fun PaywallScreen(
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // Right under the button, where Google Play expects the renewal terms to be visible.
+                DuelText(
+                    text = stringResource(R.string.paywall_cta_terms),
+                    style = DuelTheme.typography.caption,
+                    color = colors.textMuted,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
             if (!isPro || ui.view is ProView.Ending || ui.view is ProView.GracePeriod) {
                 // Always visible: someone who already paid (new phone, reinstall) must be able to find this at once.

@@ -98,3 +98,4 @@ export const respondUnlock = onCall(async (req) => {
 
 export { verifyPurchase, playNotifications, refreshStaleEntitlements } from "./purchases";
 export { claimCheckIn } from "./claimCoins";
+export { deleteAccount } from "./deleteAccount";

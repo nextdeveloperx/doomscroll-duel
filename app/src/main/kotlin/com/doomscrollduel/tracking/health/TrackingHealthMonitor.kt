@@ -6,6 +6,8 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
+import com.doomscrollduel.domain.legal.AccessibilityConsent
+import com.doomscrollduel.domain.legal.ConsentStore
 import com.doomscrollduel.tracking.service.ReelAccessibilityService
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.onStart
 @Singleton
 class TrackingHealthMonitor @Inject constructor(
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context,
+    private val consent: ConsentStore,
 ) {
     private val refreshes = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
@@ -35,7 +38,7 @@ class TrackingHealthMonitor @Inject constructor(
     }
 
     fun observe(): Flow<TrackingHealth> =
-        merge(accessibilityChanges(), refreshes)
+        merge(accessibilityChanges(), refreshes, consent.flow.map { })
             .onStart { emit(Unit) }
             .map { current() }
             .distinctUntilChanged()
@@ -45,6 +48,7 @@ class TrackingHealthMonitor @Inject constructor(
         batteryUnrestricted = context.getSystemService(PowerManager::class.java)
             .isIgnoringBatteryOptimizations(context.packageName),
         notificationsEnabled = context.getSystemService(android.app.NotificationManager::class.java).areNotificationsEnabled(),
+        consentGiven = AccessibilityConsent.isValid(consent.current()),
     )
 
     private fun isAccessibilityEnabled(): Boolean {

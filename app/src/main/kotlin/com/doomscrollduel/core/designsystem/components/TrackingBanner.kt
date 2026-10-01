@@ -27,7 +27,8 @@ fun TrackingBanner(
 ) {
     if (issue == TrackingIssue.NONE) return
     val colors = DuelTheme.colors
-    val isOff = issue == TrackingIssue.ACCESSIBILITY_OFF
+    val needsConsent = issue == TrackingIssue.CONSENT_NEEDED
+    val isOff = issue == TrackingIssue.ACCESSIBILITY_OFF || needsConsent
     ChunkyCard(
         modifier = modifier
             .fillMaxWidth()
@@ -37,17 +38,17 @@ fun TrackingBanner(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             DuelText(
-                text = stringResource(if (isOff) R.string.banner_off_title else R.string.banner_battery_title),
+                text = stringResource(if (needsConsent) R.string.banner_consent_title else if (isOff) R.string.banner_off_title else R.string.banner_battery_title),
                 style = DuelTheme.typography.heading,
                 color = colors.onBright,
             )
             DuelText(
-                text = stringResource(if (isOff) R.string.banner_off_body else R.string.banner_battery_body),
+                text = stringResource(if (needsConsent) R.string.banner_consent_body else if (isOff) R.string.banner_off_body else R.string.banner_battery_body),
                 style = DuelTheme.typography.bodyStrong,
                 color = colors.onBright,
             )
             ChunkyButton(
-                text = stringResource(if (isOff) R.string.banner_off_action else R.string.banner_battery_action),
+                text = stringResource(if (needsConsent) R.string.banner_consent_action else if (isOff) R.string.banner_off_action else R.string.banner_battery_action),
                 onClick = onFix,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -59,5 +60,6 @@ fun TrackingBanner(
 @Composable
 private fun TrackingBannerPreview() = DuelPreview {
     TrackingBanner(TrackingIssue.ACCESSIBILITY_OFF, onFix = {})
+    TrackingBanner(TrackingIssue.CONSENT_NEEDED, onFix = {})
     TrackingBanner(TrackingIssue.BATTERY_RESTRICTED, onFix = {})
 }

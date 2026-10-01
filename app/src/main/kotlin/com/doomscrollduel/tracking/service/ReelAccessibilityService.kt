@@ -10,6 +10,8 @@ import com.doomscrollduel.blocking.BlockingScheduler
 import com.doomscrollduel.blocking.TrustedTime
 import com.doomscrollduel.blocking.unlock.UnlockRepository
 import com.doomscrollduel.domain.blocking.BlockingController
+import com.doomscrollduel.domain.legal.AccessibilityConsent
+import com.doomscrollduel.domain.legal.ConsentStore
 import com.doomscrollduel.domain.repository.ReelRepository
 import com.doomscrollduel.tracking.detector.SurfaceRulesHolder
 import com.doomscrollduel.tracking.detector.ReelEventProcessor
@@ -35,6 +37,7 @@ import kotlinx.coroutines.launch
  *  - The blocker may ask the system "is a view with this layout id on screen?" (ReelScreenProbe, the only
  *    place allowed to) and may press Back or Home. It reads nothing from the answer.
  *  - All counting decisions live in [ReelEventProcessor], which only receives [ReelSignal].
+ *  - Nothing is processed until the person has tapped Agree on the in-app disclosure ([AccessibilityConsent]).
  */
 @AndroidEntryPoint
 class ReelAccessibilityService : AccessibilityService() {
@@ -46,6 +49,7 @@ class ReelAccessibilityService : AccessibilityService() {
     @Inject lateinit var unlock: UnlockRepository
     @Inject lateinit var trustedTime: TrustedTime
     @Inject lateinit var surfaceRules: SurfaceRulesHolder
+    @Inject lateinit var consent: ConsentStore
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -71,6 +75,9 @@ class ReelAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // The person must have agreed to the in-app disclosure first. Switching the service on in Android's own
+        // Accessibility list is not enough: without that agreement every event is dropped before it is looked at.
+        if (!AccessibilityConsent.mayProcessEvents(consent.current())) return
         val e = event ?: return
         val app = TrackedApp.fromPackage(e.packageName?.toString()) ?: return
         val signal = when (e.eventType) {

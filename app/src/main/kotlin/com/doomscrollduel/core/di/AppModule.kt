@@ -9,6 +9,8 @@ import androidx.room.Room
 import com.doomscrollduel.core.common.DayClock
 import com.doomscrollduel.data.local.AppDatabase
 import com.doomscrollduel.data.local.ReelCountDao
+import com.doomscrollduel.account.AccountDeletionRepository
+import com.doomscrollduel.account.FirebaseAccountDeletionRepository
 import com.doomscrollduel.billing.AccountProvider
 import com.doomscrollduel.billing.EntitlementCache
 import com.doomscrollduel.billing.EntitlementService
@@ -25,6 +27,8 @@ import com.doomscrollduel.blocking.SystemZoneSource
 import com.doomscrollduel.blocking.unlock.FirebaseUnlockRepository
 import com.doomscrollduel.blocking.unlock.UnlockRepository
 import com.doomscrollduel.data.prefs.DataStoreBlockingSettings
+import com.doomscrollduel.data.prefs.DataStoreConsentStore
+import com.doomscrollduel.domain.legal.ConsentStore
 import com.doomscrollduel.data.prefs.DataStoreBlockingState
 import com.doomscrollduel.data.prefs.SettingsBackedReelLimitStore
 import com.doomscrollduel.domain.blocking.BlockingController
@@ -160,6 +164,12 @@ abstract class BindingsModule {
 
     @Binds
     abstract fun entitlementCache(impl: DataStoreEntitlementCache): EntitlementCache
+
+    @Binds
+    abstract fun accountDeletion(impl: FirebaseAccountDeletionRepository): AccountDeletionRepository
+
+    @Binds
+    abstract fun consentStore(impl: DataStoreConsentStore): ConsentStore
 }
 
 @Module

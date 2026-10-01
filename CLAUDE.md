@@ -86,6 +86,20 @@ response; grace-period expiry semantics open (see billing.md). Not wired yet: fr
 duel persistence; server gate + pure rule exist), analytics screen (per app / per hour; hourly data is not stored yet),
 skin rendering in BrainView, coin shop UI, Firebase sign-in (purchases need it).
 
+## Google Play review pack (turn 8) - built
+`docs/play/` has the Privacy Policy, Terms, deletion page, Data safety, Accessibility declaration + video script, content
+rating, store listing and the rejection checklist (`review-checklist.md`, read its launch blockers). Code: Accessibility
+disclosure screen (`feature/legal`, text in `res/values/disclosure_strings.xml`, pinned by hash in
+`docs/play/disclosure.sha256`); the service drops every event until `AccessibilityConsent` is valid (version 1; bump it
+when the text changes and run `scripts/check-play-readiness.sh --update-hash`); in-app Delete account
+(`feature/account`, `account/`, function `deleteAccount` in `functions/src/deleteAccount.ts`, plan + registry in
+`deletion.ts` with a test that fails when `firestore.rules` gets a collection deletion does not handle). Guards:
+`scripts/check-play-readiness.sh` (`--release` refuses placeholders and the `.invalid` web address),
+`scripts/build-legal-pages.py` (makes `web/*.html`). UI wording: "Stake" is now "Entry coins". Tests: 427 app + 31
+server pass; compile-checked against shims only. NOT built: report/block screens, sign-in, age confirmation, 7-day
+dare-proof auto-delete function, hosting of the pages. Minimum age in the texts is 16; see the age note (18 is safer
+for India's DPDP Act).
+
 ## What is NOT verified or NOT built yet
 - No Gradle project exists yet (Milestone 1). Needed deps: compose-bom, ui, foundation, animation,
   ui-tooling-preview, ui-text, navigation-compose, hilt (+ hilt-navigation-compose), room, lifecycle-runtime-compose,

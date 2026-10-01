@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Public pages Google Play and the app link to. They must be live, public, not behind a login and not a PDF.
+    Host web/privacy.html, web/terms.html and web/delete-account.html (built by scripts/build-legal-pages.py) at these
+    addresses, or change the addresses here and in the Play Console. `scripts/check-play-readiness.sh --release`
+    refuses to pass while the host below is still doomscrollduel.invalid.
+-->
+<resources>
+    <string name="privacy_policy_url" translatable="false">https://doomscrollduel.invalid/privacy</string>
+    <string name="terms_url" translatable="false">https://doomscrollduel.invalid/terms</string>
+    <string name="delete_account_url" translatable="false">https://doomscrollduel.invalid/delete-account</string>
+</resources>

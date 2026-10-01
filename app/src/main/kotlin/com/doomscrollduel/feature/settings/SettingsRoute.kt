@@ -17,7 +17,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.doomscrollduel.core.common.openAccessibilitySettings
+import com.doomscrollduel.R
 import com.doomscrollduel.core.common.openAppNotificationSettings
+import com.doomscrollduel.core.common.openUrl
+import com.doomscrollduel.feature.legal.AccessibilityEntryViewModel
 import com.doomscrollduel.domain.billing.ProFeature
 
 /** Settings wired to the real blocking engine and the live permission status. */
@@ -26,8 +29,12 @@ fun SettingsRoute(
     onOpenBatteryGuide: () -> Unit,
     onOpenFocusHours: () -> Unit,
     onOpenPaywall: (ProFeature) -> Unit,
+    onOpenDisclosure: () -> Unit,
+    onOpenDisclosureReview: () -> Unit,
+    onOpenDeleteAccount: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
+    entry: AccessibilityEntryViewModel = hiltViewModel(),
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -41,15 +48,20 @@ fun SettingsRoute(
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         viewModel.refreshHealth()
     }
-    val actions = remember(viewModel, context) {
+    val actions = remember(viewModel, context, entry) {
         SettingsActions(
             onChange = viewModel::change,
             onOpenFocusHours = { if (viewModel.canOpenFocusEditor()) onOpenFocusHours() },
-            onFixAccessibility = { context.openAccessibilitySettings() },
+            // The system screen may only be opened after the person agreed to the disclosure.
+            onFixAccessibility = { if (entry.mayOpenSettings()) context.openAccessibilitySettings() else onOpenDisclosure() },
             onFixBattery = onOpenBatteryGuide,
             onFixNotifications = { fixNotifications(context) { permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) } },
             onDismissMessage = viewModel::dismissMessage,
             onSeePro = onOpenPaywall,
+            onOpenPrivacy = { context.openUrl(context.getString(R.string.privacy_policy_url)) },
+            onOpenTerms = { context.openUrl(context.getString(R.string.terms_url)) },
+            onOpenDisclosure = onOpenDisclosureReview,
+            onOpenDeleteAccount = onOpenDeleteAccount,
         )
     }
     SettingsScreen(ui = ui, actions = actions, modifier = modifier)

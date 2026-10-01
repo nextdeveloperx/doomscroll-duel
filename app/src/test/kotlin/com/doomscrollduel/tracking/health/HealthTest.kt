@@ -67,4 +67,11 @@ class HealthTest {
         assertFalse(BatteryStep.XIAOMI_AUTOSTART in BatteryGuide.stepsFor(OemFamily.SAMSUNG))
         assertFalse(BatteryStep.LOCK_IN_RECENTS in BatteryGuide.stepsFor(OemFamily.SAMSUNG))
     }
+
+    @Test
+    fun `no consent comes before every other problem`() {
+        assertEquals(TrackingIssue.CONSENT_NEEDED, TrackingHealth(true, true, consentGiven = false).issue)
+        assertEquals(TrackingIssue.CONSENT_NEEDED, TrackingHealth(false, false, consentGiven = false).issue)
+        assertEquals(TrackingIssue.NONE, TrackingHealth(true, true, consentGiven = true).issue)
+    }
 }

@@ -40,6 +40,8 @@ import com.doomscrollduel.feature.duel.result.rememberShareText
 import com.doomscrollduel.feature.battery.BatteryGuideRoute
 import com.doomscrollduel.feature.home.HomeRoute
 import com.doomscrollduel.domain.billing.ProFeature
+import com.doomscrollduel.feature.account.DeleteAccountRoute
+import com.doomscrollduel.feature.legal.DisclosureRoute
 import com.doomscrollduel.feature.modes.BattleModesScreen
 import com.doomscrollduel.feature.modes.requiredFeature
 import com.doomscrollduel.feature.paywall.PaywallRoute
@@ -58,6 +60,11 @@ object Routes {
     const val BATTERY_GUIDE = "battery_guide"
     const val FOCUS_HOURS = "focus_hours"
     const val PAYWALL = "paywall?feature={feature}"
+    const val DISCLOSURE = "disclosure?review={review}"
+    const val DELETE_ACCOUNT = "delete_account"
+
+    /** The Accessibility disclosure. [review] re-reads it from Settings without asking for anything. */
+    fun disclosure(review: Boolean = false): String = "disclosure?review=$review"
 
     /** The paywall, optionally told which locked thing the person came from so it can say why. */
     fun paywall(feature: ProFeature? = null): String = if (feature == null) "paywall" else "paywall?feature=${feature.name}"
@@ -69,7 +76,8 @@ private const val FadeMillis = 180
  * The app's navigation.
  *
  * Tabs (bottom bar): HOME, MODES ("Battles"), SETTINGS. BATTERY_GUIDE opens from the Home banner and Settings;
- * FOCUS_HOURS opens from Settings. PAYWALL opens from the soft upgrade prompts on Battles and Settings.
+ * FOCUS_HOURS opens from Settings. DISCLOSURE (the Accessibility disclosure) opens from every "turn on counting" button until
+ * the person has agreed, and from Settings to re-read; DELETE_ACCOUNT opens from Settings. PAYWALL opens from the soft upgrade prompts on Battles and Settings.
  * Duel flow: HOME or MODES -> NEW_DUEL -> LIVE -> RESULT, and RESULT -> NEW_DUEL for a rematch.
  * Back stack rules: every step of the duel flow clears back to HOME first, so a duel in progress or a
  * finished result is never on the back stack behind another screen. Back from LIVE or RESULT goes Home;
@@ -124,6 +132,7 @@ fun DuelNavGraph(
                         onNewBattle = { openTab(DuelTab.BATTLES) },
                         onOpenBattle = { navController.navigate(Routes.LIVE) },
                         onOpenBatteryGuide = { navController.navigate(Routes.BATTERY_GUIDE) },
+                        onOpenDisclosure = { navController.navigate(Routes.disclosure()) },
                     )
                 }
                 composable(Routes.MODES) {
@@ -187,6 +196,9 @@ fun DuelNavGraph(
                         onOpenBatteryGuide = { navController.navigate(Routes.BATTERY_GUIDE) },
                         onOpenFocusHours = { navController.navigate(Routes.FOCUS_HOURS) },
                         onOpenPaywall = { navController.navigate(Routes.paywall(it)) },
+                        onOpenDisclosure = { navController.navigate(Routes.disclosure()) },
+                        onOpenDisclosureReview = { navController.navigate(Routes.disclosure(review = true)) },
+                        onOpenDeleteAccount = { navController.navigate(Routes.DELETE_ACCOUNT) },
                     )
                 }
                 composable(
@@ -200,6 +212,27 @@ fun DuelNavGraph(
                     ),
                 ) {
                     PaywallRoute(onBack = { navController.popBackStack() })
+                }
+                composable(
+                    route = Routes.DISCLOSURE,
+                    arguments = listOf(
+                        navArgument("review") {
+                            type = NavType.BoolType
+                            defaultValue = false
+                        },
+                    ),
+                ) { entry ->
+                    DisclosureRoute(
+                        reviewOnly = entry.arguments?.getBoolean("review") ?: false,
+                        onClose = { navController.popBackStack() },
+                    )
+                }
+                composable(Routes.DELETE_ACCOUNT) {
+                    DeleteAccountRoute(
+                        onBack = { navController.popBackStack() },
+                        // After deletion the person lands on Home; the account screen is not left on the back stack.
+                        onFinished = { navController.popBackStack(Routes.HOME, inclusive = false) },
+                    )
                 }
                 composable(Routes.FOCUS_HOURS) {
                     FocusHoursRoute(onBack = { navController.popBackStack() })

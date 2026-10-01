@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Accessibility API prominent disclosure. Google Play requires this text to be shown inside the app, before the
+    permission is requested, and agreed to with a tap. DO NOT edit it casually:
+      - it must always match what the service really does (docs/privacy-data-flow.md, ReelAccessibilityService);
+      - when it changes, bump AccessibilityConsent.DISCLOSURE_VERSION and run
+        `scripts/check-play-readiness.sh --update-hash`, and re-record the Play Console video.
+    Keep this file to the disclosure only; the hash is taken over the whole file.
+-->
+<resources>
+    <string name="disc_title">Accessibility permission: kya aur kyun</string>
+    <string name="disc_intro">Doomscroll Duel ko reels gin-ne ke liye Android ki Accessibility service chahiye. Permission dene se pehle ye zaroor padho.</string>
+
+    <string name="disc_does_title">Ye service kya karti hai</string>
+    <string name="disc_does_1">Instagram, YouTube (Shorts), Facebook aur Snapchat mein tum kitni reels ya short videos swipe karte ho, wo gintati hai.</string>
+    <string name="disc_does_2">Sirf jab tum khud Strict Lock, Bedtime, Focus hours ya Wait-10 chalu karo: in 4 apps mein reels khulne par Back ya Home dabakar reels band karti hai aur \"Brain bachao\" screen dikhati hai.</string>
+    <string name="disc_does_3">Iske liye ye sirf ye dekhti hai: kaunsa app khula hai (in 4 mein se), scroll hua ya nahi, aur reels wali screen khuli hai ya nahi. Screen ka text padhe bina.</string>
+
+    <string name="disc_not_title">Ye kya NAHI karti</string>
+    <string name="disc_not_1">Tumhare messages (chat, DM), passwords, OTP ya payment details nahi padhti.</string>
+    <string name="disc_not_2">Ye nahi padhti ki tum kaunsi video ya post dekh rahe ho, kisi ka naam, caption ya comment.</string>
+    <string name="disc_not_3">In 4 ke alawa koi aur app nahi dekhti. Screen record ya screenshot nahi leti, aur tumhare badle tap ya typing nahi karti.</string>
+
+    <string name="disc_data_title">Tumhara data</string>
+    <string name="disc_data_1">Sirf reels ki ginti save hoti hai: roz ki total aur app-wise. Ye ginti tumhare phone pe rehti hai. Duel khelne par yehi ginti tumhare duel ke dost ko dikhai jaati hai.</string>
+    <string name="disc_data_2">Hum ye data kisi ko becha ya share nahi karte, aur ads ke liye use nahi karte.</string>
+    <string name="disc_data_3">Tum kabhi bhi Android Settings mein Accessibility mein jaakar ise band kar sakte ho. Account delete karne par server se tumhara data hat jata hai.</string>
+
+    <string name="disc_english_title">In English</string>
+    <string name="disc_english_body">Doomscroll Duel uses Android\'s Accessibility service to count short videos (Reels, Shorts, Spotlight) in Instagram, YouTube, Facebook and Snapchat and, only when you turn on a lock, to block them by pressing Back or Home. It sees only which of these four apps is open, that a scroll happened, and whether a reels screen is showing. It does not read your messages, passwords, or what you watch. Only your daily reel count is stored; it is not sold, not shared with advertisers and not used for ads. You can switch the service off at any time in Android Settings.</string>
+
+    <string name="disc_agree">AGREE</string>
+    <string name="disc_not_now">NOT NOW</string>
+    <string name="disc_not_now_note">Not now dabane par reel counter band rahega. Baaki app chalta rahega, aur tum baad mein ise chalu kar sakte ho.</string>
+    <string name="disc_privacy_link">Poori privacy policy padho</string>
+    <string name="disc_back">Wapas</string>
+</resources>

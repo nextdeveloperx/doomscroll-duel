@@ -1,0 +1,22 @@
+rules_version = '2';
+
+// Cloud Storage rules for dare proofs (a photo or short video the loser sends to the winner).
+//  - Only the owner can upload to proofs/{their uid}/, only images or videos, at most 20 MB.
+//  - Nobody reads a file directly. The winner sees it through a short-lived link made by a function, and the file is
+//    deleted after 7 days (and on account deletion, see functions/src/deletion.ts).
+//  - Everything else is closed.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /proofs/{uid}/{file} {
+      allow read: if false;
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.resource.size < 20 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*') || request.resource.contentType.matches('video/.*'));
+      allow update: if false;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

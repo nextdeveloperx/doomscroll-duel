@@ -74,6 +74,10 @@ class SettingsActions(
     val onFixNotifications: () -> Unit,
     val onDismissMessage: () -> Unit,
     val onSeePro: (ProFeature) -> Unit = {},
+    val onOpenPrivacy: () -> Unit = {},
+    val onOpenTerms: () -> Unit = {},
+    val onOpenDisclosure: () -> Unit = {},
+    val onOpenDeleteAccount: () -> Unit = {},
 )
 
 @Composable
@@ -224,11 +228,42 @@ fun SettingsScreen(
                 onFix = actions.onFixNotifications,
             )
         }
+        // ----- ACCOUNT AND PRIVACY -------------------------------------------------------------
+        SectionLabel(R.string.settings_section_account)
+        SettingsCard {
+            LinkRow(R.string.settings_privacy_policy, R.string.settings_privacy_policy_sub, actions.onOpenPrivacy)
+            RowDivider()
+            LinkRow(R.string.settings_terms, R.string.settings_terms_sub, actions.onOpenTerms)
+            RowDivider()
+            LinkRow(R.string.settings_disclosure_again, R.string.settings_disclosure_again_sub, actions.onOpenDisclosure)
+            RowDivider()
+            LinkRow(R.string.settings_delete_account, R.string.settings_delete_account_sub, actions.onOpenDeleteAccount, danger = true)
+        }
         Spacer(Modifier.height(24.dp))
     }
 }
 
 // ----- pieces ------------------------------------------------------------------------------------
+
+/** A tappable row that opens another page. [danger] colours the button red for the delete-account row. */
+@Composable
+private fun LinkRow(titleRes: Int, subRes: Int, onClick: () -> Unit, danger: Boolean = false) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        RowText(stringResource(titleRes), stringResource(subRes), null, Modifier.weight(1f))
+        ChunkyButton(
+            text = stringResource(R.string.settings_open_link),
+            onClick = onClick,
+            style = if (danger) ChunkyButtonStyle.Danger else ChunkyButtonStyle.Secondary,
+        )
+    }
+}
 
 /** " · PRO" after a row title that needs Pro, for people who are not Pro. */
 @Composable

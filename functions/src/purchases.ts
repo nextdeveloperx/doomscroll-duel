@@ -22,6 +22,11 @@ function play(): androidpublisher_v3.Androidpublisher {
   return publisher;
 }
 
+/** Asks Google to stop renewing a subscription (it stays valid until the paid time ends). Used when an account is deleted. */
+export async function cancelSubscription(token: string): Promise<void> {
+  await play().purchases.subscriptions.cancel({ packageName: PACKAGE_NAME.value(), subscriptionId: PRODUCT_ID, token });
+}
+
 export const tokenHash = (token: string): string => createHash("sha256").update(token).digest("hex");
 
 async function fetchSubscription(token: string): Promise<PlaySubscription> {

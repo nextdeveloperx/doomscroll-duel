@@ -88,3 +88,14 @@ fun Context.openSubscriptionManagement() =
     startSafely(
         Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/account/subscriptions?sku=${com.doomscrollduel.domain.billing.ProProduct.PRODUCT_ID}&package=$packageName")),
     )
+
+/** Opens a public web page (privacy policy, terms) in the browser. Does nothing if the phone has no browser. */
+fun Context.openUrl(url: String) {
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+    if (this !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    try {
+        startActivity(intent)
+    } catch (_: ActivityNotFoundException) {
+        // No browser installed: nothing sensible to open.
+    }
+}
