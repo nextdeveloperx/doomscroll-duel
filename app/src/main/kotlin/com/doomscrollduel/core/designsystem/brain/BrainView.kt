@@ -1,21 +1,13 @@
 package com.doomscrollduel.core.designsystem.brain
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -39,6 +31,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.doomscrollduel.R
 import com.doomscrollduel.core.designsystem.components.DuelPreview
+import com.doomscrollduel.core.designsystem.components.rememberLoopPhase
 import com.doomscrollduel.core.designsystem.theme.DuelColors
 import com.doomscrollduel.core.designsystem.theme.DuelTheme
 import kotlin.math.PI
@@ -92,7 +85,7 @@ fun BrainView(
         BrainState.ZOMBIE -> colors.zombie
     }
     val body by animateColorAsState(bodyTarget, DuelTheme.motion.state(), label = "brainBody")
-    val phase = rememberBrainPhase()
+    val phase = rememberLoopPhase(durationMillis = 1600, label = "brainIdle")
     val paths = remember { BrainPaths() }
     val headroom = if (crowned) CROWN_HEADROOM else 0f
 
@@ -131,18 +124,6 @@ private fun brainDescription(state: BrainState, owner: BrainOwner, crowned: Bool
         },
     )
     return if (crowned) stringResource(R.string.ds_brain_winner_suffix, base) else base
-}
-
-/** 0..1 looping phase, or a constant 0 when motion is reduced (everything then renders still). */
-@Composable
-private fun rememberBrainPhase(): State<Float> {
-    if (DuelTheme.motion.reduced) return remember { mutableFloatStateOf(0f) }
-    return rememberInfiniteTransition(label = "brainIdle").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(durationMillis = 1600, easing = LinearEasing), RepeatMode.Restart),
-        label = "brainPhase",
-    )
 }
 
 private fun DrawScope.drawBrain(

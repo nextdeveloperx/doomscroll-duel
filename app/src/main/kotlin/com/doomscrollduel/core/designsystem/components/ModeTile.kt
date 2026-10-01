@@ -91,7 +91,7 @@ fun ModeTile(
                 ) {
                     DuelIcon(icon, tint = colors.onBright, contentDescription = null, modifier = Modifier.size(26.dp))
                 }
-                TagPill(tag = tag, text = tagText)
+                ModeTagPill(tag = tag, text = tagText)
             }
             DuelText(text = name, style = DuelTheme.typography.heading, color = colors.onBright)
             DuelText(text = description, style = DuelTheme.typography.body, color = colors.onBright)
@@ -100,7 +100,7 @@ fun ModeTile(
 }
 
 @Composable
-private fun TagPill(tag: ModeTag, text: String) {
+internal fun ModeTagPill(tag: ModeTag, text: String, modifier: Modifier = Modifier) {
     val colors = DuelTheme.colors
     val chip = DuelTheme.shapes.chip
     // FREE: white pill, ink text. PRO: ink pill, yellow text. Both read clearly on any tile colour.
@@ -111,7 +111,7 @@ private fun TagPill(tag: ModeTag, text: String) {
         style = DuelTheme.typography.captionStrong,
         color = textColor,
         maxLines = 1,
-        modifier = Modifier
+        modifier = modifier
             .clip(chip)
             .background(fill)
             .border(ChunkyMetrics.OutlineWidth, colors.outline, chip)

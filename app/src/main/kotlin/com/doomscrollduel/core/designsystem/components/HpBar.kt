@@ -35,13 +35,14 @@ import kotlin.math.min
 /**
  * Health bar for the brain. [hp] is 0..100 (see `ReelUsage.hpForPercentUsed`).
  * The numeric label always sits outside the bar, so colour is never the only signal and the
- * label keeps full contrast whatever the fill level is.
+ * label keeps full contrast whatever the fill level is. Override [labelText] for e.g. "53 / 100".
  */
 @Composable
 fun HpBar(
     hp: Int,
     modifier: Modifier = Modifier,
     showLabel: Boolean = true,
+    labelText: String = stringResource(R.string.ds_hp_label, hp.coerceIn(0, 100)),
 ) {
     val colors = DuelTheme.colors
     val safeHp = hp.coerceIn(0, 100)
@@ -98,7 +99,7 @@ fun HpBar(
         )
         if (showLabel) {
             DuelText(
-                text = stringResource(R.string.ds_hp_label, safeHp),
+                text = labelText,
                 style = DuelTheme.typography.button,
                 color = colors.text,
                 textAlign = TextAlign.End,

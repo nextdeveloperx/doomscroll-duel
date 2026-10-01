@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared -->
+    <string name="label_you">Tum</string>
+    <string name="tab_home">Home</string>
+    <string name="tab_battles">Battles</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Home -->
+    <string name="home_reels_label">REELS AAJ</string>
+    <string name="home_limit_caption">LIMIT: %1$d REELS</string>
+    <string name="home_brain_hp">BRAIN HP</string>
+    <string name="home_hp_value">%1$d / 100</string>
+    <string name="home_battle_title">Battle chal rahi hai</string>
+    <string name="home_time_left">%1$s baaki</string>
+    <string name="home_stake_line">Stake: %1$d coins · Kam reels wala jeetega</string>
+    <string name="home_open_battle">Live battle dekho</string>
+    <string name="home_new_battle">NAYI BATTLE SHURU KARO</string>
+
+    <!-- Battle modes -->
+    <string name="modes_title">Battle mode chuno</string>
+    <string name="mode_duel_name">1v1 DUEL</string>
+    <string name="mode_duel_desc">Ek dost, ek limit. Kam reels wala jeetega.</string>
+    <string name="mode_squad_name">Squad Battle</string>
+    <string name="mode_squad_desc">Poori gang, ek leaderboard.</string>
+    <string name="mode_night_name">Night Pact</string>
+    <string name="mode_night_desc">Raat ko reels band, subah inaam.</string>
+    <string name="mode_dare_name">Forfeit Dare</string>
+    <string name="mode_dare_desc">Haarne wala dare poora karega.</string>
+    <string name="mode_lock_name">Strict Lock</string>
+    <string name="mode_lock_desc">Limit ke baad reels apps lock.</string>
+
+    <!-- New duel -->
+    <string name="nd_title">Nayi Battle</string>
+    <string name="nd_section_friend">DOST CHUNO</string>
+    <string name="nd_section_limit">MAX REELS</string>
+    <string name="nd_section_time">KITNE TIME KE LIYE</string>
+    <string name="nd_section_stake">STAKE</string>
+    <string name="nd_duration_6h">6 ghante</string>
+    <string name="nd_duration_24h">24 ghante</string>
+    <string name="nd_duration_7d">7 din</string>
+    <string name="nd_stake_option">%1$d coins</string>
+    <string name="nd_limit_value">%1$d reels</string>
+    <string name="nd_limit_decrease">Limit kam karo</string>
+    <string name="nd_limit_increase">Limit badhao</string>
+    <string name="nd_explain">Agar tum %1$d reels tak pahunchte ho, to %2$d coins %3$s ko jayenge. Dono limit tak pahunche to kam reels wala jeetega.</string>
+    <string name="nd_virtual_note">Coins sirf game ke hain. Asli paisa nahi, cash-out nahi.</string>
+    <string name="nd_send">CHALLENGE BHEJO</string>
+
+    <!-- Live duel -->
+    <string name="live_pill">LIVE</string>
+    <string name="live_timer_cd">%1$s baaki</string>
+    <string name="live_warning_close">Sirf %1$d reels bachi hain! Limit pe pahunche to %2$d coins %3$s ko jayenge.</string>
+    <string name="live_warning_over">Limit poori ho gayi! %1$d coins ab %2$s ko jayenge.</string>
+    <string name="live_lead_opponent">%1$s aage hai, %2$d reels kam</string>
+    <string name="live_lead_you">Tum aage ho, %1$d reels kam</string>
+    <string name="live_lead_tied">Barabari ka muqabla!</string>
+    <string name="live_roast">ROAST BHEJO</string>
+    <string name="live_result">RESULT DEKHO</string>
+
+    <!-- Result -->
+    <string name="result_winner_other">%1$s JEETA!</string>
+    <string name="result_winner_you">TUM JEETE!</string>
+    <string name="result_draw">BARABARI!</string>
+    <string name="result_state_happy">MAST</string>
+    <string name="result_state_fried">FRY</string>
+    <string name="result_state_zombie">ZOMBIE</string>
+    <string name="result_reels">%1$d reels</string>
+    <string name="result_coins_won">+%1$d coins mile</string>
+    <string name="result_coins_lost">−%1$d coins gaye</string>
+    <string name="result_coins_draw">Coins wapas mil gaye</string>
+    <string name="result_share">STORY PAR SHARE KARO</string>
+    <string name="result_rematch">REMATCH MAANGO</string>
+    <string name="result_share_won">Maine %1$s ko Doomscroll Duel mein haraya: %2$d vs %3$d reels!</string>
+    <string name="result_share_lost">%1$s ne Doomscroll Duel mein mujhe haraya: %2$d vs %3$d reels. Rematch?</string>
+    <string name="result_share_draw">%1$s ke saath Doomscroll Duel barabar raha: %2$d vs %3$d reels.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_reels">REELS BLOCK</string>
+    <string name="settings_section_time">TIME</string>
+    <string name="settings_section_permissions">PERMISSIONS</string>
+    <string name="settings_strict_lock">Strict timer-lock</string>
+    <string name="settings_strict_lock_sub">Limit ke baad reels apps lock ho jayenge.</string>
+    <string name="settings_friend_unlock">Friend unlock</string>
+    <string name="settings_friend_unlock_sub">Lock sirf dost ki permission se khulega.</string>
+    <string name="settings_wait10">Wait-10 gate</string>
+    <string name="settings_wait10_sub">Reels kholne se pehle 10 second ruko.</string>
+    <string name="settings_bedtime">Bedtime mode</string>
+    <string name="settings_bedtime_sub">11 PM se 6 AM tak reels band.</string>
+    <string name="settings_focus">Focus hours</string>
+    <string name="settings_focus_sub">Padhai ke time reels band.</string>
+    <string name="settings_accessibility">Accessibility service</string>
+    <string name="settings_accessibility_sub">Reels ginne ke liye zaroori. Hum sirf app ka naam aur scroll dekhte hain, content nahi.</string>
+    <string name="settings_battery">Battery optimization</string>
+    <string name="settings_battery_sub">Band rakho, taaki counter beech mein na ruke.</string>
+    <string name="settings_open_system">Settings kholo</string>
+    <string name="status_on">CHALU HAI</string>
+    <string name="status_off">BAND HAI</string>
+    <string name="status_battery_ok">ALLOWED</string>
+    <string name="status_battery_restricted">RESTRICTED</string>
+</resources>

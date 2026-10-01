@@ -126,6 +126,67 @@ object DuelIcons {
             close()
         }
     }
+
+    val ArrowBack: ImageVector by lazy {
+        icon("ArrowBack") {
+            moveTo(20f, 11f)
+            horizontalLineTo(7.8f)
+            lineTo(13.4f, 5.4f)
+            lineTo(12f, 4f)
+            lineTo(4f, 12f)
+            lineTo(12f, 20f)
+            lineTo(13.4f, 18.6f)
+            lineTo(7.8f, 13f)
+            horizontalLineTo(20f)
+            close()
+        }
+    }
+
+    /** Gear: 8-tooth outline with a hole in the middle. */
+    val Gear: ImageVector by lazy {
+        icon("Gear", PathFillType.EvenOdd) {
+            for (i in 0 until 8) {
+                val base = i * 45.0
+                val points = listOf(base - 14.0 to 8.0, base - 9.0 to 11.0, base + 9.0 to 11.0, base + 14.0 to 8.0)
+                points.forEachIndexed { index, (deg, radius) ->
+                    val rad = Math.toRadians(deg)
+                    val x = (12.0 + radius * Math.cos(rad)).toFloat()
+                    val y = (12.0 + radius * Math.sin(rad)).toFloat()
+                    if (i == 0 && index == 0) moveTo(x, y) else lineTo(x, y)
+                }
+            }
+            close()
+            circle(12f, 12f, 3.5f)
+        }
+    }
+
+    val Moon: ImageVector by lazy {
+        icon("Moon") {
+            moveTo(12f, 3f)
+            arcToRelative(9f, 9f, 0f, isMoreThanHalf = true, isPositiveArc = false, dx1 = 9f, dy1 = 9f)
+            arcToRelative(7f, 7f, 0f, isMoreThanHalf = false, isPositiveArc = true, dx1 = -9f, dy1 = -9f)
+            close()
+        }
+    }
+
+    val Lock: ImageVector by lazy {
+        icon("Lock") {
+            moveTo(5f, 11f)
+            horizontalLineTo(19f)
+            verticalLineTo(21f)
+            horizontalLineTo(5f)
+            close()
+            moveTo(8f, 11f)
+            verticalLineTo(8f)
+            arcToRelative(4f, 4f, 0f, isMoreThanHalf = false, isPositiveArc = true, dx1 = 8f, dy1 = 0f)
+            verticalLineTo(11f)
+            horizontalLineTo(14f)
+            verticalLineTo(8f)
+            arcToRelative(2f, 2f, 0f, isMoreThanHalf = false, isPositiveArc = false, dx1 = -4f, dy1 = 0f)
+            verticalLineTo(11f)
+            close()
+        }
+    }
 }
 
 private fun icon(
