@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon foreground: the pink brain, kept inside the 66dp safe zone of the 108dp canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="1.9"
+        android:scaleY="1.9">
+        <path
+            android:fillColor="#FF7AC6"
+            android:strokeWidth="1.2"
+            android:strokeColor="#0B0620"
+            android:pathData="M54,38 C51.5,36.6 48.2,37.6 47.2,40.2 C45.2,40.6 44,42.4 44.4,44.4 C43.4,45.6 43.4,47.4 44.5,48.6 C44.2,50.8 45.8,52.6 47.9,52.6 C48.8,54.8 51.3,55.9 53.4,55 L54,54.8 L54.6,55 C56.7,55.9 59.2,54.8 60.1,52.6 C62.2,52.6 63.8,50.8 63.5,48.6 C64.6,47.4 64.6,45.6 63.6,44.4 C64,42.4 62.8,40.6 60.8,40.2 C59.8,37.6 56.5,36.6 54,38 Z" />
+    </group>
+</vector>

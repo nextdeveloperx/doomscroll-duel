@@ -1,0 +1,113 @@
+rules_version = '2';
+
+// Doomscroll Duel security rules.
+//
+// Principles
+//  - Friendships, usernames, invites and duel setup are written only by Cloud Functions (admin SDK),
+//    never by clients, so nobody can forge a friend or a duel.
+//  - A player's reel count is readable by the other player ONLY while their duel is 'active'.
+//    Before it starts, after it ends, or for anyone who is not a player, the read is denied.
+//  - Clients upload aggregates (a total and a per-app total for today). No content, no event times.
+//  - Coins are virtual and written only by functions; the app has no write access to them.
+//
+// NOT YET RUN against the Firestore emulator (it could not be downloaded when these were written).
+// Run `firebase emulators:exec` with @firebase/rules-unit-testing before shipping.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function areFriends(uid) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/friends/$(uid));
+    }
+
+    // Username -> uid lookup, so friends can be added by username.
+    // `get` only: usernames cannot be listed or enumerated. Claimed through a Cloud Function.
+    match /usernames/{name} {
+      allow get: if signedIn();
+      allow list, create, update, delete: if false;
+    }
+
+    // Profile: the owner and that person's friends can read it. The owner may edit display fields only.
+    match /users/{uid} {
+      allow read: if isSelf(uid) || areFriends(uid);
+      allow create, delete: if false;
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'avatarColor'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 1
+        && request.resource.data.displayName.size() <= 30;
+
+      // Friend edges are created by the acceptInvite / addByUsername functions on both sides.
+      match /friends/{friendUid} {
+        allow read: if isSelf(uid);
+        allow write: if false;
+      }
+    }
+
+    // Invites are created and accepted only through callable functions.
+    match /invites/{code} {
+      allow read, write: if false;
+    }
+
+    // A duel between two players. Created and moved between states by functions.
+    // Clients list their own duels with: where('players', 'array-contains', uid)
+    match /duels/{duelId} {
+      allow get: if signedIn() && request.auth.uid in resource.data.players;
+      allow list: if signedIn() && request.auth.uid in resource.data.players;
+      allow create, update, delete: if false;
+
+      function duel() {
+        return get(/databases/$(database)/documents/duels/$(duelId)).data;
+      }
+
+      function isPlayer() {
+        return signedIn() && request.auth.uid in duel().players;
+      }
+
+      function isActive() {
+        return duel().status == 'active';
+      }
+
+      function validCount() {
+        let d = request.resource.data;
+        let apps = d.perApp;
+        return d.keys().hasOnly(['uid', 'total', 'perApp', 'dateKey', 'updatedAt'])
+          && d.uid == request.auth.uid
+          && d.total is int && d.total >= 0 && d.total <= 5000
+          && d.dateKey is string && d.dateKey.size() == 10
+          && d.updatedAt == request.time
+          && apps is map
+          && apps.keys().hasOnly(['instagram', 'youtube', 'facebook', 'snapchat'])
+          && apps.get('instagram', 0) is int && apps.get('youtube', 0) is int
+          && apps.get('facebook', 0) is int && apps.get('snapchat', 0) is int
+          && d.total == apps.get('instagram', 0) + apps.get('youtube', 0)
+                      + apps.get('facebook', 0) + apps.get('snapchat', 0)
+          // Within a day the count only goes up.
+          && (request.method == 'create'
+              || d.dateKey != resource.data.dateKey
+              || d.total >= resource.data.total);
+      }
+
+      // Today's count for one player. Both players read it, but only while the duel is active.
+      match /counts/{uid} {
+        allow read: if isPlayer() && isActive();
+        allow create, update: if isSelf(uid) && isPlayer() && isActive() && validCount();
+        allow delete: if false;
+      }
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

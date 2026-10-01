@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "rules": [
+    { "package": "com.instagram.android", "viewIds": ["clips_viewer_view_pager"], "classNames": [], "verified": false },
+    { "package": "com.google.android.youtube", "viewIds": ["reel_recycler"], "classNames": [], "verified": false },
+    { "package": "com.facebook.katana", "viewIds": [], "classNames": [], "verified": false },
+    { "package": "com.snapchat.android", "viewIds": [], "classNames": [], "verified": false }
+  ]
+}

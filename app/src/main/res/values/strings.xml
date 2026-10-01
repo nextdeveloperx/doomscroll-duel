@@ -99,4 +99,54 @@
     <string name="status_off">BAND HAI</string>
     <string name="status_battery_ok">ALLOWED</string>
     <string name="status_battery_restricted">RESTRICTED</string>
+
+    <!-- App and counter service -->
+    <string name="app_name">Doomscroll Duel</string>
+    <string name="a11y_service_description">Reels, Shorts aur Spotlight ginne ke liye. Yeh sirf Instagram, YouTube, Facebook aur Snapchat ka naam aur scroll dekhta hai, aur gin-ti ek number ki tarah phone mein rakhta hai. Yeh kabhi nahi padhta ya bhejta ki tum kya dekh rahe ho: koi text, username, caption ya video nahi. Yeh kuch tap ya type nahi kar sakta.</string>
+    <string name="tracking_channel_name">Reel counter</string>
+    <string name="tracking_channel_description">Chhota, shaant notification jo counter ko chalta rakhta hai.</string>
+    <string name="tracking_notification_title">Reel counter chalu hai</string>
+    <string name="tracking_notification_text">Aaj: %1$d reels</string>
+
+    <!-- Tracked apps -->
+    <string name="app_instagram">Instagram Reels</string>
+    <string name="app_youtube">YouTube Shorts</string>
+    <string name="app_facebook">Facebook Reels</string>
+    <string name="app_snapchat">Snapchat Spotlight</string>
+
+    <!-- Home: breakdown and banners -->
+    <string name="home_breakdown_title">Kahan kitni reels</string>
+    <string name="home_breakdown_row">%1$s: %2$d reels</string>
+    <string name="banner_off_title">Counting band hai!</string>
+    <string name="banner_off_body">Accessibility service band ho gayi, isliye reels gine nahi ja rahe. Ek tap mein chalu karo.</string>
+    <string name="banner_off_action">CHALU KARO</string>
+    <string name="banner_battery_title">Battery saver counting rok sakta hai</string>
+    <string name="banner_battery_body">Phone background mein counter band kar de to reels miss ho jayengi.</string>
+    <string name="banner_battery_action">THEEK KARO</string>
+
+    <!-- Battery guide -->
+    <string name="battery_title">Battery settings theek karo</string>
+    <string name="battery_intro">Kuch phones background apps jaldi band kar dete hain. In steps se counter chalta rahega.</string>
+    <string name="battery_phone_family">Tumhara phone: %1$s</string>
+    <string name="oem_xiaomi">Xiaomi / Redmi / Poco</string>
+    <string name="oem_realme_oppo">Realme / Oppo / OnePlus</string>
+    <string name="oem_vivo">Vivo / iQOO</string>
+    <string name="oem_samsung">Samsung</string>
+    <string name="oem_other">Android</string>
+    <string name="battery_step_number">Step %1$d</string>
+    <string name="step_open_battery_list">Battery optimization ki list kholo (neeche wala button dabao).</string>
+    <string name="step_pick_app_unrestricted">Doomscroll Duel dhundo aur "Don't optimize" ya "Unrestricted" chuno.</string>
+    <string name="step_xiaomi_autostart">Security app mein Autostart ON karo Doomscroll Duel ke liye.</string>
+    <string name="step_xiaomi_battery_saver">Settings, Apps, Doomscroll Duel, Battery saver mein "No restrictions" chuno.</string>
+    <string name="step_realme_auto_launch">Settings, Apps, Auto launch (ya Startup manager) mein Doomscroll Duel ON karo.</string>
+    <string name="step_realme_background_activity">Settings, Battery, Doomscroll Duel mein "Allow background activity" ON karo.</string>
+    <string name="step_vivo_autostart">i Manager ya Settings mein Autostart ON karo Doomscroll Duel ke liye.</string>
+    <string name="step_vivo_background_power">Settings, Battery, Background power consumption mein Doomscroll Duel ko "Allow" karo.</string>
+    <string name="step_samsung_unrestricted">Settings, Apps, Doomscroll Duel, Battery mein "Unrestricted" chuno.</string>
+    <string name="step_samsung_sleeping_apps">Settings, Battery, Background usage limits mein Doomscroll Duel ko "Sleeping apps" aur "Deep sleeping apps" se hatao.</string>
+    <string name="step_samsung_unused_apps">Settings, Apps, Doomscroll Duel mein "Pause app activity if unused" OFF karo.</string>
+    <string name="step_lock_in_recents">Recent apps mein Doomscroll Duel card ko dabake rakho aur "Lock" chuno.</string>
+    <string name="battery_open_settings">BATTERY SETTINGS KHOLO</string>
+    <string name="battery_open_oem_settings">AUTOSTART SETTINGS KHOLO</string>
+    <string name="battery_status_done">Battery theek hai. Counter chalta rahega.</string>
 </resources>

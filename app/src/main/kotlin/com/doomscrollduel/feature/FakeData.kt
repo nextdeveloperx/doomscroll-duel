@@ -7,12 +7,16 @@ import com.doomscrollduel.feature.duel.live.LiveFighter
 import com.doomscrollduel.feature.duel.result.ResultFighter
 import com.doomscrollduel.feature.duel.result.ResultUiState
 import com.doomscrollduel.feature.home.ActiveBattleUi
+import com.doomscrollduel.feature.home.AppCount
 import com.doomscrollduel.feature.home.HomeUiState
 import com.doomscrollduel.feature.settings.SettingsUiState
+import com.doomscrollduel.tracking.health.TrackingIssue
+import com.doomscrollduel.tracking.model.TrackedApp
 
 /**
- * Stand-in data for the first UI pass and for previews. The Room-backed repositories replace this
- * (milestones 3 and 6); screens only ever see the UiState classes, so nothing else changes.
+ * Sample data for Studio previews, plus the pieces that are not real yet: the duel in progress and the
+ * profile. Home's reel counts, streak and tracking status are real (see HomeViewModel); screens only
+ * ever see the UiState classes.
  */
 object FakeData {
     val home = HomeUiState(
@@ -21,6 +25,13 @@ object FakeData {
         coins = 1250,
         reelsToday = 47,
         reelLimit = 100,
+        perApp = listOf(
+            AppCount(TrackedApp.INSTAGRAM, 21),
+            AppCount(TrackedApp.YOUTUBE, 17),
+            AppCount(TrackedApp.FACEBOOK, 6),
+            AppCount(TrackedApp.SNAPCHAT, 3),
+        ),
+        issue = TrackingIssue.NONE,
         battle = ActiveBattleUi(
             opponentName = "Aman",
             myReels = 47,

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Limits what the reel counter can ever receive.
+
+    - packageNames: the system delivers events ONLY from these four apps. Everything else on the
+      phone is invisible to us.
+    - accessibilityEventTypes: scrolls and window content changes. Nothing else (no clicks, no typing,
+      no focus, no notifications).
+    - flagReportViewIds + canRetrieveWindowContent: needed only to read the layout id of the scrolled
+      view (to tell Reels/Shorts from the normal feed). The code never reads text or descriptions.
+    - canPerformGestures / canRequestTouchExplorationMode / flagRequestTouchExplorationMode are off,
+      so the service cannot tap, swipe or take over the screen.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeViewScrolled|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagReportViewIds"
+    android:canPerformGestures="false"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/a11y_service_description"
+    android:isAccessibilityTool="false"
+    android:notificationTimeout="50"
+    android:packageNames="com.instagram.android,com.google.android.youtube,com.facebook.katana,com.snapchat.android"
+    android:settingsActivity="com.doomscrollduel.MainActivity" />

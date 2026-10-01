@@ -56,7 +56,7 @@ fun SettingsRoute(
     accessibilityEnabled: Boolean,
     batteryUnrestricted: Boolean,
     onOpenAccessibilitySettings: () -> Unit,
-    onOpenBatterySettings: () -> Unit,
+    onOpenBatteryGuide: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val initial = FakeData.settings
@@ -82,7 +82,7 @@ fun SettingsRoute(
         onBedtimeChange = { bedtime = it },
         onFocusChange = { focus = it },
         onOpenAccessibilitySettings = onOpenAccessibilitySettings,
-        onOpenBatterySettings = onOpenBatterySettings,
+        onOpenBatteryGuide = onOpenBatteryGuide,
         modifier = modifier,
     )
 }
@@ -96,7 +96,7 @@ fun SettingsScreen(
     onBedtimeChange: (Boolean) -> Unit,
     onFocusChange: (Boolean) -> Unit,
     onOpenAccessibilitySettings: () -> Unit,
-    onOpenBatterySettings: () -> Unit,
+    onOpenBatteryGuide: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = DuelTheme.colors
@@ -140,7 +140,7 @@ fun SettingsScreen(
                     if (state.batteryUnrestricted) R.string.status_battery_ok else R.string.status_battery_restricted,
                 ),
                 statusFill = if (state.batteryUnrestricted) colors.green else colors.orange,
-                onClick = onOpenBatterySettings,
+                onClick = onOpenBatteryGuide,
             )
         }
         Spacer(Modifier.height(24.dp))
@@ -242,7 +242,7 @@ private fun SettingsPreview() = TabbedScreenPreview(DuelTab.SETTINGS) {
         state = FakeData.settings,
         onStrictLockChange = {}, onFriendUnlockChange = {}, onWait10Change = {},
         onBedtimeChange = {}, onFocusChange = {},
-        onOpenAccessibilitySettings = {}, onOpenBatterySettings = {},
+        onOpenAccessibilitySettings = {}, onOpenBatteryGuide = {},
     )
 }
 
@@ -253,6 +253,6 @@ private fun SettingsMissingPreview() = TabbedScreenPreview(DuelTab.SETTINGS) {
         state = FakeData.settings.copy(accessibilityEnabled = false, batteryUnrestricted = false),
         onStrictLockChange = {}, onFriendUnlockChange = {}, onWait10Change = {},
         onBedtimeChange = {}, onFocusChange = {},
-        onOpenAccessibilitySettings = {}, onOpenBatterySettings = {},
+        onOpenAccessibilitySettings = {}, onOpenBatteryGuide = {},
     )
 }
