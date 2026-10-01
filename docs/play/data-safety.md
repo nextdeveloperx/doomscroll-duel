@@ -9,6 +9,7 @@ Privacy Policy and the app's behaviour exactly; a mismatch is a common rejection
 | Question | Answer |
 |---|---|
 | Does your app collect or share any of the required user data types? | **Yes** |
+| Is any collected data optional for users? | **Yes**: analytics, crash reports, dare proof photo or video |
 | Is all of the user data collected by your app encrypted in transit? | **Yes** (HTTPS/TLS to Firebase and Google Play) |
 | Do you provide a way for users to request that their data is deleted? | **Yes** |
 | Delete account URL | `{{SITE_URL}}/delete-account` |
@@ -29,14 +30,14 @@ results is a user-directed feature, not a transfer to a third party).
 | Financial info | Purchase history | Yes | No | Required for Pro | App functionality | Google Play purchase token, plan, status, end date. **No** card or UPI data reaches us, so do not tick "User payment info" |
 | Photos and videos | Photos / Videos | Yes | No | **Optional** | App functionality | Dare proof, private between two players, deleted after 7 days. Declare only if the dare proof upload ships |
 | App activity | App interactions | Yes | No | Required for challenges | App functionality | Daily reel counts (total and per app: Instagram, YouTube, Facebook, Snapchat) uploaded only for challenges you join; duel history |
-| Device or other IDs | Device or other IDs | Yes | No | Required for notifications | App functionality | Firebase Cloud Messaging token |
+| Device or other IDs | Device or other IDs | Yes | No | Notification token required; the Firebase install ID is **optional** (only if the person allows anonymous data) | App functionality (token); Analytics (install ID) | Firebase Cloud Messaging token and the Firebase installation ID. **Not** the advertising ID: the AD_ID permission is removed |
+| App activity | App interactions (analytics) | Yes, **optional** | No | Optional (off until the person says yes) | Analytics | Nine anonymous events with bucketed values (`docs/analytics-events.md`). No names, ids, exact counts |
+| App info and performance | Crash logs and Diagnostics | Yes, **optional** | No | Optional (off until the person says yes) | Analytics, App functionality | Crashlytics crash reports; exception messages are stripped; device model and OS version are attached by Firebase |
 
 Not collected: Location, Contacts, Messages, Audio, Files and docs, Calendar, Health and fitness, Web browsing,
-Installed apps, Advertising ID, Crash logs and diagnostics (we ship no crash or analytics SDK; if you add Crashlytics or
-Analytics, add "Crash logs", "Diagnostics" and "App interactions" purposes here).
+Installed apps, Advertising ID. Analytics and crash reports are in the table above and are collected only after the person says yes.
 
-For each collected type, answer **"Is this data processed ephemerally?" = No** and choose these purposes only:
-App functionality, Account management. **Never** tick Advertising or marketing, Analytics, Personalization, Fraud
+For each collected type, answer **"Is this data processed ephemerally?" = No**. Purposes: App functionality and Account management for account data; Analytics for the optional rows only. **Never** tick Advertising or marketing, Personalization, Fraud
 prevention (unless you add it), or Developer communications (unless you send newsletters).
 
 ## Section 3: security practices

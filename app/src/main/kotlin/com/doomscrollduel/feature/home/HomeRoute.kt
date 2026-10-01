@@ -8,7 +8,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.doomscrollduel.core.common.openAccessibilitySettings
+import com.doomscrollduel.domain.analytics.UsageDataChoice
 import com.doomscrollduel.feature.legal.AccessibilityEntryViewModel
+import com.doomscrollduel.feature.legal.UsageDataCard
+import com.doomscrollduel.feature.legal.UsageDataPromptViewModel
 import com.doomscrollduel.tracking.health.TrackingIssue
 
 /** Home with live data: counts from Room, status from the system. */
@@ -21,8 +24,10 @@ fun HomeRoute(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
     entry: AccessibilityEntryViewModel = hiltViewModel(),
+    usagePrompt: UsageDataPromptViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val usageChoice by usagePrompt.choice.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     // The user may have just come back from system settings.
@@ -45,5 +50,10 @@ fun HomeRoute(
             }
         },
         modifier = modifier,
+        extraTop = if (usageChoice == UsageDataChoice.UNDECIDED) {
+            { UsageDataCard(onAllow = { usagePrompt.answer(true) }, onDecline = { usagePrompt.answer(false) }) }
+        } else {
+            null
+        },
     )
 }

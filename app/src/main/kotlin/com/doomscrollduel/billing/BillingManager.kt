@@ -15,6 +15,8 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import com.android.billingclient.api.queryProductDetails
 import com.android.billingclient.api.queryPurchasesAsync
+import com.doomscrollduel.domain.analytics.Analytics
+import com.doomscrollduel.domain.analytics.AnalyticsEvent
 import com.doomscrollduel.domain.billing.PlanOffer
 import com.doomscrollduel.domain.billing.ProPlan
 import com.doomscrollduel.domain.billing.ProProduct
@@ -59,12 +61,14 @@ class BillingManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val verifier: PurchaseVerifier,
     private val accounts: AccountProvider,
+    private val analytics: Analytics,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val connectLock = Mutex()
     private val _store = MutableStateFlow<StoreState>(StoreState.Loading)
     private val _outcomes = MutableSharedFlow<PurchaseOutcome>(extraBufferCapacity = 8)
     private var details: ProductDetails? = null
+    private var lastBoughtPlan: ProPlan? = null
     private var lastSyncElapsedMs: Long = -SYNC_EVERY_MS
 
     val store: StateFlow<StoreState> = _store
@@ -161,6 +165,7 @@ class BillingManager @Inject constructor(
             // Ties this purchase to this account. The server refuses a token whose id is not the caller's.
             .setObfuscatedAccountId(uid)
             .build()
+        lastBoughtPlan = plan
         val result = client.launchBillingFlow(activity, params)
         return when (result.responseCode) {
             BillingClient.BillingResponseCode.OK -> null
@@ -203,9 +208,15 @@ class BillingManager @Inject constructor(
     }
 
     private suspend fun onPurchasesUpdated(result: BillingResult, purchases: List<Purchase>) {
+        if (result.responseCode != BillingClient.BillingResponseCode.OK) lastBoughtPlan = null
         when (result.responseCode) {
-            BillingClient.BillingResponseCode.OK ->
-                _outcomes.emit(PurchaseOutcomes.best(purchases.filter { ProProduct.PRODUCT_ID in it.products }.map { handle(it) }))
+            BillingClient.BillingResponseCode.OK -> {
+                val outcome = PurchaseOutcomes.best(purchases.filter { ProProduct.PRODUCT_ID in it.products }.map { handle(it) })
+                // Only a purchase made just now, and only once our server has confirmed it. A restore does not count.
+                if (outcome is PurchaseOutcome.Verified) lastBoughtPlan?.let { analytics.track(AnalyticsEvent.SubscriptionStarted(it)) }
+                lastBoughtPlan = null
+                _outcomes.emit(outcome)
+            }
             BillingClient.BillingResponseCode.USER_CANCELED -> _outcomes.emit(PurchaseOutcome.Cancelled)
             BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> _outcomes.emit(restore())
             BillingClient.BillingResponseCode.NETWORK_ERROR,

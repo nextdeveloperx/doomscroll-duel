@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,6 +58,8 @@ fun HomeScreen(
     onOpenBattle: () -> Unit,
     onFixTracking: (TrackingIssue) -> Unit,
     modifier: Modifier = Modifier,
+    /** Optional card shown under the banner (the one-time anonymous-data question). */
+    extraTop: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val brainState = state.brainState
     val hp = state.hp
@@ -74,6 +77,10 @@ fun HomeScreen(
         HomeTopBar(state)
         if (state.issue != TrackingIssue.NONE) {
             TrackingBanner(issue = state.issue, onFix = { onFixTracking(state.issue) })
+            Spacer(Modifier.height(8.dp))
+        }
+        if (extraTop != null) {
+            extraTop()
             Spacer(Modifier.height(8.dp))
         }
         Spacer(Modifier.height(4.dp.scaled()))

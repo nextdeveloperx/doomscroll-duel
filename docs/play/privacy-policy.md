@@ -33,11 +33,12 @@ You must be at least **16 years old** to create an account and use the App. We d
 | Dare proof (optional) | A photo or short video you choose to send for a Forfeit Dare | To let the winner see that the dare was done. It is private between the two of you and is deleted automatically after 7 days |
 | Push notification token | A technical code that lets Firebase Cloud Messaging reach your phone | To send friend-unlock requests, duel reminders and results |
 | Subscription details (Pro) | Google Play purchase token, plan (monthly or yearly), status and end date. We never see your card, UPI or bank details. Google Play handles payment | To confirm Pro on our server and keep your Pro status correct |
+| Anonymous usage data and crash reports (only if you say yes) | Which button or feature was used (for example "paywall opened", "duel created") as a short code with no names or exact numbers, crash reports (the error and where it happened in the code, never its message), your phone model, Android version and a random install ID that is not linked to your account. Collected by Google Firebase Analytics and Firebase Crashlytics. No advertising ID | To find and fix bugs and see which features are used. You choose "Haan" or "Nahi" on first use and can change it in Settings > Anonymous usage data. If you say no (or do not answer), nothing is collected |
 | Service logs | Short technical records made by our cloud provider when you use the App, such as IP address, device type and error information. In our own function logs we keep only a short, one-way hash of your account ID | To keep the service secure, stop abuse, and fix problems |
 
 **Kept only on your phone (we never receive it):** your reel limit, Strict Lock, bedtime and focus schedules, the friend you chose as unlock buddy, the record that you agreed to the Accessibility disclosure, and your local reel history.
 
-**What we do not collect:** your contacts, location, microphone, camera (except a photo or video you choose to send for a dare), messages, passwords, browsing history, the content of other apps, advertising ID. We do not use analytics or crash-reporting tools that track you across apps.
+**What we do not collect:** your contacts, location, microphone, camera (except a photo or video you choose to send for a dare), messages, passwords, browsing history, the content of other apps, advertising ID. We do not use advertising or cross-app tracking. Analytics and crash reports are collected only if you allow them (see above).
 
 ## 4. The Accessibility service (important)
 
@@ -63,13 +64,15 @@ The only thing that leaves your phone is the reel count described in section 3. 
 | Push token | Until you sign out, uninstall, or delete your account |
 | Google Play purchase token | Until you delete your account |
 | Function logs (hash of account ID only) | Up to 30 days |
+| Anonymous usage data (Firebase Analytics) | Up to 2 months, then deleted automatically. Not linked to your account |
+| Crash reports (Firebase Crashlytics) | Up to 90 days |
 
 When you delete your account, we remove your data from our servers straight away (see section 8). We do not keep separate backups of user data.
 
 ## 6. Who we share data with
 
 - **Other players, only as part of what you do in the App.** In a challenge, the people in that challenge can see your username, your display name, your reel count for that challenge, and the result.
-- **Service providers who process data for us**, under their terms: Google (Firebase Authentication, Cloud Firestore, Cloud Functions, Cloud Storage and Cloud Messaging) and Google Play (billing). Our servers are in {{DATA_REGION}}. They may only use the data to provide the service to us.
+- **Service providers who process data for us**, under their terms: Google (Firebase Authentication, Cloud Firestore, Cloud Functions, Cloud Storage, Cloud Messaging and, only if you allow it, Firebase Analytics and Crashlytics) and Google Play (billing). Our servers are in {{DATA_REGION}}. They may only use the data to provide the service to us.
 - **Legal reasons.** We may disclose data if the law requires it, or to protect people from serious harm or fraud.
 
 We **do not sell** personal data, we **do not share it with advertisers or data brokers**, we show **no ads**, and we do not use your data to build advertising profiles.

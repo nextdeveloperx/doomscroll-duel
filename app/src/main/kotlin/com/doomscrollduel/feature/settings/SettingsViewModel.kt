@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.doomscrollduel.blocking.BlockingScheduler
 import com.doomscrollduel.billing.EntitlementService
 import com.doomscrollduel.blocking.BuddyDirectory
+import com.doomscrollduel.domain.analytics.UsageDataChoice
+import com.doomscrollduel.domain.analytics.UsageDataChoiceStore
 import com.doomscrollduel.domain.billing.Access
 import com.doomscrollduel.domain.billing.ProFeature
 import com.doomscrollduel.domain.billing.SettingGate
@@ -47,6 +49,7 @@ data class SettingsUiState(
     val friends: List<Buddy>,
     val message: SettingsMessage?,
     val isPro: Boolean = false,
+    val usageData: UsageDataChoice = UsageDataChoice.UNDECIDED,
 )
 
 /**
@@ -62,6 +65,7 @@ class SettingsViewModel @Inject constructor(
     private val scheduler: BlockingScheduler,
     private val reels: ReelRepository,
     private val entitlements: EntitlementService,
+    private val usageDataStore: UsageDataChoiceStore,
 ) : ViewModel() {
 
     private val message = MutableStateFlow<SettingsMessage?>(null)
@@ -77,7 +81,8 @@ class SettingsViewModel @Inject constructor(
             SettingsUiState(controller.status(), health, friends, msg)
         },
         entitlements.view,
-    ) { state, view -> state.copy(isPro = view.isPro) }.stateIn(
+        usageDataStore.choice,
+    ) { state, view, usage -> state.copy(isPro = view.isPro, usageData = usage) }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = SettingsUiState(controller.status(), healthMonitor.current(), emptyList(), null),
@@ -104,6 +109,11 @@ class SettingsViewModel @Inject constructor(
 
     fun dismissMessage() {
         message.value = null
+    }
+
+    /** The "anonymous data" switch. Off means no analytics and no crash reports leave the phone. */
+    fun setUsageData(allowed: Boolean) {
+        usageDataStore.set(if (allowed) UsageDataChoice.ALLOWED else UsageDataChoice.DECLINED)
     }
 
     /** The focus-hours editor is for Pro. Someone who already has a schedule can still open it to trim or remove it. */

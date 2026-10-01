@@ -40,6 +40,7 @@ import com.doomscrollduel.core.designsystem.components.StepperKind
 import com.doomscrollduel.core.designsystem.components.TabbedScreenPreview
 import com.doomscrollduel.core.designsystem.components.ToggleSwitch
 import com.doomscrollduel.core.designsystem.theme.DuelTheme
+import com.doomscrollduel.domain.analytics.UsageDataChoice
 import com.doomscrollduel.domain.billing.ProFeature
 import com.doomscrollduel.domain.blocking.ActiveWindow
 import com.doomscrollduel.feature.paywall.UpgradePrompt
@@ -78,6 +79,7 @@ class SettingsActions(
     val onOpenTerms: () -> Unit = {},
     val onOpenDisclosure: () -> Unit = {},
     val onOpenDeleteAccount: () -> Unit = {},
+    val onUsageData: (Boolean) -> Unit = {},
 )
 
 @Composable
@@ -231,6 +233,15 @@ fun SettingsScreen(
         // ----- ACCOUNT AND PRIVACY -------------------------------------------------------------
         SectionLabel(R.string.settings_section_account)
         SettingsCard {
+            ToggleRow(
+                title = stringResource(R.string.settings_usage_data),
+                subtitle = stringResource(R.string.settings_usage_data_sub),
+                note = null,
+                checked = ui.usageData == UsageDataChoice.ALLOWED,
+                enabled = true,
+                onChecked = actions.onUsageData,
+            )
+            RowDivider()
             LinkRow(R.string.settings_privacy_policy, R.string.settings_privacy_policy_sub, actions.onOpenPrivacy)
             RowDivider()
             LinkRow(R.string.settings_terms, R.string.settings_terms_sub, actions.onOpenTerms)

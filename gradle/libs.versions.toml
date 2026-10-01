@@ -1,0 +1,79 @@
+# Versions were chosen from known-compatible sets and NOT resolved against the live repositories when written
+# (Google Maven was not reachable). On the first sync, let Android Studio's "Update" suggestions or Dependabot bump them,
+# keep the Kotlin / KSP / Compose-compiler trio aligned, and re-run all tests.
+[versions]
+agp = "8.10.1"
+kotlin = "2.0.21"
+ksp = "2.0.21-1.0.28"
+hilt = "2.52"
+hiltNavigationCompose = "1.2.0"
+composeBom = "2024.10.01"
+activityCompose = "1.9.3"
+navigationCompose = "2.8.3"
+lifecycle = "2.8.7"
+savedstate = "1.2.1"
+room = "2.6.1"
+datastore = "1.1.1"
+work = "2.9.1"
+coroutines = "1.9.0"
+serialization = "1.7.3"
+firebaseBom = "33.5.1"
+googleServices = "4.4.2"
+crashlyticsPlugin = "3.0.2"
+billing = "7.1.1"
+junit = "4.13.2"
+androidxTestExt = "1.2.1"
+androidxTestRunner = "1.6.2"
+androidxTestCore = "1.6.1"
+
+[libraries]
+androidx-core-ktx = { module = "androidx.core:core-ktx", version = "1.13.1" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+androidx-compose-ui-text = { module = "androidx.compose.ui:ui-text" }
+androidx-compose-foundation = { module = "androidx.compose.foundation:foundation" }
+androidx-compose-animation = { module = "androidx.compose.animation:animation" }
+androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
+androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+androidx-lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version.ref = "lifecycle" }
+androidx-savedstate = { module = "androidx.savedstate:savedstate-ktx", version.ref = "savedstate" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
+hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
+hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
+firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
+firebase-functions = { module = "com.google.firebase:firebase-functions" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
+billing-ktx = { module = "com.android.billingclient:billing-ktx", version.ref = "billing" }
+junit = { module = "junit:junit", version.ref = "junit" }
+androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestExt" }
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
+androidx-test-core-ktx = { module = "androidx.test:core-ktx", version.ref = "androidxTestCore" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlyticsPlugin" }

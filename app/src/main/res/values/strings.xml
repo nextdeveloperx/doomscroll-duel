@@ -377,4 +377,12 @@
     <string name="del_err_no_network">Net nahi hai. Net chalu karke dobara try karo. Abhi kuch delete nahi hua.</string>
     <string name="del_err_not_signed_in">Tum sign in nahi ho, isliye server pe delete karne ke liye kuch nahi hai.</string>
     <string name="del_err_failed">Kuch gadbad ho gayi. Dobara try karo, bacha hua data bhi hat jayega.</string>
+
+    <!-- Anonymous usage data -->
+    <string name="settings_usage_data">Anonymous usage data</string>
+    <string name="settings_usage_data_sub">Crash aur use ki anonymous jaankari. Koi naam ya content nahi.</string>
+    <string name="usage_card_title">App behtar banane mein madad karo</string>
+    <string name="usage_card_body">Hum sirf anonymous jaankari bhejte hain: app kab crash hua, kaun sa button dabaya. Tumhara naam, messages ya reels ka content kabhi nahi. Settings mein kabhi bhi band kar sakte ho.</string>
+    <string name="usage_card_allow">HAAN, BHEJO</string>
+    <string name="usage_card_decline">NAHI</string>
 </resources>

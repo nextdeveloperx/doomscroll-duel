@@ -96,7 +96,7 @@ to gambling words and to anything that looks like paying to win or turning coins
 | Deletion incomplete as features are added | **DONE**: a test fails when `firestore.rules` gets a collection that deletion does not handle |
 | Policy says "no backups" | **YOU**: do not enable Firestore backups or PITR without updating the policy |
 | Children | App is for 16+. See the age note below |
-| Data collected beyond what is declared | Any new SDK (analytics, crash, ads) changes the Data safety form and the policy first |
+| Data collected beyond what is declared | **DONE** for Firebase Analytics and Crashlytics (optional, off until the person says yes, AD_ID removed; in the policy and `data-safety.md`). Any further SDK changes the form and the policy first |
 
 ### Age: 13 or 16, and what is safer for India
 - Between 13 and 16, **16 is safer** for India. India's Digital Personal Data Protection Act, 2023 treats **anyone under

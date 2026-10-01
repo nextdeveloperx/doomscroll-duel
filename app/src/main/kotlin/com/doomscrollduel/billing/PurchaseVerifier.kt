@@ -34,7 +34,9 @@ interface PurchaseVerifier {
  * NOT run against a deployed function yet.
  */
 @Singleton
-class FirebaseFunctionsPurchaseVerifier @Inject constructor() : PurchaseVerifier {
+class FirebaseFunctionsPurchaseVerifier @Inject constructor(
+    private val crashes: com.doomscrollduel.analytics.CrashReporter,
+) : PurchaseVerifier {
     override suspend fun verify(purchaseToken: String): PurchaseOutcome {
         if (FirebaseAuth.getInstance().currentUser == null) return PurchaseOutcome.NotSignedIn
         return try {
@@ -56,7 +58,10 @@ class FirebaseFunctionsPurchaseVerifier @Inject constructor() : PurchaseVerifier
                 FirebaseFunctionsException.Code.NOT_FOUND -> PurchaseOutcome.Rejected
                 FirebaseFunctionsException.Code.UNAVAILABLE,
                 FirebaseFunctionsException.Code.DEADLINE_EXCEEDED -> PurchaseOutcome.NoNetwork
-                else -> PurchaseOutcome.Failed(e.code.name)
+                else -> {
+                    crashes.nonFatal("purchase_verify", e) // class name and stack only, never the message
+                    PurchaseOutcome.Failed(e.code.name)
+                }
             }
         } catch (e: IOException) {
             PurchaseOutcome.NoNetwork

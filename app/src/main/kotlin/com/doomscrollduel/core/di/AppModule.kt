@@ -10,6 +10,11 @@ import com.doomscrollduel.core.common.DayClock
 import com.doomscrollduel.data.local.AppDatabase
 import com.doomscrollduel.data.local.ReelCountDao
 import com.doomscrollduel.account.AccountDeletionRepository
+import com.doomscrollduel.analytics.FirebaseAnalyticsSink
+import com.doomscrollduel.data.prefs.DataStoreUsageDataChoice
+import com.doomscrollduel.domain.analytics.Analytics
+import com.doomscrollduel.domain.analytics.AnalyticsSink
+import com.doomscrollduel.domain.analytics.UsageDataChoiceStore
 import com.doomscrollduel.account.FirebaseAccountDeletionRepository
 import com.doomscrollduel.billing.AccountProvider
 import com.doomscrollduel.billing.EntitlementCache
@@ -169,6 +174,12 @@ abstract class BindingsModule {
     abstract fun accountDeletion(impl: FirebaseAccountDeletionRepository): AccountDeletionRepository
 
     @Binds
+    abstract fun analyticsSink(impl: FirebaseAnalyticsSink): AnalyticsSink
+
+    @Binds
+    abstract fun usageDataChoice(impl: DataStoreUsageDataChoice): UsageDataChoiceStore
+
+    @Binds
     abstract fun consentStore(impl: DataStoreConsentStore): ConsentStore
 }
 
@@ -199,4 +210,18 @@ object BlockingModule {
         clock: ClockSource,
         zone: ZoneSource,
     ): BlockingController = BlockingController(settings, store, clock, zone)
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+object AnalyticsModule {
+    /** The one door to analytics: events are checked for personal data and sent only when the person allowed it. */
+    @Provides
+    @Singleton
+    fun analytics(sink: AnalyticsSink, choice: UsageDataChoiceStore): Analytics =
+        Analytics(
+            sink = sink,
+            choice = { choice.choice.value },
+            onRejected = { reason -> Log.w("Analytics", "event dropped: $reason") },
+        )
 }

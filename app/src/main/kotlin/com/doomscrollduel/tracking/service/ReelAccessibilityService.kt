@@ -2,21 +2,18 @@ package com.doomscrollduel.tracking.service
 
 import android.accessibilityservice.AccessibilityService
 import android.content.pm.ApplicationInfo
-import android.os.Build
-import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.doomscrollduel.blocking.BlockingPresenter
 import com.doomscrollduel.blocking.BlockingScheduler
 import com.doomscrollduel.blocking.TrustedTime
 import com.doomscrollduel.blocking.unlock.UnlockRepository
+import com.doomscrollduel.domain.analytics.Analytics
 import com.doomscrollduel.domain.blocking.BlockingController
 import com.doomscrollduel.domain.legal.AccessibilityConsent
 import com.doomscrollduel.domain.legal.ConsentStore
 import com.doomscrollduel.domain.repository.ReelRepository
 import com.doomscrollduel.tracking.detector.SurfaceRulesHolder
 import com.doomscrollduel.tracking.detector.ReelEventProcessor
-import com.doomscrollduel.tracking.detector.ReelSignal
-import com.doomscrollduel.tracking.model.TrackedApp
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -50,6 +47,7 @@ class ReelAccessibilityService : AccessibilityService() {
     @Inject lateinit var trustedTime: TrustedTime
     @Inject lateinit var surfaceRules: SurfaceRulesHolder
     @Inject lateinit var consent: ConsentStore
+    @Inject lateinit var analytics: Analytics
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -67,6 +65,7 @@ class ReelAccessibilityService : AccessibilityService() {
             trustedTime = trustedTime,
             scheduler = scheduler,
             scope = mainScope,
+            analytics = analytics,
         )
         scheduler.schedule()
         scope.launch { repository.ensureToday() }
@@ -74,43 +73,25 @@ class ReelAccessibilityService : AccessibilityService() {
         TrackingKeepAlive.start(this)
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // The person must have agreed to the in-app disclosure first. Switching the service on in Android's own
-        // Accessibility list is not enough: without that agreement every event is dropped before it is looked at.
-        if (!AccessibilityConsent.mayProcessEvents(consent.current())) return
-        val e = event ?: return
-        val app = TrackedApp.fromPackage(e.packageName?.toString()) ?: return
-        val signal = when (e.eventType) {
-            AccessibilityEvent.TYPE_VIEW_SCROLLED -> scrollSignal(app, e)
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> ReelSignal.ContentChanged(app, e.eventTime)
-            // A window change carries no data we use; it only tells the blocker that the app came to the front.
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> null
-            else -> return
-        }
-        if (signal != null && processor.process(signal)) {
-            val countedAt = System.currentTimeMillis()
-            scope.launch {
-                repository.recordReel(app, countedAt)
-                val total = repository.todayTotal()
-                // The lock starts right after the reel that reaches the limit.
-                mainScope.launch { presenter?.onReelCounted(app, total) }
-            }
-        }
-        presenter?.onTrackedEvent(app)
+    private val pipeline by lazy {
+        ReelEventPipeline(
+            processor = processor,
+            // The person must have agreed to the in-app disclosure first. Switching the service on in Android's own
+            // Accessibility list is not enough: without that agreement every event is dropped before it is looked at.
+            consent = { AccessibilityConsent.mayProcessEvents(consent.current()) },
+            record = { app, at ->
+                repository.recordReel(app, at)
+                repository.todayTotal()
+            },
+            // The lock starts right after the reel that reaches the limit.
+            onCounted = { app, total -> mainScope.launch { presenter?.onReelCounted(app, total) } },
+            scope = scope,
+            debugLog = debuggable,
+        )
     }
 
-    /** Reads only the scrolled view's class name and resource id. Never its text. */
-    private fun scrollSignal(app: TrackedApp, e: AccessibilityEvent): ReelSignal.Scroll {
-        val className = e.className?.toString()
-        val source = e.source
-        val viewId = try {
-            source?.viewIdResourceName
-        } finally {
-            @Suppress("DEPRECATION")
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) source?.recycle()
-        }
-        if (debuggable) Log.d(DIAG_TAG, "scroll pkg=${app.packageName} class=$className viewId=$viewId")
-        return ReelSignal.Scroll(app, e.eventTime, className, viewId)
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        pipeline.onEvent(event)?.let { app -> presenter?.onTrackedEvent(app) }
     }
 
     override fun onInterrupt() = Unit
@@ -121,13 +102,5 @@ class ReelAccessibilityService : AccessibilityService() {
         mainScope.cancel()
         scope.cancel()
         super.onDestroy()
-    }
-
-    private companion object {
-        /**
-         * Debug builds only: logs class names and view ids of scrolls, so testers can find the right
-         * ids for `assets/surface_rules.json` (`adb logcat -s ReelSurfaceDiag`). Nothing is stored.
-         */
-        const val DIAG_TAG = "ReelSurfaceDiag"
     }
 }

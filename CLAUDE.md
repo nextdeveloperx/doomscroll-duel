@@ -100,8 +100,23 @@ server pass; compile-checked against shims only. NOT built: report/block screens
 dare-proof auto-delete function, hosting of the pages. Minimum age in the texts is 16; see the age note (18 is safer
 for India's DPDP Act).
 
+## Launch readiness (turn 9) - built
+Gradle project now exists (`settings.gradle.kts`, `app/build.gradle.kts`, `gradle/libs.versions.toml`, wrapper 8.14.3,
+signing from `keystore.properties` or env vars, R8 on, versionCode = MAJOR*1e6+MINOR*1e4+PATCH*100+BUILD from
+`gradle.properties`, CI in `.github/workflows/ci.yml`). It was written WITHOUT being able to resolve Google Maven, so the first
+sync will likely need version tweaks; nothing has been built by Gradle. Tests: property/fuzz unit tests for settlement, brain
+state, lock timer and coin ledger (`domain/properties`); Compose UI tests for Home, New Duel, Result and an instrumented reel
+counter test (real AccessibilityEvent objects -> `ReelEventPipeline` -> Room) under `app/src/androidTest`; `StoreAssetsTest`
+makes the Play icon, feature graphic and EN/HI screenshots from the real screens (`scripts/prepare-store-assets.sh` makes them
+Play-ready). Compile-checked against real Compose test APIs on desktop; NEVER RUN (no emulator). Analytics: nine events,
+anonymous tokens only (`domain/analytics`, spec `docs/analytics-events.md`, parity test), off until the person taps Haan, no
+user id, AD_ID removed, Crashlytics via `CrashReporter` (messages stripped). Docs: `docs/device-test-matrix.md`,
+`docs/beta-plan.md` (20 testers, 14 days, 8-question form), `docs/launch-checklist.md` (assets, signing, R8, versions, 10% staged
+rollout, week-1 routine). Tests: 459 pure app tests + 31 server tests pass here. `onboarding_completed` and `duel_accepted` have
+no screen yet (spec only).
+
 ## What is NOT verified or NOT built yet
-- No Gradle project exists yet (Milestone 1). Needed deps: compose-bom, ui, foundation, animation,
+- (Gradle project now exists, see Launch readiness.) Original dependency notes: compose-bom, ui, foundation, animation,
   ui-tooling-preview, ui-text, navigation-compose, hilt (+ hilt-navigation-compose), room, lifecycle-runtime-compose,
   activity-compose, kotlinx-serialization-json, coroutines, junit + coroutines-test. NO material3.
 - Nothing has run on a real phone or in Android Studio. Code was compile-checked only against Compose Desktop and
@@ -125,4 +140,5 @@ for India's DPDP Act).
 ## Handy commands
 - Privacy guard: `scripts/check-service-privacy.sh`
 - Dare strings match catalog: `scripts/check-dare-strings.sh`
-- Unit tests (once Gradle exists): `./gradlew :app:testDebugUnitTest`
+- Unit tests: `./gradlew :app:testDebugUnitTest`; UI + instrumented: `./gradlew :app:connectedDebugAndroidTest`
+- Play readiness guard: `scripts/check-play-readiness.sh` (`--release` before upload)

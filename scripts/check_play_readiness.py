@@ -90,6 +90,29 @@ for p in sorted(permissions & forbidden):
 if 'android:allowBackup="false"' not in manifest:
     fail('android:allowBackup must be "false"')
 
+# 4b. Analytics and crash reports must be off until the person says yes, and the advertising ID must not be collected.
+if 'com.google.android.gms.permission.AD_ID" tools:node="remove"' not in manifest:
+    fail("manifest must remove the AD_ID permission (the app has no ads): tools:node=\"remove\"")
+for key in ("firebase_analytics_collection_enabled", "firebase_crashlytics_collection_enabled", "google_analytics_adid_collection_enabled"):
+    if not re.search(r'android:name="%s"\s+android:value="false"' % key, manifest):
+        fail(f"manifest must set {key} to false (collection stays off until the person allows it)")
+kt_sources = "\n".join(read(f) for f in KT.rglob("*.kt"))
+for f in KT.rglob("*.kt"):
+    text = read(f)
+    if re.search(r"\bsetUserId\s*\(", text):
+        fail(f"{f.relative_to(ROOT)} sets an analytics or crash user id; no user id may ever be set")
+    if "setUserProperty(" in text and f.name not in ("FirebaseAnalyticsSink.kt", "AnalyticsEvent.kt"):
+        fail(f"{f.relative_to(ROOT)} sets a user property; only the Analytics wrapper may (plan = free or pro)")
+if re.search(r"FirebaseAnalytics\.getInstance\([^)]*\)\.logEvent|FirebaseCrashlytics\.getInstance\(\)\.(log|setUserId|setCustomKey)\(", kt_sources):
+    fail("use the Analytics wrapper and CrashReporter, not Firebase directly")
+
+# 4c. Release build: shrinking on, no secrets in the build file.
+gradle = read(ROOT / "app/build.gradle.kts")
+if "isMinifyEnabled = true" not in gradle or "isShrinkResources = true" not in gradle:
+    fail("release build must turn on R8 minify and shrinkResources")
+if re.search(r'(storePassword|keyPassword)\s*=\s*"[^"]+"', gradle):
+    fail("a signing password is written in app/build.gradle.kts; keep it in keystore.properties or environment variables")
+
 # 5. The system Accessibility screen is opened only after consent.
 call = re.compile(r"\bopenAccessibilitySettings\s*\(")
 for f in KT.rglob("*.kt"):

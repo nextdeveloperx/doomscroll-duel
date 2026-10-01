@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.doomscrollduel.billing.BillingManager
 import com.doomscrollduel.billing.EntitlementService
 import com.doomscrollduel.billing.StoreState
+import com.doomscrollduel.domain.analytics.Analytics
+import com.doomscrollduel.domain.analytics.AnalyticsEvent
 import com.doomscrollduel.domain.billing.ProFeature
 import com.doomscrollduel.domain.billing.ProPlan
 import com.doomscrollduel.domain.billing.ProView
@@ -39,6 +41,7 @@ class PaywallViewModel @Inject constructor(
     private val billing: BillingManager,
     entitlements: EntitlementService,
     savedState: SavedStateHandle,
+    analytics: Analytics,
 ) : ViewModel() {
 
     private val trigger = savedState.get<String>(ARG_FEATURE)?.let { name -> ProFeature.entries.firstOrNull { it.name == name } }
@@ -55,6 +58,7 @@ class PaywallViewModel @Inject constructor(
     )
 
     init {
+        analytics.track(AnalyticsEvent.PaywallViewed(trigger))
         viewModelScope.launch { billing.loadOffers() }
         // Results that arrive after the Play sheet closes, including a payment that was pending and later cleared.
         viewModelScope.launch { billing.outcomes.collect(::show) }

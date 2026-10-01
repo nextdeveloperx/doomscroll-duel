@@ -62,6 +62,7 @@ fun SettingsRoute(
             onOpenTerms = { context.openUrl(context.getString(R.string.terms_url)) },
             onOpenDisclosure = onOpenDisclosureReview,
             onOpenDeleteAccount = onOpenDeleteAccount,
+            onUsageData = viewModel::setUsageData,
         )
     }
     SettingsScreen(ui = ui, actions = actions, modifier = modifier)

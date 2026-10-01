@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,7 +40,12 @@ import com.doomscrollduel.feature.duel.result.ResultScreen
 import com.doomscrollduel.feature.duel.result.rememberShareText
 import com.doomscrollduel.feature.battery.BatteryGuideRoute
 import com.doomscrollduel.feature.home.HomeRoute
+import com.doomscrollduel.domain.analytics.AnalyticsEvent
+import com.doomscrollduel.domain.analytics.AnalyticsMode
+import com.doomscrollduel.domain.analytics.DuelResultToken
 import com.doomscrollduel.domain.billing.ProFeature
+import com.doomscrollduel.domain.usecase.DuelOutcome
+import com.doomscrollduel.feature.common.AnalyticsViewModel
 import com.doomscrollduel.feature.account.DeleteAccountRoute
 import com.doomscrollduel.feature.legal.DisclosureRoute
 import com.doomscrollduel.feature.modes.BattleModesScreen
@@ -158,9 +164,11 @@ fun DuelNavGraph(
                     )
                 }
                 composable(Routes.NEW_DUEL) {
+                    val events: AnalyticsViewModel = hiltViewModel()
                     NewDuelRoute(
                         onBack = { navController.popBackStack() },
-                        onSend = {
+                        onSend = { form ->
+                            events.track(AnalyticsEvent.DuelCreated(AnalyticsMode.DUEL, form.duration.hours, form.stakeCoins, form.reelLimit))
                             navController.navigate(Routes.LIVE) {
                                 popUpTo(Routes.HOME)
                             }
@@ -180,6 +188,11 @@ fun DuelNavGraph(
                 }
                 composable(Routes.RESULT) {
                     val context = LocalContext.current
+                    val events: AnalyticsViewModel = hiltViewModel()
+                    LaunchedEffect(Unit) {
+                        val r = FakeData.result
+                        events.track(AnalyticsEvent.DuelFinished(AnalyticsMode.DUEL, r.outcome.toAnalytics(), r.me.reels, r.me.reels >= r.reelLimit))
+                    }
                     val shareText = rememberShareText(FakeData.result)
                     ResultScreen(
                         state = FakeData.result,
@@ -246,4 +259,10 @@ fun DuelNavGraph(
             DuelTabBar(selected = currentTab, onSelect = ::openTab)
         }
     }
+}
+
+private fun DuelOutcome.toAnalytics(): DuelResultToken = when (this) {
+    DuelOutcome.WIN -> DuelResultToken.WIN
+    DuelOutcome.LOSS -> DuelResultToken.LOSS
+    DuelOutcome.DRAW -> DuelResultToken.DRAW
 }

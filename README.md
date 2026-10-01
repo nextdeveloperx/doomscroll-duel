@@ -24,3 +24,9 @@ androidx.savedstate, firebase-auth, firebase-firestore, firebase-functions, fire
 kotlinx-coroutines-play-services. Server: `functions/` (Node 20, `npm test`).
 
 com.android.billingclient:billing-ktx (7.1.x) is needed for `BillingManager`. Server: `@googleapis/androidpublisher`, `google-auth-library`.
+
+## Build, test, release
+- `./gradlew :app:testDebugUnitTest` (unit tests), `./gradlew :app:connectedDebugAndroidTest` (Compose UI and reel counter tests on a device),
+  `cd functions && npm test` (server tests), `scripts/check-*.sh` (guards).
+- Needs `app/google-services.json` (git-ignored) and, for release, `keystore.properties` (see `keystore.properties.example`).
+- Launch material: `docs/launch-checklist.md`, `docs/beta-plan.md`, `docs/device-test-matrix.md`, `docs/analytics-events.md`, `docs/play/`.

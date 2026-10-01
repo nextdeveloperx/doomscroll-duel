@@ -1,2 +1,14 @@
+# Secrets and build output
+*.hprof
+*.jks
+*.keystore
+.DS_Store
+.gradle/
+.idea/
+.kotlin/
+app/google-services.json
+build/
+keystore.properties
+local.properties
 scripts/legal-config.json
 web/

@@ -54,7 +54,7 @@ DOOMSCROLL DUEL PRO
 Pro is an optional subscription: unlimited duels, Squad Battle, Strict Lock, detailed stats by app and by hour, custom block schedules and extra brain skins. Choose monthly or yearly. The price is shown in Google Play in your currency. The subscription renews automatically until you cancel it in Google Play > Payments and subscriptions > Subscriptions. Free forever: reel counting, 3 duels a day, Night Pact, Forfeit Dare and the Wait-10 pause.
 
 YOUR DATA
-We collect your account details, username, daily reel counts for challenges you join, duel history and a notification token. You can delete your account and all your server data inside the app at any time (Settings > Account delete karo) or at the link on our website.
+We collect your account details, username, daily reel counts for challenges you join, duel history and a notification token, plus anonymous usage and crash data only if you allow it. You can delete your account and all your server data inside the app at any time (Settings > Account delete karo) or at the link on our website.
 
 GOOD TO KNOW
 - Doomscroll Duel is a game and a self-tracking tool. It is not a medical app and does not diagnose, treat or cure anything.
@@ -105,7 +105,7 @@ PRO
 Pro ek optional subscription hai: unlimited duels, Squad Battle, Strict Lock, app-wise aur ghante-wise stats, custom block schedules aur extra brain skins. Monthly ya yearly chuno. Price Google Play mein tumhari currency mein dikhta hai. Subscription Google Play mein cancel karne tak khud renew hoti hai. Hamesha free: reel counting, roz 3 duels, Night Pact, Forfeit Dare aur Wait-10.
 
 TUMHARA DATA
-Hum account details, username, challenge ki roz ki reel ginti, duel history aur notification token lete hain. App mein Settings > Account delete karo se kabhi bhi apna account aur server ka saara data delete kar sakte ho.
+Hum account details, username, challenge ki roz ki reel ginti, duel history aur notification token lete hain, aur anonymous usage aur crash data sirf tab jab tum allow karo. App mein Settings > Account delete karo se kabhi bhi apna account aur server ka saara data delete kar sakte ho.
 
 YAAD RAKHO
 - Ye game aur self-tracking tool hai. Ye medical app nahi hai aur kisi bimari ka ilaaj ya nidaan nahi karta.
