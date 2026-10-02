@@ -16,7 +16,8 @@ and Flow, Room, Firebase Auth / Firestore / Cloud Functions / FCM. Min SDK 26. O
 1. Coins are virtual only. No real money, no cash-out, no betting, coins are never for sale.
 2. Reel counting uses an AccessibilityService and must never read, store or upload what the user watches.
    Allowed per event: package name, event type, event time, and for scroll events only the scrolled view's class
-   name and layout resource id (e.g. `reel_recycler`). NEVER getText, contentDescription, parent/child walking,
+   name and layout resource id (e.g. `reel_recycler`), and for window-change events only the class name of the screen that came
+   to the front (e.g. Facebook's full-screen reel viewer `ImmersiveActivity`; owner asked for the Facebook fix, Oct 2026). NEVER getText, contentDescription, parent/child walking,
    usernames, captions. `scripts/check-service-privacy.sh` enforces this; run it before every commit that touches
    `tracking/`.
 3. Everything the user sees must work offline first and sync later (Room is the source of truth for the UI).
@@ -67,7 +68,7 @@ Other docs: `docs/manual-test-checklist.md`, `docs/privacy-data-flow.md`, `docs/
 - Night Pact: 23:00 to 06:00 local per member; counter off > 10 min or no report = night broken.
 - Forfeit Dare: curated catalog only (16 dares), loser may skip, winner may waive, either can report, proof private
   and deleted after 7 days. Strict Lock cannot stop the user turning the service off; say so honestly.
-- Sign-in will be Google or Indian phone number. Friends by username or invite link, NO contact upload.
+- Sign-in is Google (phone number later). Friends by username, invite link, or opt-in Contacts match: contact EMAILS are SHA-256 hashed ON THE PHONE and only the hashes are sent (owner decision, Oct 2026; this replaced the earlier "no contact upload" rule). Never send names, numbers or raw addresses.
 
 ## Blocking engine (turn 6) - built
 Pure core `domain/blocking/*` + glue `blocking/*`, overlay `feature/blocking`, Settings fully wired, Focus hours
@@ -157,3 +158,80 @@ no screen yet (spec only).
 - Unit tests: `./gradlew :app:testDebugUnitTest`; UI + instrumented: `./gradlew :app:connectedDebugAndroidTest`
 - Server tests: `cd functions && npm test`
 - Release bundle: `./gradlew :app:bundleRelease` (refuses to run without signing; see `docs/launch-checklist.md`)
+
+## Login, username, friends, contacts, invite push (Oct 2026) - built, NOT deployed
+App: `feature/auth` (login page with "Abhi nahi", username page), `feature/friends` (Dost screen, invite accept, notifications,
+push-token registrar), `data/auth`, `data/social`, `domain/social`. Google sign-in uses Credential Manager and needs the Firebase
+Google provider on plus the debug SHA-1 registered (done for `com.doomscrollduel.debug` in project brainpal-b3119).
+Server code in `functions/src/social.ts` (+ `socialRules.ts`, `push.ts`): checkUsername, completeProfile, createInvite,
+acceptInvite, addFriendByUsername, matchContacts, inviteUser. 37 function tests pass. NOT deployed: the Firebase project is the
+shared brainPAL one, Cloud Firestore is not even enabled there yet, and Functions need the Blaze plan. Until then the Dost screen
+shows "Server abhi taiyaar nahi hai". Contacts: emails are SHA-256 hashed on the phone (`EmailHash`), only hashes are sent; the
+server compares with `users/{uid}.emailHash` written from the verified token. Invite web host is `invite_web_host` in strings.xml
+(brainpal-b3119.web.app) - nothing is hosted there yet, so https invite links will not open the app until a page and assetlinks exist.
+
+## People list, invites inbox, notifications (Oct 2026) - built, rules DEPLOYED, functions NOT deployed
+Firestore rules are live on brainpal-b3119 (deployed 2 Oct 2026) and tested on the emulator (`firebase/rules-test`, 20 checks, needs JDK 21).
+Cloud Functions cannot be deployed yet (Cloud Functions API answers 403: the project is not on the Blaze plan), so this works with no function:
+- `directory/{uid}` = username + display name of EVERYONE who chose a username, readable by any signed-in person (owner decision: the Log
+  list shows all users). No email, hash or counts in it. This changes the earlier "usernames cannot be listed" rule: update the Privacy Policy
+  and Data safety answers before launch.
+- Invite = the sender writes `users/{target}/inbox/{senderUid}` (one per sender, name checked against the directory by the rules). The target
+  accepts in the app, which writes both friend edges in one batch; rules allow that only while the invite is waiting. This replaces "friend edges
+  only by Cloud Function" while functions are off; the functions still work and use the same collections.
+- UI: Dost page has Invites / Log / Dost tabs (`feature/friends`), `data/social/FirebasePeopleRepository`, `InboxNotifier` (phone notification
+  while the app process is alive, which the foreground counter service keeps true), deep link `doomscrollduel://friends`.
+- `functions/src/inboxPush.ts` (`onInviteInboxCreated`) sends the real push when the app is closed. Written and unit-compiled, NOT deployed.
+- Still needs functions: invite links (createInvite/acceptInvite), contacts matching, `deleteAccount`.
+
+## Real battles and contacts search without Cloud Functions (Oct 2026) - built, rules DEPLOYED, tested on emulator only
+- Battle = `duels/{id}` (players, status pending|active|finished|declined|cancelled, reelLimit, hours, stakeCoins, startAt; the end is startAt + hours).
+  Challenge needs an existing friend edge; only the invited player can accept/decline; either player can finish after the end.
+  `duels/{id}/counts/{uid}` = each player's reels SINCE THE START (not "today"); readable by the two players while active and after finish.
+  `DuelTracker` (runs in the app process) takes the start line (all-time total per app at accept / first sight), uploads the count, finishes
+  the duel, and raises the challenge / "accepted" notifications. Screens: NewDuel (real friends) -> Live(duelId) -> Result(duelId), Home card.
+- COINS ARE NOT MOVED: wallets are server-only, so Result says so (`coinsSettled = false`). Escrow/settlement still needs Cloud Functions
+  (Blaze plan) using the pure rules in `domain/challenge/duel`. Counts are written by each phone, so a modified app could lie about its own count.
+- Contacts: `emailIndex/{sha256(email)}` -> `{uid}`, readable one document at a time (no list). Each person registers their own hash once they have a
+  username (`PeopleRepository.ensureSelfListed`). The rules cannot recompute a hash, so someone could register another person's hash; the effect is a
+  wrong match in that contact's list. The server `matchContacts` function is the private alternative once functions can be deployed.
+- Rules tests: `firebase/rules-test` (42 checks, needs JDK 21).
+
+## Broadcast voice rooms (Oct 2026) - built, rules DEPLOYED, voice between TWO phones NOT tested
+- OPEN voice rooms (since Oct 2026; first built friends-only): `broadcasts/{room}` (host, title, seenAt heartbeat), `members/{uid}` (name, username, seenAt), short-lived `signals`
+  (offer/answer/ice, deleted when read). Audio and chat go phone to phone over WebRTC (`io.getstream:stream-webrtc-android`), a mesh (one call per pair,
+  smaller uid offers). Chat is NEVER stored on a server: it only travels over the data channels and is kept in `BroadcastChatStore` (SharedPreferences, 300 lines/room).
+- Only public STUN servers are configured; there is no TURN relay, so some strict networks will stay on "judd raha hai". Add a TURN server in
+  `VoiceMesh.createPeer` if the beta shows that. `BroadcastService` (foreground, microphone type) keeps a call alive in the background.
+- ANYONE signed in can join ANY live room and the list shows every room with its head-count; the host can remove a person (a `kicked` document stops them coming back). A person asks others in through `users/{uid}/broadcastInvites/{fromUid}` (one per sender, 30 s apart; push-style notification via `InboxNotifier`, deep link `doomscrollduel://broadcast/join/{room}`). There is NO report/block yet: with strangers in voice rooms that is a Play-policy launch blocker (user-generated content) and the age limit (16) needs a decision. A person who closes the app without leaving disappears from the room after ~70 s.
+- Several battles can run at once: Home shows the newest, the Battle tab lists all ("Meri battles"), and Live has "Battle chhodo" (status `cancelled`).
+- Rules tests: 61 checks in `firebase/rules-test` (needs JDK 21).
+
+## Battle results and voice indicators (Oct 2026)
+- No manual "Result dekho" any more: when a battle's time is over the Live screen opens the result by itself, `DuelTracker` posts a "battle khatam"
+  notification (deep link `doomscrollduel://result/{id}`), and Home / the Battle tab keep the finished battle ("Khatam · tum jeete") until its result is opened.
+- Broadcast: the profile circle pulses (two green rings) while a person talks. Own voice = loudness of the microphone samples; others = WebRTC `audioLevel`
+  of the playing stream. Only a loudness number is read; nothing is recorded.
+- OPEN DECISION (owner): ads inside Reels/Shorts are counted like reels. Telling them apart needs a signal from the ad itself, and rule 2 allows only the
+  scrolled view's class name and view id on scroll events. Options: allow the view id of an ad marker on content-change events (ids must be found on a phone
+  while an ad is showing), a manual "-1 ad tha" outside battles, or leave it.
+- Fixed (Oct 2026): voice never connected because the offer-direction check was reversed (an offer must come from the SMALLER uid). `VoiceMeshLoopbackTest`
+  (instrumented; run with `:app:installDebugAndroidTest` then `adb shell am instrument -w -e class com.doomscrollduel.broadcast.VoiceMeshLoopbackTest
+  com.doomscrollduel.debug.test/androidx.test.runner.AndroidJUnitRunner`; do NOT use `connectedDebugAndroidTest`, it uninstalls the app and wipes the login)
+  connects two engines in one process, passes chat both ways and sees audio packets flow. Real microphone audio between two phones is still untested.
+
+## Broadcast reliability + Facebook (Oct 2026)
+- Broadcast: signals are cleared BEFORE the member document is written (the old order could delete the first offer), calls stuck "connecting"
+  for 15 s are rebuilt, chat lines carry an id and are passed on phone to phone (a phone that is not directly connected to the writer still
+  gets them), join steps run in parallel with the profile cached. The host leaving sets `closed` on the room (rules allow only the host, only
+  `closed: true`); everyone else leaves with "Host ne room band kar diya", and a host silent for 120 s counts as gone.
+- TURN relay: none configured. Set TURN_URLS / TURN_USERNAME / TURN_CREDENTIAL in `local.properties` (see `data/broadcast/IceServers.kt`); the
+  shared openrelayproject credentials are refused by the server. Without a relay voice fails between phones that cannot reach each other.
+- Facebook: the Reels tab and the feed give the SAME event names/ids, but a reels pager snaps one whole page per swipe, so the scroll distance
+  (`AccessibilityEvent.scrollDeltaY`, a signed number, API 28+) of one swipe adds up to the same total every time (measured 2120 px on a 2412 px
+  phone, differences under 0.1 percent) while feed scrolls vary. `surface_rules.json` marks Facebook `pagerByDistance`; the processor counts a swipe
+  when its total matches a recent one within 1.5 percent (the first swipe of a session only teaches the size) and `flush` closes it shortly after the
+  last scroll. Full-screen reel viewer (`ImmersiveActivity`) counts through the class-name rule. Measured on a phone: Reels tab forward swipes count,
+  back swipes do not, 8 feed swipes counted 0. Owner approved the extra signals (window class name, scroll distance), Oct 2026.
+- Direction (all apps): only a swipe to the NEXT reel counts. The first scroll event of a swipe that reports a distance sets the direction; negative
+  = back to the previous reel = not counted. Phones that report no distance count as before.

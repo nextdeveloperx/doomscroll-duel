@@ -15,17 +15,38 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import com.doomscrollduel.R
-import com.doomscrollduel.core.designsystem.components.ChunkyButton
-import com.doomscrollduel.core.designsystem.components.ChunkyButtonStyle
-import com.doomscrollduel.core.designsystem.components.ChunkyCard
-import com.doomscrollduel.core.designsystem.components.DuelText
 import com.doomscrollduel.core.designsystem.components.ScreenPreview
-import com.doomscrollduel.core.designsystem.theme.DuelTheme
 import com.doomscrollduel.domain.analytics.UsageDataChoice
 import com.doomscrollduel.domain.analytics.UsageDataChoiceStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.StateFlow
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import com.doomscrollduel.core.designsystem.components.ScreenPreview
+import com.doomscrollduel.feature.common.Kit
+import com.doomscrollduel.feature.common.KitButton
+import com.doomscrollduel.feature.common.KitButtonKind
+import com.doomscrollduel.feature.common.KitCard
+import com.doomscrollduel.feature.settings.neon.NText
+import com.doomscrollduel.feature.settings.neon.Neon
 
 @HiltViewModel
 class UsageDataPromptViewModel @Inject constructor(private val store: UsageDataChoiceStore) : ViewModel() {
@@ -38,32 +59,27 @@ class UsageDataPromptViewModel @Inject constructor(private val store: UsageDataC
  * The one-time question about anonymous analytics and crash reports. Both answers are the same size and equally easy;
  * "Nahi" is not hidden and nothing in the app changes if it is chosen. It is asked on Home, never as a blocking screen.
  */
+
 @Composable
 fun UsageDataCard(onAllow: () -> Unit, onDecline: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = DuelTheme.colors
-    ChunkyCard(modifier = modifier.fillMaxWidth(), fill = colors.cyan) {
-        DuelText(
+    KitCard(
+        modifier = modifier,
+        radius = 22.dp,
+        fill = Brush.horizontalGradient(listOf(Kit.Blue.copy(alpha = 0.22f), Kit.Surface)),
+        edge = Kit.Blue.copy(alpha = 0.4f),
+    ) {
+        NText(
             text = stringResource(R.string.usage_card_title),
-            style = DuelTheme.typography.heading.copy(fontSize = 20.sp),
-            color = colors.onBright,
+            size = 17.sp,
+            weight = FontWeight.ExtraBold,
             modifier = Modifier.semantics { heading() },
         )
         Spacer(Modifier.height(6.dp))
-        DuelText(text = stringResource(R.string.usage_card_body), style = DuelTheme.typography.body, color = colors.onBright)
+        NText(stringResource(R.string.usage_card_body), 13.sp, color = Neon.Muted, lineHeight = 19.sp)
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            ChunkyButton(
-                text = stringResource(R.string.usage_card_decline),
-                onClick = onDecline,
-                style = ChunkyButtonStyle.Secondary,
-                modifier = Modifier.weight(1f),
-            )
-            ChunkyButton(
-                text = stringResource(R.string.usage_card_allow),
-                onClick = onAllow,
-                style = ChunkyButtonStyle.Success,
-                modifier = Modifier.weight(1f),
-            )
+            KitButton(stringResource(R.string.usage_card_decline), onDecline, kind = KitButtonKind.Secondary, modifier = Modifier.weight(1f))
+            KitButton(stringResource(R.string.usage_card_allow), onAllow, modifier = Modifier.weight(1f))
         }
     }
 }

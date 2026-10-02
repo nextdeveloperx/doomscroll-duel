@@ -21,6 +21,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -62,7 +65,22 @@ fun DuelScreen(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(DuelTheme.colors.background),
+            .background(DuelTheme.colors.background)
+            // Depth: a violet glow from the top and a pink bloom lower down, over the flat ground.
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(DuelTheme.colors.lavender.copy(alpha = 0.22f), Color.Transparent),
+                    center = Offset(x = 0.15f * 1000f, y = 0f),
+                    radius = 900f,
+                ),
+            )
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(DuelTheme.colors.pink.copy(alpha = 0.12f), Color.Transparent),
+                    center = Offset(x = 1000f, y = 1900f),
+                    radius = 1100f,
+                ),
+            ),
         contentAlignment = Alignment.TopCenter,
     ) {
         val scale = (minOf(maxWidth, MaxContentWidth) / DesignWidth).coerceIn(MinScale, MaxScale)

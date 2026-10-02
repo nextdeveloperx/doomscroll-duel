@@ -10,8 +10,8 @@ import kotlinx.serialization.json.Json
  * Facebook Reels, Snapchat Spotlight), so ordinary feed scrolling is not counted.
  *
  * A scroll matches when its view id (the part after `:id/`) is in [viewIds] and, if [classNames] is
- * not empty, its class name is in [classNames]. A rule with no [viewIds] never matches: that app is
- * simply not counted until its ids are known. [verified] records whether the ids were confirmed on a
+ * not empty, its class name is in [classNames]. A scroll also matches when the app's front screen is one of its
+ * [SurfaceRule.windowClassNames]. A rule with neither never matches: that app is simply not counted until they are known. [verified] records whether the ids were confirmed on a
  * real device (see docs/manual-test-checklist.md).
  */
 data class SurfaceRule(
@@ -19,18 +19,32 @@ data class SurfaceRule(
     val viewIds: Set<String>,
     val classNames: Set<String> = emptySet(),
     val verified: Boolean = false,
+    /**
+     * For an app whose own view ids are hidden (Facebook strips them): the class names of its full-screen short-video screens.
+     * Any scroll while one of these is the app's front screen counts as a reel swipe. Empty for apps matched by view id.
+     */
+    val windowClassNames: Set<String> = emptySet(),
+    /**
+     * The app's short-video pager cannot be told from its feed by any name (Facebook hides its view ids), so its swipes are
+     * recognised by distance instead: a pager moves one whole page per swipe. See ReelEventProcessor.
+     */
+    val pagerByDistance: Boolean = false,
 )
 
 class SurfaceRules(rules: List<SurfaceRule>) {
     private val byApp: Map<TrackedApp, SurfaceRule> = rules.associateBy { it.app }
 
-    fun isConfigured(app: TrackedApp): Boolean = byApp[app]?.viewIds?.isNotEmpty() == true
+    fun isConfigured(app: TrackedApp): Boolean =
+        byApp[app]?.let { it.viewIds.isNotEmpty() || it.windowClassNames.isNotEmpty() || it.pagerByDistance } == true
+
+    fun isPagerByDistance(app: TrackedApp): Boolean = byApp[app]?.pagerByDistance == true
 
     /** The pager view ids of [app], used to tell whether its reel screen is open. Empty when unknown. */
     fun viewIdsOf(app: TrackedApp): Set<String> = byApp[app]?.viewIds.orEmpty()
 
-    fun matchesScroll(app: TrackedApp, className: String?, viewId: String?): Boolean {
+    fun matchesScroll(app: TrackedApp, className: String?, viewId: String?, windowClass: String? = null): Boolean {
         val rule = byApp[app] ?: return false
+        if (windowClass != null && windowClass in rule.windowClassNames) return true
         if (rule.viewIds.isEmpty() || viewId == null) return false
         if (viewId.substringAfter(":id/") !in rule.viewIds) return false
         return rule.classNames.isEmpty() || (className != null && className in rule.classNames)
@@ -60,6 +74,8 @@ private data class RuleDto(
     val viewIds: List<String> = emptyList(),
     val classNames: List<String> = emptyList(),
     val verified: Boolean = false,
+    val windowClassNames: List<String> = emptyList(),
+    val pagerByDistance: Boolean = false,
 )
 
 @Serializable
@@ -73,7 +89,7 @@ object SurfaceRulesParser {
         val file = json.decodeFromString<RulesFileDto>(text)
         val rules = file.rules.mapNotNull { dto ->
             TrackedApp.fromPackage(dto.packageName)?.let { app ->
-                SurfaceRule(app, dto.viewIds.toSet(), dto.classNames.toSet(), dto.verified)
+                SurfaceRule(app, dto.viewIds.toSet(), dto.classNames.toSet(), dto.verified, dto.windowClassNames.toSet(), dto.pagerByDistance)
             }
         }
         return SurfaceRules(rules)

@@ -14,8 +14,17 @@ interface ReelRepository {
     /** Today's counts. Switches to the new day at local midnight by itself. */
     fun observeToday(): Flow<DailyReelStats>
 
+    /** Reels counted so far in each app over every day kept on the phone. A duel's count is this minus what it was at the start. */
+    fun observeAllTimeByApp(): Flow<Map<TrackedApp, Int>> = kotlinx.coroutines.flow.flowOf(emptyMap())
+
     /** Today's total right now, for the timer-lock to compare with the limit. */
     suspend fun todayTotal(): Int
+
+    /** Reels per clock hour (24 numbers, index 0 = midnight to 1 am) for one local day. All zeros when nothing was counted. */
+    fun observeHourly(date: java.time.LocalDate): Flow<List<Int>>
+
+    /** Reels per day since [since] (inclusive). Days with no row are simply absent. */
+    fun observeDailyTotals(since: java.time.LocalDate): Flow<Map<java.time.LocalDate, Int>>
 
     /** Days in a row under the daily limit, recomputed when counts or [limit] change. */
     fun observeStreak(limit: Flow<Int>): Flow<Int>

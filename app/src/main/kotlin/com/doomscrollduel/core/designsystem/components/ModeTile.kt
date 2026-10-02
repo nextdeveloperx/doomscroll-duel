@@ -1,5 +1,6 @@
 package com.doomscrollduel.core.designsystem.components
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +10,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +25,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -70,31 +84,90 @@ fun ModeTile(
             )
             .semantics { contentDescription = spoken },
     ) {
+        // A big, faint copy of the icon in the corner gives each mode its own character without more text.
+        DuelIcon(
+            icon,
+            tint = colors.onBright.copy(alpha = 0.13f),
+            contentDescription = null,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 22.dp, y = 22.dp)
+                .size(104.dp)
+                .rotate(-14f),
+        )
         Column(
             modifier = Modifier
                 .clearAndSetSemantics { }
+                .fillMaxHeight()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(colors.text)
-                        .border(ChunkyMetrics.OutlineWidth, colors.outline, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    DuelIcon(icon, tint = colors.onBright, contentDescription = null, modifier = Modifier.size(26.dp))
-                }
+                ModeMedallion(icon = icon, tint = color)
                 ModeTagPill(tag = tag, text = tagText)
             }
+            Spacer(Modifier.height(12.dp))
             DuelText(text = name, style = DuelTheme.typography.heading, color = colors.onBright)
+            Spacer(Modifier.height(4.dp))
             DuelText(text = description, style = DuelTheme.typography.body, color = colors.onBright)
+            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(12.dp))
+            ModeAction(
+                text = stringResource(if (tag == ModeTag.PRO) R.string.ds_action_unlock else R.string.ds_action_play),
+                pro = tag == ModeTag.PRO,
+            )
+        }
+    }
+}
+
+/** A round "button" for the mode icon: a white ball lit from the top left, with the icon inked on it. */
+@Composable
+private fun ModeMedallion(icon: ImageVector, tint: Color) {
+    val colors = DuelTheme.colors
+    Box(
+        modifier = Modifier
+            .size(54.dp)
+            .clip(CircleShape)
+            .background(
+                Brush.radialGradient(
+                    0f to Color.White,
+                    0.6f to lerp(Color.White, tint, 0.18f),
+                    1f to lerp(Color.White, tint, 0.55f),
+                    center = Offset(18f, 14f),
+                    radius = 120f,
+                ),
+            )
+            .border(ChunkyMetrics.OutlineWidth, colors.outline, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        DuelIcon(icon, tint = colors.onBright, contentDescription = null, modifier = Modifier.size(28.dp))
+    }
+}
+
+/** The "KHELO" call to action: an ink pill with a chevron, so every tile visibly ends in a button. */
+@Composable
+internal fun ModeAction(text: String, pro: Boolean, modifier: Modifier = Modifier) {
+    val colors = DuelTheme.colors
+    val face = if (pro) colors.yellow else colors.text
+    Row(
+        modifier = modifier
+            .clip(DuelTheme.shapes.chip)
+            .background(colors.outline)
+            .padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        DuelText(text = text, style = DuelTheme.typography.button.copy(fontSize = 15.sp), color = face, maxLines = 1)
+        Canvas(Modifier.size(width = 9.dp, height = 14.dp)) {
+            val path = Path().apply {
+                moveTo(0f, 0f)
+                lineTo(size.width, size.height / 2f)
+                lineTo(0f, size.height)
+            }
+            drawPath(path, face, style = Stroke(width = 3.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
     }
 }

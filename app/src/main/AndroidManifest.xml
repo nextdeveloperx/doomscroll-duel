@@ -5,22 +5,32 @@
     <!-- Foreground service that keeps the reel counter alive (Android 14 needs the type-specific permission). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Broadcast voice rooms: the microphone is used only while the person is in a room, and a notification says so. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- Android 13+: lets the quiet "counter is on" notification be shown. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- A small tick of the vibration motor for each letter the first-run pages type. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Restart the notification after a reboot. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Firebase Analytics adds the advertising-ID permission by itself. The app has no ads and never reads that ID. -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
     <!--
-        Deliberately NOT requested: REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (Google Play restricts it) and
-        READ_CONTACTS (friends are added by username or invite link; no contacts are uploaded).
+        Contacts: asked only when the person taps "Contacts dikhao" on the Dost screen. The phone hashes each contact email
+        and sends only the hashes, to find friends who already use the app. Names, numbers and addresses are never uploaded.
+    -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!--
+        Deliberately NOT requested: REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (Google Play restricts it).
     -->
 
     <application
         android:name=".DuelApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:label="@string/app_name_short"
         android:supportsRtl="true"
         android:theme="@style/Theme.DoomscrollDuel"
         tools:targetApi="34">
@@ -40,10 +50,52 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Invite links: doomscrollduel://invite/CODE and https://<site>/invite/CODE open the accept screen. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="doomscrollduel" android:host="invite" />
+            </intent-filter>
+            <!-- Tapping an invite notification opens the Dost page. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="doomscrollduel" android:host="friends" />
+            </intent-filter>
+            <!-- A battle notification opens that battle. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="doomscrollduel" android:host="duel" />
+            </intent-filter>
+            <!-- A "battle over" notification opens that battle's result. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="doomscrollduel" android:host="result" />
+            </intent-filter>
+            <!-- A broadcast invitation opens the Broadcast page and joins that room. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="doomscrollduel" android:host="broadcast" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="@string/invite_web_host" android:pathPrefix="/invite/" />
             </intent-filter>
         </activity>
 
@@ -91,6 +143,11 @@
             android:exported="false" />
 
         <!-- Push messages for friend unlock (request to the friend, answer to the person who asked). -->
+        <service
+            android:name=".data.broadcast.BroadcastService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
         <service
             android:name=".blocking.unlock.UnlockMessagingService"
             android:exported="false">

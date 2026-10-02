@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The Privacy policy and Terms of use, bundled in the app so they open offline and never depend on a web address.
+    They summarise docs/play/privacy-policy.md and docs/play/terms-of-use.md. If those change, change these.
+-->
+<resources>
+    <string name="legal_privacy_title">Privacy policy</string>
+    <string name="legal_terms_title">Terms of use</string>
+    <string name="legal_updated">Last updated: October 2026</string>
+
+    <!-- Privacy policy -->
+    <string name="legal_privacy_summary_title">Short me</string>
+    <string name="legal_privacy_summary">Hum sirf reels ki ginti rakhte hain. Tumhare messages, passwords ya tum kya dekhte ho, wo hum kabhi nahi padhte. Koi ads nahi, data becha nahi jaata. Coins virtual hain. Account tum kabhi bhi delete kar sakte ho.</string>
+
+    <string name="legal_p1_title">1. Kaun use kar sakta hai</string>
+    <string name="legal_p1_body">Account banane ke liye tumhari age kam se kam 16 saal honi chahiye. 16 se kam umar ke logon se hum jaanbujhkar data nahi lete. Agar pata chale ki koi 16 se chhota hai, to uska account aur data delete kar diya jaata hai.</string>
+
+    <string name="legal_p2_title">2. Hum kya lete hain</string>
+    <string name="legal_p2_body">Account: Google login ka naam aur email, tumhara chuna hua username aur avatar colour.\n\nFriends aur duels: friends list, invite links, kisse khela, limit, entry coins aur result.\n\nReel count: din ka total aur Instagram, YouTube, Facebook, Snapchat ka alag count. Count sirf ek number hota hai. Usme title, account, caption ya link kuch nahi hota. Ye tumhare phone me rehta hai aur sirf us duel ke liye upload hota hai jisme tum ho, aur sirf wahi log dekh sakte hain.\n\nCoins: tumhara virtual coin balance.\n\nDare proof (optional): jo photo ya video tum khud bhejo. Ye 7 din baad apne aap delete ho jaata hai.\n\nPush token: taaki friend unlock request aur result ki notification aa sake.\n\nPro subscription: Google Play ka purchase record. Card, UPI ya bank details hum kabhi nahi dekhte.\n\nContacts se dost dhoondna (optional): sirf jab tum Contacts allow karo. Tumhare phone par har contact ka email hash ho jaata hai (ek taraf ka code), aur server ko sirf ye hash milte hain, naam, number ya email nahi. Server unhe match karke dost dikhata hai aur list ya result save nahi karta. Na karo to bhi username aur link se dost jod sakte ho.
+
+Anonymous usage data aur crash reports: sirf tab, jab tum Settings me haan bolo. Isme naam ya account nahi hota.</string>
+
+    <string name="legal_p3_title">3. Jo hum nahi lete</string>
+    <string name="legal_p3_body">Contacts ke naam, phone number ya email, location, microphone, camera (sirf dare ka proof jo tum khud chuno), messages, passwords, browsing history, dusre apps ka content aur advertising ID. Hum ads nahi dikhate aur tumhe track karke kisi ko nahi bechte.</string>
+
+    <string name="legal_p4_title">4. Accessibility service</string>
+    <string name="legal_p4_body">Reels ginne ke liye app Android ki Accessibility service use karta hai. Pehle ek screen par sab samjhaya jaata hai aur tumhe Agree dabana padta hai. Not now dabane par counter band rehta hai.\n\nService sirf 4 apps se events leti hai: Instagram, YouTube, Facebook, Snapchat. Wo dekhti hai ki kaunsa app khula hai, ki scroll hua, aur reels screen khuli hai ya nahi.\n\nWo text, messages, passwords, naam, caption, comments ya tum kya dekh rahe ho, kuch nahi padhti. Screen record ya screenshot nahi leti, kuch tap ya type nahi karti, aur kisi dusre app ko nahi dekhti.\n\nScreen ke upar jo chhota counter dikhta hai, wo sirf hamara apna number hai. Tum use Settings me band kar sakte ho. Service kabhi bhi Android Settings, Accessibility se band ho sakti hai.</string>
+
+    <string name="legal_p5_title">5. Kitne din rakhte hain</string>
+    <string name="legal_p5_body">Account, friends, duel history, coins: jab tak tum account delete na karo. Dare proof: 7 din. Anonymous usage data: 2 mahine tak. Crash reports: 90 din tak.</string>
+
+    <string name="legal_p6_title">6. Kiske saath share hota hai</string>
+    <string name="legal_p6_body">Jis challenge me tum ho, usme dusre players tumhara username, naam, us challenge ka reel count aur result dekh sakte hain.\n\nHamare service providers: Google (Firebase aur Google Play billing). Ye data sirf service chalane ke liye use karte hain.\n\nKanoon ki zaroorat ho to hum data de sakte hain. Hum personal data bechte nahi hain.</string>
+
+    <string name="legal_p7_title">7. Coins aur Pro</string>
+    <string name="legal_p7_body">Coins sirf app ke andar ke virtual points hain. Unki koi paise ki keemat nahi, unhe kharida ya becha nahi ja sakta, na cash nikala ja sakta hai. Pro subscription Google Play se hota hai aur jab tak tum cancel na karo tab tak renew hota hai. Account delete karne se Play subscription cancel nahi hota, wo Google Play me alag se cancel karna padta hai.</string>
+
+    <string name="legal_p8_title">8. Tumhare haq</string>
+    <string name="legal_p8_body">Tum apna data dekh sakte ho, naam aur avatar badal sakte ho, aur Settings me Account delete karo se poora account hata sakte ho. Consent wapas lene ke liye Accessibility service band kar do ya account delete karo. Delete karne par server se tumhara data turant hata diya jaata hai.</string>
+
+    <string name="legal_p9_title">9. Security aur badlav</string>
+    <string name="legal_p9_body">Data HTTPS se jaata hai aur database security rules se bacha hai. Coins aur Pro status sirf hamare server se badal sakte hain. Policy me zaroori badlav hone par app me notice dikhega. Accessibility se jude badlav par tumse dobara Agree karwaya jaayega.</string>
+
+    <!-- Terms of use -->
+    <string name="legal_terms_summary_title">Short me</string>
+    <string name="legal_terms_summary">Ye dosti ka game hai. Kam reels dekho, jeeto, dosto ko roast karo. Coins virtual hain, paise ka koi lena dena nahi. Fair khelo, aur kisi ko pareshan mat karo.</string>
+
+    <string name="legal_t1_title">1. App kya hai</string>
+    <string name="legal_t1_body">Doomscroll Duel dosto ke beech ek challenge game hai. App short videos (reels) ginta hai, aur jiska count kam hota hai wo virtual coins jeetta hai. App ko use karke tum ye Terms maan lete ho.</string>
+
+    <string name="legal_t2_title">2. Kaun khel sakta hai</string>
+    <string name="legal_t2_body">Kam se kam 16 saal. Tumhari di hui jaankari sahi honi chahiye, aur apne account ki zimmedari tumhari hai.</string>
+
+    <string name="legal_t3_title">3. Coins virtual hain</string>
+    <string name="legal_t3_body">Coins ki koi asli keemat nahi hai. Unhe paise se kharida nahi ja sakta, becha nahi ja sakta, aur cash nahi kiya ja sakta. Pro subscription coins nahi deta. Ye app koi betting ya jua nahi hai.</string>
+
+    <string name="legal_t4_title">4. Fair khelo</string>
+    <string name="legal_t4_body">Count se chhed-chhad mat karo: fake events, dusra app, ya service ko beech me band karke jeetne ki koshish nahi. Duel ke beech service 10 minute se zyada band rahi to wo forfeit maana jaata hai. Doosre ko tang, dhamki ya sharminda karne ke liye app mat use karo. Galat behaviour par hum account rok sakte hain.</string>
+
+    <string name="legal_t5_title">5. Forfeit dare</string>
+    <string name="legal_t5_body">Dares sirf hamari tay ki hui list me se hote hain: safe, funny, ghar par, aur kisi dusre ko shaamil kiye bina. Haarne wala dare skip kar sakta hai aur jeetne wala maaf kar sakta hai. Koi bhi dare ko report kar sakta hai. Proof sirf do logon ke beech private rehta hai aur 7 din me delete ho jaata hai.</string>
+
+    <string name="legal_t6_title">6. Blocking aur locks</string>
+    <string name="legal_t6_body">Strict Lock, Bedtime, Focus hours aur Wait-10 tumhari apni choice se chalte hain. Ye tumhe reels se rokne ki koshish karte hain, lekin Android me Accessibility service band karna tumhare haath me hai, aur hum use rok nahi sakte.</string>
+
+    <string name="legal_t7_title">7. Pro subscription</string>
+    <string name="legal_t7_body">Pro Google Play se kharida jaata hai (monthly ya yearly) aur cancel hone tak renew hota hai. Billing aur refund Google Play ke rules se chalte hain.</string>
+
+    <string name="legal_t8_title">8. Zimmedari ki seema</string>
+    <string name="legal_t8_body">App jaisa hai waisa diya jaata hai. Count 100 percent sahi hone ki guarantee nahi hai, kyunki Instagram, YouTube jaise apps badalte rehte hain. Kanoon jitna allow kare, utna hi hamari zimmedari hai.</string>
+
+    <string name="legal_t9_title">9. Account band karna</string>
+    <string name="legal_t9_body">Tum kabhi bhi Settings me Account delete karo se account hata sakte ho. Terms todne par hum account band kar sakte hain. Ye Terms Bharat ke kanoon ke hisaab se chalte hain.</string>
+</resources>

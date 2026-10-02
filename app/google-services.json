@@ -1,0 +1,68 @@
+{
+    "project_info":  {
+                         "project_number":  "1029990588865",
+                         "project_id":  "brainpal-b3119",
+                         "storage_bucket":  "brainpal-b3119.firebasestorage.app"
+                     },
+    "client":  [
+                   {
+                       "client_info":  {
+                                           "mobilesdk_app_id":  "1:1029990588865:android:6011c394d7b910840acf40",
+                                           "android_client_info":  {
+                                                                       "package_name":  "com.doomscrollduel"
+                                                                   }
+                                       },
+                       "oauth_client":  [
+                                            {
+                                                "client_id":  "1029990588865-cc1676vj1mv3l5uul4cghqpelulck1ql.apps.googleusercontent.com",
+                                                "client_type":  3
+                                            }
+                                        ],
+                       "api_key":  [
+                                       {
+                                           "current_key":  "AIzaSyA95y_U03ln6RRx-akWnUGmrycTx5PZ9jo"
+                                       }
+                                   ],
+                       "services":  {
+                                        "appinvite_service":  {
+                                                                  "other_platform_oauth_client":  [
+                                                                                                      {
+                                                                                                          "client_id":  "1029990588865-cc1676vj1mv3l5uul4cghqpelulck1ql.apps.googleusercontent.com",
+                                                                                                          "client_type":  3
+                                                                                                      }
+                                                                                                  ]
+                                                              }
+                                    }
+                   },
+                   {
+                       "client_info":  {
+                                           "mobilesdk_app_id":  "1:1029990588865:android:658272bb6d59ec860acf40",
+                                           "android_client_info":  {
+                                                                       "package_name":  "com.doomscrollduel.debug"
+                                                                   }
+                                       },
+                       "oauth_client":  [
+                                            {
+                                                "client_id":  "1029990588865-cc1676vj1mv3l5uul4cghqpelulck1ql.apps.googleusercontent.com",
+                                                "client_type":  3
+                                            }
+                                        ],
+                       "api_key":  [
+                                       {
+                                           "current_key":  "AIzaSyA95y_U03ln6RRx-akWnUGmrycTx5PZ9jo"
+                                       }
+                                   ],
+                       "services":  {
+                                        "appinvite_service":  {
+                                                                  "other_platform_oauth_client":  [
+                                                                                                      {
+                                                                                                          "client_id":  "1029990588865-cc1676vj1mv3l5uul4cghqpelulck1ql.apps.googleusercontent.com",
+                                                                                                          "client_type":  3
+                                                                                                      }
+                                                                                                  ]
+                                                              }
+                                    }
+                   }
+               ],
+    "configuration_version":  "1"
+}

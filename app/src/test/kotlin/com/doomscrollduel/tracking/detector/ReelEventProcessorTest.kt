@@ -101,6 +101,25 @@ class ReelEventProcessorTest {
     }
 
     @Test
+    fun `facebook counts only while its full-screen reel viewer is the front screen`() {
+        val fb = SurfaceRules(
+            listOf(SurfaceRule(TrackedApp.FACEBOOK, viewIds = emptySet(), windowClassNames = setOf("com.facebook.katana.immersiveactivity.ImmersiveActivity"))),
+        )
+        val p = ReelEventProcessor(rules = { fb })
+        val recycler = "androidx.recyclerview.widget.RecyclerView"
+        val hidden = "com.facebook.katana:id/(name removed)"
+        // the normal feed (main tab screen): scrolling is not counted
+        p.process(ReelSignal.Scroll(TrackedApp.FACEBOOK, 1_000, recycler, hidden, "com.facebook.katana.activity.FbMainTabActivity"))
+        assertFalse(p.process(ReelSignal.ContentChanged(TrackedApp.FACEBOOK, 1_100)))
+        // no screen known yet: not counted either
+        p.process(ReelSignal.Scroll(TrackedApp.FACEBOOK, 3_000, recycler, hidden, null))
+        assertFalse(p.process(ReelSignal.ContentChanged(TrackedApp.FACEBOOK, 3_100)))
+        // the reel viewer: one swipe, one reel
+        p.process(ReelSignal.Scroll(TrackedApp.FACEBOOK, 5_000, recycler, hidden, "com.facebook.katana.immersiveactivity.ImmersiveActivity"))
+        assertTrue(p.process(ReelSignal.ContentChanged(TrackedApp.FACEBOOK, 5_100)))
+    }
+
+    @Test
     fun `an app with no known ids is never counted`() {
         processor.process(ReelSignal.Scroll(TrackedApp.FACEBOOK, 1_000, "c", "com.facebook.katana:id/anything"))
         assertFalse(processor.process(ReelSignal.ContentChanged(TrackedApp.FACEBOOK, 1_100)))
@@ -127,5 +146,68 @@ class ReelEventProcessorTest {
     fun `signals never print identifiers`() {
         val text = igScroll(5).toString()
         assertFalse("viewpager" in text.lowercase() || "clips" in text)
+    }
+}
+
+class ReelDirectionAndDistanceTest {
+    private val ig = SurfaceRule(TrackedApp.INSTAGRAM, viewIds = setOf("clips_viewer_view_pager"))
+    private val fb = SurfaceRule(TrackedApp.FACEBOOK, viewIds = emptySet(), pagerByDistance = true)
+    private val processor = ReelEventProcessor(rules = { SurfaceRules(listOf(ig, fb)) })
+    private val igId = "com.instagram.android:id/clips_viewer_view_pager"
+    private val hidden = "com.facebook.katana:id/(name removed)"
+    private val recycler = "androidx.recyclerview.widget.RecyclerView"
+
+    private fun igSwipe(startAt: Long, dy: Int): Boolean {
+        var counted = false
+        for (t in listOf(0L, 16L, 32L)) counted = processor.process(ReelSignal.Scroll(TrackedApp.INSTAGRAM, startAt + t, "x", igId, null, dy)) || counted
+        return processor.process(ReelSignal.ContentChanged(TrackedApp.INSTAGRAM, startAt + 120)) || counted
+    }
+
+    /** One facebook swipe made of scroll events with these distances, 16 ms apart, then the pause that closes it. */
+    private fun fbSwipe(startAt: Long, vararg parts: Int): Boolean {
+        var counted = false
+        parts.forEachIndexed { i, dy -> counted = processor.process(ReelSignal.Scroll(TrackedApp.FACEBOOK, startAt + i * 16L, recycler, hidden, null, dy)) || counted }
+        return processor.flush(TrackedApp.FACEBOOK, startAt + parts.size * 16L + 340) || counted
+    }
+
+    @Test fun `going back to the previous reel does not count`() {
+        assertTrue(igSwipe(1_000, +900))
+        assertFalse(igSwipe(3_000, -900))
+        assertTrue(igSwipe(5_000, +900))
+    }
+
+    @Test fun `a swipe with no direction from the phone still counts`() {
+        assertTrue(igSwipe(1_000, 0))
+    }
+
+    @Test fun `facebook reels tab - the same page distance again and again counts, whatever the finger did`() {
+        // the first swipe teaches the size (no hint), the next ones match it
+        assertFalse(fbSwipe(1_000, 486, 466, 1112, 57))
+        assertTrue(fbSwipe(3_000, 238, 234, 163, 1412, 73))
+        assertTrue(fbSwipe(5_000, 949, 778, 393))
+    }
+
+    @Test fun `facebook reels tab - going back is not counted`() {
+        fbSwipe(1_000, 486, 466, 1112, 57)
+        assertFalse(fbSwipe(3_000, -325, -408, -1124, -263))
+        assertTrue(fbSwipe(5_000, 949, 778, 393))
+    }
+
+    @Test fun `facebook feed - scrolls of different lengths are not counted`() {
+        assertFalse(fbSwipe(1_000, 504, 484, 494, 219, 143, 72, 28, 2))
+        assertFalse(fbSwipe(3_000, 220, 248, 276, 114, 40, 7))
+        assertFalse(fbSwipe(5_000, 875, 1026, 580, 727, 325, 116))
+        assertFalse(fbSwipe(7_000, 300, 200))
+    }
+
+    @Test fun `the page-height hint lets the very first swipe count`() {
+        processor.pageHintPx = 2_120
+        assertTrue(fbSwipe(1_000, 486, 466, 1112, 57))
+    }
+
+    @Test fun `sideways scrolls and tiny nudges say nothing`() {
+        processor.pageHintPx = 2_120
+        assertFalse(fbSwipe(1_000, 0, 0, 0))
+        assertFalse(fbSwipe(3_000, 40, 30))
     }
 }

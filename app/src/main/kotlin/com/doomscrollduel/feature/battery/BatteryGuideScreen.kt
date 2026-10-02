@@ -30,20 +30,34 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.doomscrollduel.R
 import com.doomscrollduel.core.common.openBatterySettings
 import com.doomscrollduel.core.common.openOemAutostartSettings
-import com.doomscrollduel.core.designsystem.components.BackButton
-import com.doomscrollduel.core.designsystem.components.ChunkyButton
-import com.doomscrollduel.core.designsystem.components.ChunkyButtonStyle
-import com.doomscrollduel.core.designsystem.components.ChunkyCard
-import com.doomscrollduel.core.designsystem.components.DuelScreen
-import com.doomscrollduel.core.designsystem.components.DuelText
-import com.doomscrollduel.core.designsystem.components.ScreenPreview
-import com.doomscrollduel.core.designsystem.components.StatusPill
 import com.doomscrollduel.core.designsystem.theme.ChunkyMetrics
-import com.doomscrollduel.core.designsystem.theme.DuelTheme
 import com.doomscrollduel.tracking.health.BatteryGuide
 import com.doomscrollduel.tracking.health.BatteryStep
 import com.doomscrollduel.tracking.health.OemFamily
 import com.doomscrollduel.tracking.health.TrackingHealthViewModel
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import com.doomscrollduel.core.designsystem.components.ScreenPreview
+import com.doomscrollduel.feature.common.Kit
+import com.doomscrollduel.feature.common.KitButton
+import com.doomscrollduel.feature.common.KitButtonKind
+import com.doomscrollduel.feature.common.KitCard
+import com.doomscrollduel.feature.common.KitIconDisc
+import com.doomscrollduel.feature.common.KitPage
+import com.doomscrollduel.feature.common.KitPill
+import com.doomscrollduel.feature.settings.neon.NText
+import com.doomscrollduel.feature.settings.neon.Neon
+import com.doomscrollduel.feature.settings.neon.NeonIcons
 
 @Composable
 fun BatteryGuideRoute(
@@ -80,56 +94,38 @@ fun BatteryGuideScreen(
     onOpenOemSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = DuelTheme.colors
     val steps = BatteryGuide.stepsFor(oem)
 
-    DuelScreen(
+    KitPage(
         modifier = modifier,
+        title = stringResource(R.string.battery_title),
+        onBack = onBack,
+        bottomSpace = if (oem != OemFamily.OTHER) 170.dp else 92.dp,
         bottom = {
-            ChunkyButton(
-                text = stringResource(R.string.battery_open_settings),
-                onClick = onOpenBatterySettings,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (oem != OemFamily.OTHER) {
-                ChunkyButton(
-                    text = stringResource(R.string.battery_open_oem_settings),
-                    onClick = onOpenOemSettings,
-                    style = ChunkyButtonStyle.Secondary,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                KitButton(stringResource(R.string.battery_open_settings), onOpenBatterySettings)
+                if (oem != OemFamily.OTHER) {
+                    KitButton(stringResource(R.string.battery_open_oem_settings), onOpenOemSettings, kind = KitButtonKind.Secondary)
+                }
             }
         },
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            BackButton(onClick = onBack)
-            DuelText(
-                text = stringResource(R.string.battery_title),
-                style = DuelTheme.typography.title.copy(fontSize = 26.sp),
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-        DuelText(text = stringResource(R.string.battery_intro), style = DuelTheme.typography.bodyStrong)
+        NText(stringResource(R.string.battery_intro), 15.sp, weight = FontWeight.Bold, lineHeight = 22.sp)
         Spacer(Modifier.height(12.dp))
-        StatusPill(
-            text = stringResource(R.string.battery_phone_family, stringResource(oem.nameRes())),
-            fill = colors.lavender,
-        )
+        KitPill(stringResource(R.string.battery_phone_family, stringResource(oem.nameRes())), tone = Kit.Violet)
         Spacer(Modifier.height(16.dp))
         if (batteryUnrestricted) {
-            ChunkyCard(modifier = Modifier.fillMaxWidth(), fill = colors.green) {
-                DuelText(
-                    text = stringResource(R.string.battery_status_done),
-                    style = DuelTheme.typography.heading.copy(fontSize = 20.sp),
-                    color = colors.onBright,
-                )
+            KitCard(
+                fill = Brush.horizontalGradient(listOf(Kit.Green.copy(alpha = 0.2f), Kit.Green.copy(alpha = 0.2f))),
+                edge = Kit.Green.copy(alpha = 0.5f),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    KitIconDisc(NeonIcons.Check, Kit.Green, size = 36.dp)
+                    NText(stringResource(R.string.battery_status_done), 16.sp, weight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                }
             }
             Spacer(Modifier.height(16.dp))
         }
@@ -137,33 +133,30 @@ fun BatteryGuideScreen(
             StepCard(number = index + 1, text = stringResource(step.textRes()))
             Spacer(Modifier.height(12.dp))
         }
-        Spacer(Modifier.height(4.dp))
     }
 }
 
 @Composable
 private fun StepCard(number: Int, text: String) {
-    val colors = DuelTheme.colors
     val spoken = stringResource(R.string.battery_step_number, number) + ". " + text
-    ChunkyCard(modifier = Modifier.fillMaxWidth()) {
+    KitCard(radius = 22.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clearAndSetSemantics { contentDescription = spoken },
             verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Box(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(colors.yellow)
-                    .border(ChunkyMetrics.OutlineWidth, colors.outline, CircleShape),
+                    .background(Kit.Primary),
                 contentAlignment = Alignment.Center,
             ) {
-                DuelText(number.toString(), style = DuelTheme.typography.button, color = colors.onBright)
+                NText(number.toString(), 16.sp, weight = FontWeight.Black)
             }
-            DuelText(text = text, style = DuelTheme.typography.bodyStrong, modifier = Modifier.weight(1f))
+            NText(text, 14.sp, weight = FontWeight.Bold, lineHeight = 20.sp, modifier = Modifier.weight(1f).padding(top = 6.dp))
         }
     }
 }
@@ -201,10 +194,4 @@ private fun BatteryGuideXiaomiPreview() = ScreenPreview {
 @Composable
 private fun BatteryGuideSamsungPreview() = ScreenPreview {
     BatteryGuideScreen(OemFamily.SAMSUNG, batteryUnrestricted = true, onBack = {}, onOpenBatterySettings = {}, onOpenOemSettings = {})
-}
-
-@Preview(name = "Battery guide generic small 320x640", widthDp = 320, heightDp = 640)
-@Composable
-private fun BatteryGuideOtherPreview() = ScreenPreview {
-    BatteryGuideScreen(OemFamily.OTHER, batteryUnrestricted = false, onBack = {}, onOpenBatterySettings = {}, onOpenOemSettings = {})
 }

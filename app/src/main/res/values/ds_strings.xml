@@ -20,6 +20,9 @@
     <!-- Mode tile -->
     <string name="ds_tag_free">FREE</string>
     <string name="ds_tag_pro">PRO</string>
+    <string name="ds_action_play">KHELO</string>
+    <string name="ds_action_unlock">UNLOCK</string>
+    <string name="ds_faceoff_description">Gulabi aur neela dimaag ek doosre ke saamne ladne ko taiyaar.</string>
     <string name="ds_mode_tile_description">%1$s. %2$s. %3$s</string>
 
     <string name="ds_back">Wapas jao</string>

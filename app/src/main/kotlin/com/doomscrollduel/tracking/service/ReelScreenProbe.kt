@@ -34,6 +34,20 @@ class ReelScreenProbe(private val rules: () -> SurfaceRules) {
         }
     }
 
+    /**
+     * True while one of the four tracked apps is the window in front. Only the window's package name is read (nothing else
+     * from it), so the on-screen counter can go away the moment the person leaves the app instead of waiting for a timer.
+     * A moment with no window at all (a screen change in progress) counts as "still there" so the counter does not blink.
+     */
+    fun trackedAppInFront(service: AccessibilityService): Boolean {
+        val root = service.rootInActiveWindow ?: return true
+        try {
+            return TrackedApp.fromPackage(root.packageName?.toString()) != null
+        } finally {
+            release(root)
+        }
+    }
+
     @Suppress("DEPRECATION")
     private fun release(node: android.view.accessibility.AccessibilityNodeInfo) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) node.recycle()

@@ -31,20 +31,34 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.doomscrollduel.R
+import com.doomscrollduel.core.designsystem.theme.DuelTheme
 import com.doomscrollduel.core.designsystem.brain.BrainState
 import com.doomscrollduel.core.designsystem.brain.BrainView
-import com.doomscrollduel.core.designsystem.components.ChunkyButton
-import com.doomscrollduel.core.designsystem.components.ChunkyButtonStyle
-import com.doomscrollduel.core.designsystem.components.DuelText
-import com.doomscrollduel.core.designsystem.components.HardShadowText
-import com.doomscrollduel.core.designsystem.components.StatusPill
-import com.doomscrollduel.core.designsystem.components.rememberLoopPhase
-import com.doomscrollduel.core.designsystem.theme.DuelTheme
 import com.doomscrollduel.domain.blocking.BlockReason
 import com.doomscrollduel.domain.blocking.GateState
 import com.doomscrollduel.domain.blocking.TimeFormat
 import kotlin.math.PI
 import kotlin.math.cos
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import com.doomscrollduel.core.designsystem.components.rememberLoopPhase
+import com.doomscrollduel.feature.common.Kit
+import com.doomscrollduel.feature.common.KitButton
+import com.doomscrollduel.feature.common.KitButtonKind
+import com.doomscrollduel.feature.common.KitPill
+import com.doomscrollduel.feature.modes.navyBackground
+import com.doomscrollduel.feature.settings.neon.NText
+import com.doomscrollduel.feature.settings.neon.Neon
 
 /** What the full-screen overlay shows right now. */
 sealed interface OverlayUi {
@@ -98,13 +112,14 @@ fun BlockingOverlay(ui: OverlayUi, actions: OverlayActions, modifier: Modifier =
     }
 }
 
-/** Dark, opaque ground so the reel underneath cannot be seen or heard-about. */
+/** Opaque ground so the reel underneath cannot be seen or heard-about. */
 @Composable
 private fun OverlayGround(modifier: Modifier, content: @Composable () -> Unit) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(DuelTheme.colors.background)
+            .background(Color(0xFF050818))
+            .navyBackground()
             .statusBarsPadding()
             .windowInsetsPadding(WindowInsets.navigationBars),
         contentAlignment = Alignment.Center,
@@ -115,7 +130,6 @@ private fun OverlayGround(modifier: Modifier, content: @Composable () -> Unit) {
 
 @Composable
 private fun BrainBachaoScreen(ui: OverlayUi.Block, actions: OverlayActions, modifier: Modifier) {
-    val colors = DuelTheme.colors
     val reasonText = stringResource(
         when (ui.reason) {
             BlockReason.STRICT_LOCK -> R.string.overlay_reason_lock
@@ -132,43 +146,24 @@ private fun BrainBachaoScreen(ui: OverlayUi.Block, actions: OverlayActions, modi
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            HardShadowText(
-                text = stringResource(R.string.overlay_title),
-                fontSize = 40.sp,
-                color = colors.yellow,
-                maxLines = 2,
-            )
+            NText(stringResource(R.string.overlay_title), 36.sp, weight = FontWeight.Black, color = Kit.Gold, maxLines = 2, align = TextAlign.Center, lineHeight = 42.sp)
             BrainView(BrainState.FRIED, Modifier.width(170.dp))
-            DuelText(
-                text = reasonText,
-                style = DuelTheme.typography.bodyStrong,
-                color = colors.textMuted,
-                textAlign = TextAlign.Center,
-            )
+            KitPill(reasonText, tone = Kit.Violet)
             // The countdown is read once as words, not every second.
-            HardShadowText(
+            NText(
                 text = clock,
-                fontSize = 64.sp,
+                size = 60.sp,
+                weight = FontWeight.Black,
                 modifier = Modifier.semantics { contentDescription = spoken },
             )
             Spacer(Modifier.height(4.dp))
             if (ui.canAskFriend) {
-                ChunkyButton(
-                    text = stringResource(R.string.overlay_ask_friend),
-                    onClick = actions.onAskFriend,
-                    style = ChunkyButtonStyle.Opponent,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                KitButton(stringResource(R.string.overlay_ask_friend), actions.onAskFriend)
             }
             AskStatusLine(ui)
-            ChunkyButton(
-                text = stringResource(R.string.overlay_ok),
-                onClick = actions.onDismissBlock,
-                style = ChunkyButtonStyle.Secondary,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            KitButton(stringResource(R.string.overlay_ok), actions.onDismissBlock, kind = KitButtonKind.Secondary)
         }
     }
 }
@@ -185,11 +180,12 @@ private fun AskStatusLine(ui: OverlayUi.Block) {
         AskUi.Failed -> stringResource(R.string.overlay_ask_failed)
         AskUi.Ended -> stringResource(R.string.overlay_ask_ended)
     } ?: return
-    DuelText(
+    NText(
         text = text,
-        style = DuelTheme.typography.caption,
-        color = DuelTheme.colors.textMuted,
-        textAlign = TextAlign.Center,
+        size = 13.sp,
+        color = Neon.Muted,
+        align = TextAlign.Center,
+        lineHeight = 18.sp,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
     )
 }
@@ -200,7 +196,6 @@ private const val BREATH_MILLIS = 8_000
 
 @Composable
 private fun WaitGateScreen(state: GateState, actions: OverlayActions, modifier: Modifier) {
-    val colors = DuelTheme.colors
     val ready = state !is GateState.Counting
     val secondsLeft = (state as? GateState.Counting)?.let { (it.remainingMs + 999) / 1000 } ?: 0L
     val phase = rememberLoopPhase(BREATH_MILLIS, label = "breath")
@@ -213,13 +208,9 @@ private fun WaitGateScreen(state: GateState, actions: OverlayActions, modifier: 
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            DuelText(
-                text = stringResource(R.string.gate_title),
-                style = DuelTheme.typography.title,
-                textAlign = TextAlign.Center,
-            )
+            NText(stringResource(R.string.gate_title), 30.sp, weight = FontWeight.Black, align = TextAlign.Center, lineHeight = 36.sp)
             // A slow breathing brain: grows while breathing in, shrinks while breathing out. Still when the
             // user turned animations off.
             BrainView(
@@ -233,31 +224,28 @@ private fun WaitGateScreen(state: GateState, actions: OverlayActions, modifier: 
                         scaleY = scale
                     },
             )
-            DuelText(
+            NText(
                 text = stringResource(if (breathingIn) R.string.gate_breathe_in else R.string.gate_breathe_out),
-                style = DuelTheme.typography.heading,
-                color = colors.cyan,
+                size = 20.sp,
+                weight = FontWeight.ExtraBold,
+                color = Kit.Blue,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
             if (!ready) {
-                HardShadowText(
+                NText(
                     text = secondsLeft.toString(),
-                    fontSize = 72.sp,
+                    size = 64.sp,
+                    weight = FontWeight.Black,
                     modifier = Modifier.semantics { contentDescription = "" },
                 )
             }
             Spacer(Modifier.height(4.dp))
-            ChunkyButton(
-                text = stringResource(R.string.gate_leave),
-                onClick = actions.onRehneDo,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ChunkyButton(
+            KitButton(stringResource(R.string.gate_leave), actions.onRehneDo)
+            KitButton(
                 text = if (ready) stringResource(R.string.gate_continue) else stringResource(R.string.gate_continue_wait, secondsLeft.toInt()),
                 onClick = actions.onContinue,
                 enabled = ready,
-                style = ChunkyButtonStyle.Secondary,
-                modifier = Modifier.fillMaxWidth(),
+                kind = KitButtonKind.Secondary,
             )
         }
     }
@@ -271,26 +259,8 @@ private fun BrainBachaoLockPreview() = DuelTheme {
     BlockingOverlay(OverlayUi.Block(BlockReason.STRICT_LOCK, 4_980_000L, canAskFriend = true, askQuotaLeft = 2, ask = AskUi.Idle), NoActions)
 }
 
-@Preview(name = "Brain bachao: bedtime, asked", widthDp = 390, heightDp = 844)
-@Composable
-private fun BrainBachaoBedtimePreview() = DuelTheme {
-    BlockingOverlay(OverlayUi.Block(BlockReason.BEDTIME, 21_000_000L, canAskFriend = false, askQuotaLeft = 2, ask = AskUi.Waiting), NoActions)
-}
-
-@Preview(name = "Brain bachao: no network small", widthDp = 320, heightDp = 640)
-@Composable
-private fun BrainBachaoNoNetworkPreview() = DuelTheme {
-    BlockingOverlay(OverlayUi.Block(BlockReason.FOCUS, 1_800_000L, canAskFriend = true, askQuotaLeft = 3, ask = AskUi.NoNetwork), NoActions)
-}
-
 @Preview(name = "Wait 10: counting", widthDp = 390, heightDp = 844)
 @Composable
 private fun WaitGateCountingPreview() = DuelTheme {
     BlockingOverlay(OverlayUi.Gate(GateState.Counting(7_000L)), NoActions)
-}
-
-@Preview(name = "Wait 10: ready", widthDp = 390, heightDp = 844)
-@Composable
-private fun WaitGateReadyPreview() = DuelTheme {
-    BlockingOverlay(OverlayUi.Gate(GateState.Ready), NoActions)
 }

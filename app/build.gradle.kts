@@ -37,7 +37,19 @@ android {
     namespace = "com.doomscrollduel"
     compileSdk = 36
 
+    // ---- The TURN relay for Broadcast voice (see data/broadcast/IceServers.kt). Not in git: put TURN_URLS (comma separated, e.g.
+    // turn:relay.example.com:443?transport=tcp), TURN_USERNAME and TURN_CREDENTIAL in local.properties or in the environment.
+    // With none set, voice still works between phones that can reach each other directly.
+    val localProps = Properties().apply {
+        val f = rootProject.file("local.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+    fun turnValue(name: String): String = (localProps.getProperty(name) ?: System.getenv(name) ?: "").trim()
+
     defaultConfig {
+        resValue("string", "turn_urls", turnValue("TURN_URLS"))
+        resValue("string", "turn_username", turnValue("TURN_USERNAME"))
+        resValue("string", "turn_credential", turnValue("TURN_CREDENTIAL"))
         applicationId = "com.doomscrollduel"
         minSdk = 26
         targetSdk = 36
@@ -140,6 +152,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.firebase.auth)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play)
+    // Voice rooms (Broadcast): peer-to-peer audio and chat between friends.
+    implementation(libs.webrtc)
+    implementation(libs.googleid)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.functions)
     implementation(libs.firebase.messaging)

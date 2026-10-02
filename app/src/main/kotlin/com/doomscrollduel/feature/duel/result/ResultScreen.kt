@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -34,25 +35,28 @@ import com.doomscrollduel.core.designsystem.brain.BrainOwner
 import com.doomscrollduel.core.designsystem.brain.BrainState
 import com.doomscrollduel.core.designsystem.brain.BrainView
 import com.doomscrollduel.core.designsystem.brain.ReelUsage
-import com.doomscrollduel.core.designsystem.components.ChunkyButton
-import com.doomscrollduel.core.designsystem.components.ChunkyButtonStyle
-import com.doomscrollduel.core.designsystem.components.ChunkyCard
-import com.doomscrollduel.core.designsystem.components.DuelIcon
-import com.doomscrollduel.core.designsystem.components.DuelIcons
-import com.doomscrollduel.core.designsystem.components.DuelScreen
-import com.doomscrollduel.core.designsystem.components.DuelText
-import com.doomscrollduel.core.designsystem.components.HardShadowText
-import com.doomscrollduel.core.designsystem.components.ScreenPreview
-import com.doomscrollduel.core.designsystem.components.StatusPill
-import com.doomscrollduel.core.designsystem.components.rememberLoopPhase
-import com.doomscrollduel.core.designsystem.components.scaled
-import com.doomscrollduel.core.designsystem.theme.DuelColors
-import com.doomscrollduel.core.designsystem.theme.DuelTheme
 import com.doomscrollduel.domain.usecase.DuelOutcome
 import com.doomscrollduel.domain.usecase.ResolveDuel
 import com.doomscrollduel.feature.FakeData
 import kotlin.math.PI
 import kotlin.random.Random
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
+import com.doomscrollduel.core.designsystem.components.DuelIcon
+import com.doomscrollduel.core.designsystem.components.ScreenPreview
+import com.doomscrollduel.core.designsystem.components.rememberLoopPhase
+import com.doomscrollduel.feature.common.Kit
+import com.doomscrollduel.feature.common.KitButton
+import com.doomscrollduel.feature.common.KitButtonKind
+import com.doomscrollduel.feature.common.KitCard
+import com.doomscrollduel.feature.common.KitPage
+import com.doomscrollduel.feature.common.KitPill
+import com.doomscrollduel.feature.modes.BannerWord
+import com.doomscrollduel.feature.settings.neon.NText
+import com.doomscrollduel.feature.settings.neon.Neon
+import com.doomscrollduel.feature.settings.neon.NeonIcons
+import com.doomscrollduel.core.designsystem.theme.DuelTheme
 
 @Immutable
 data class ResultFighter(val name: String, val reels: Int)
@@ -63,6 +67,10 @@ data class ResultUiState(
     val opponent: ResultFighter,
     val reelLimit: Int,
     val stakeCoins: Int,
+    /** False while coins cannot be moved (no server yet): the screen then says so instead of "tum 50 coins jeete". */
+    val coinsSettled: Boolean = true,
+    /** The battle is still running, so these are the scores so far. */
+    val inProgress: Boolean = false,
 ) {
     val outcome: DuelOutcome get() = ResolveDuel.forMe(me.reels, opponent.reels)
 }
@@ -85,78 +93,83 @@ fun ResultScreen(
     onRematch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = DuelTheme.colors
     val outcome = state.outcome
     val headline = when (outcome) {
         DuelOutcome.WIN -> stringResource(R.string.result_winner_you)
         DuelOutcome.LOSS -> stringResource(R.string.result_winner_other, state.opponent.name.uppercase())
         DuelOutcome.DRAW -> stringResource(R.string.result_draw)
     }
+    val headlineTone = when (outcome) {
+        DuelOutcome.WIN -> Kit.Gold
+        DuelOutcome.LOSS -> Kit.Blue
+        DuelOutcome.DRAW -> Kit.Violet
+    }
     val myState = brainStateOf(state.me.reels, state.reelLimit)
     val opponentState = brainStateOf(state.opponent.reels, state.reelLimit)
 
-    DuelScreen(
-        modifier = modifier,
-        backdrop = { Confetti(Modifier.fillMaxSize()) },
-        bottom = {
-            ChunkyButton(
-                text = stringResource(R.string.result_share),
-                onClick = onShare,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ChunkyButton(
-                text = stringResource(R.string.result_rematch),
-                onClick = onRematch,
-                style = ChunkyButtonStyle.Secondary,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-    ) {
-        Spacer(Modifier.height(20.dp))
-        HardShadowText(
-            text = headline,
-            fontSize = 52.sp.scaled(),
-            color = colors.yellow,
-            maxLines = 2,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(8.dp))
-        // The winner wears the crown. On a draw nobody does and we show your own brain.
-        val (heroState, heroOwner) = when (outcome) {
-            DuelOutcome.LOSS -> opponentState to BrainOwner.OPPONENT
-            else -> myState to BrainOwner.YOU
-        }
-        BrainView(
-            state = heroState,
-            owner = heroOwner,
-            crowned = outcome != DuelOutcome.DRAW,
-            modifier = Modifier
-                .width(200.dp.scaled())
-                .align(Alignment.CenterHorizontally),
-        )
-        Spacer(Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+    Box(modifier.fillMaxSize()) {
+        KitPage(
+            bottomSpace = 150.dp,
+            bottom = {
+                Column(
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    KitButton(stringResource(R.string.result_share), onShare)
+                    KitButton(stringResource(R.string.result_rematch), onRematch, kind = KitButtonKind.Secondary)
+                }
+            },
         ) {
-            ScoreCard(
-                name = stringResource(R.string.label_you),
-                reels = state.me.reels,
-                brain = myState,
-                owner = BrainOwner.YOU,
-                modifier = Modifier.weight(1f),
+            Spacer(Modifier.height(12.dp))
+            if (state.inProgress) {
+                KitPill(stringResource(R.string.result_in_progress), tone = Kit.Gold, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Spacer(Modifier.height(8.dp))
+            }
+            NText(
+                text = headline,
+                size = 36.sp,
+                weight = FontWeight.Black,
+                color = headlineTone,
+                maxLines = 2,
+                align = TextAlign.Center,
+                lineHeight = 40.sp,
+                modifier = Modifier.fillMaxWidth(),
             )
-            ScoreCard(
-                name = state.opponent.name,
-                reels = state.opponent.reels,
-                brain = opponentState,
-                owner = BrainOwner.OPPONENT,
-                modifier = Modifier.weight(1f),
+            Spacer(Modifier.height(8.dp))
+            // The winner wears the crown. On a draw nobody does and we show your own brain.
+            val (heroState, heroOwner) = when (outcome) {
+                DuelOutcome.LOSS -> opponentState to BrainOwner.OPPONENT
+                else -> myState to BrainOwner.YOU
+            }
+            BrainView(
+                state = heroState,
+                owner = heroOwner,
+                crowned = outcome != DuelOutcome.DRAW,
+                modifier = Modifier
+                    .width(190.dp)
+                    .align(Alignment.CenterHorizontally),
             )
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ScoreCard(
+                    name = stringResource(R.string.label_you),
+                    reels = state.me.reels,
+                    brain = myState,
+                    owner = BrainOwner.YOU,
+                    modifier = Modifier.weight(1f),
+                )
+                ScoreCard(
+                    name = state.opponent.name,
+                    reels = state.opponent.reels,
+                    brain = opponentState,
+                    owner = BrainOwner.OPPONENT,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            CoinsCard(outcome = outcome, coins = state.stakeCoins, settled = state.coinsSettled)
         }
-        Spacer(Modifier.height(16.dp))
-        CoinsCard(outcome = outcome, coins = state.stakeCoins, colors = colors)
-        Spacer(Modifier.height(8.dp))
+        if (outcome == DuelOutcome.WIN && !state.inProgress) Confetti(Modifier.fillMaxWidth().height(360.dp))
     }
 }
 
@@ -170,53 +183,55 @@ private fun ScoreCard(
     owner: BrainOwner,
     modifier: Modifier = Modifier,
 ) {
-    val colors = DuelTheme.colors
-    val nameColor = if (owner == BrainOwner.YOU) colors.pink else colors.cyan
-    val (stateLabel, stateFill) = when (brain) {
-        BrainState.HAPPY -> stringResource(R.string.result_state_happy) to colors.green
-        BrainState.FRIED -> stringResource(R.string.result_state_fried) to colors.orange
-        BrainState.ZOMBIE -> stringResource(R.string.result_state_zombie) to colors.red
+    val nameColor = if (owner == BrainOwner.YOU) Kit.Pink else Kit.Blue
+    val (stateLabel, stateTone) = when (brain) {
+        BrainState.HAPPY -> stringResource(R.string.result_state_happy) to Kit.Green
+        BrainState.FRIED -> stringResource(R.string.result_state_fried) to Kit.Orange
+        BrainState.ZOMBIE -> stringResource(R.string.result_state_zombie) to Kit.Red
     }
-    ChunkyCard(modifier = modifier, contentPadding = PaddingValues(12.dp)) {
+    KitCard(modifier = modifier, radius = 24.dp, padding = PaddingValues(12.dp)) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            DuelText(text = name, style = DuelTheme.typography.bodyStrong, color = nameColor, maxLines = 1)
-            BrainView(state = brain, owner = owner, modifier = Modifier.width(84.dp.scaled()))
-            HardShadowText(text = reels.toString(), fontSize = 44.sp.scaled(), shadowDepth = 4.dp)
-            DuelText(
-                text = stringResource(R.string.result_reels, reels),
-                style = DuelTheme.typography.caption,
-                color = colors.textMuted,
-            )
-            StatusPill(text = stateLabel, fill = stateFill)
+            NText(name, 15.sp, color = nameColor, weight = FontWeight.ExtraBold, maxLines = 1)
+            BrainView(state = brain, owner = owner, modifier = Modifier.width(84.dp))
+            BannerWord(reels.toString(), listOf(Color.White, Color(0xFFE3EAFF), Color(0xFF9DB4FF)), Color(0xFF2B1A8C), nameColor, 40.sp)
+            NText(stringResource(R.string.result_reels, reels), 12.sp, color = Neon.Muted, maxLines = 1)
+            KitPill(stateLabel, tone = stateTone)
         }
     }
 }
 
 @Composable
-private fun CoinsCard(outcome: DuelOutcome, coins: Int, colors: DuelColors) {
-    val (text, fill) = when (outcome) {
-        DuelOutcome.WIN -> stringResource(R.string.result_coins_won, coins) to colors.green
-        DuelOutcome.LOSS -> stringResource(R.string.result_coins_lost, coins) to colors.red
-        DuelOutcome.DRAW -> stringResource(R.string.result_coins_draw) to colors.lavender
+private fun CoinsCard(outcome: DuelOutcome, coins: Int, settled: Boolean) {
+    if (!settled) {
+        KitCard(radius = 22.dp) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                DuelIcon(NeonIcons.Coin, tint = Kit.Gold, contentDescription = null, modifier = Modifier.size(26.dp))
+                NText(stringResource(R.string.result_coins_pending, coins), 14.sp, weight = FontWeight.Bold, lineHeight = 20.sp, modifier = Modifier.weight(1f))
+            }
+        }
+        return
     }
-    ChunkyCard(modifier = Modifier.fillMaxWidth(), fill = fill) {
+    val (text, tone) = when (outcome) {
+        DuelOutcome.WIN -> stringResource(R.string.result_coins_won, coins) to Kit.Green
+        DuelOutcome.LOSS -> stringResource(R.string.result_coins_lost, coins) to Kit.Red
+        DuelOutcome.DRAW -> stringResource(R.string.result_coins_draw) to Kit.Violet
+    }
+    KitCard(
+        fill = Brush.horizontalGradient(listOf(tone.copy(alpha = 0.20f), tone.copy(alpha = 0.20f))),
+        edge = tone.copy(alpha = 0.45f),
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
         ) {
-            DuelIcon(DuelIcons.Coin, tint = colors.onBright, contentDescription = null, modifier = Modifier.size(28.dp))
+            DuelIcon(NeonIcons.Coin, tint = tone, contentDescription = null, modifier = Modifier.size(28.dp))
             Spacer(Modifier.width(10.dp))
-            DuelText(
-                text = text,
-                style = DuelTheme.typography.heading,
-                color = colors.onBright,
-                textAlign = TextAlign.Center,
-            )
+            NText(text, 18.sp, weight = FontWeight.ExtraBold, align = TextAlign.Center)
         }
     }
 }
@@ -233,18 +248,18 @@ private class ConfettiPiece(
 )
 
 /**
- * Decorative falling shapes. Whole-number fall and spin cycles make the loop seamless; with
- * animations turned off the pieces simply stay where they are.
+ * Decorative falling shapes behind the headline of a win. Whole-number fall and spin cycles make the loop seamless;
+ * with animations turned off the pieces simply stay where they are.
  */
 @Composable
-private fun BoxScope.Confetti(modifier: Modifier = Modifier) {
+private fun Confetti(modifier: Modifier = Modifier) {
     val colors = DuelTheme.colors
     val palette = remember(colors) {
         listOf(colors.yellow, colors.pink, colors.cyan, colors.green, colors.orange, colors.lavender)
     }
     val pieces = remember {
         val random = Random(7)
-        List(34) {
+        List(28) {
             ConfettiPiece(
                 x = random.nextFloat(),
                 y = random.nextFloat(),
@@ -265,7 +280,7 @@ private fun BoxScope.Confetti(modifier: Modifier = Modifier) {
             val cx = piece.x * size.width
             val cy = ((piece.y + t * piece.fall) % 1f) * size.height
             val s = piece.size.dp.toPx()
-            val color: Color = palette[piece.colorIndex].copy(alpha = 0.9f)
+            val color: Color = palette[piece.colorIndex].copy(alpha = 0.85f)
             translate(cx, cy) {
                 rotate(piece.angle + t * 360f * piece.spin, pivot = Offset.Zero) {
                     when (piece.shape) {
@@ -300,19 +315,4 @@ private fun ResultWonPreview() = ScreenPreview {
         state = FakeData.result.copy(me = ResultFighter("Rohan", 33), opponent = ResultFighter("Aman", 71)),
         onShare = {}, onRematch = {},
     )
-}
-
-@Preview(name = "Result - draw 390x844", widthDp = 390, heightDp = 844)
-@Composable
-private fun ResultDrawPreview() = ScreenPreview {
-    ResultScreen(
-        state = FakeData.result.copy(me = ResultFighter("Rohan", 50), opponent = ResultFighter("Aman", 50)),
-        onShare = {}, onRematch = {},
-    )
-}
-
-@Preview(name = "Result small 320x640", widthDp = 320, heightDp = 640)
-@Composable
-private fun ResultSmallPreview() = ScreenPreview {
-    ResultScreen(state = FakeData.result, onShare = {}, onRematch = {})
 }

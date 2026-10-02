@@ -9,6 +9,7 @@ import androidx.room.Room
 import com.doomscrollduel.core.common.DayClock
 import com.doomscrollduel.data.local.AppDatabase
 import com.doomscrollduel.data.local.ReelCountDao
+import com.doomscrollduel.data.local.ReelHourDao
 import com.doomscrollduel.account.AccountDeletionRepository
 import com.doomscrollduel.analytics.FirebaseAnalyticsSink
 import com.doomscrollduel.data.prefs.DataStoreUsageDataChoice
@@ -71,10 +72,18 @@ object AppModule {
     @Provides
     @Singleton
     fun database(@ApplicationContext context: Context): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME).build()
+        Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
+            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .build()
 
     @Provides
     fun reelCountDao(db: AppDatabase): ReelCountDao = db.reelCountDao()
+
+    @Provides
+    fun reelHourDao(db: AppDatabase): ReelHourDao = db.reelHourDao()
+
+    @Provides
+    fun reelTotalsDao(db: AppDatabase): com.doomscrollduel.data.local.ReelTotalsDao = db.reelTotalsDao()
 
     /** Fires when the user changes the clock or time zone, or the date rolls over. */
     @Provides
@@ -103,10 +112,12 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun reelRepository(dao: ReelCountDao, dayClock: DayClock): ReelRepository =
+    fun reelRepository(dao: ReelCountDao, hourDao: ReelHourDao, totalsDao: com.doomscrollduel.data.local.ReelTotalsDao, dayClock: DayClock): ReelRepository =
         RoomReelRepository(
             dao = dao,
             dayClock = dayClock,
+            hourDao = hourDao,
+            totalsDao = totalsDao,
             zone = { ZoneId.systemDefault() },
             nowMillis = System::currentTimeMillis,
         )
@@ -181,6 +192,27 @@ abstract class BindingsModule {
 
     @Binds
     abstract fun consentStore(impl: DataStoreConsentStore): ConsentStore
+
+    @Binds
+    abstract fun authRepository(impl: com.doomscrollduel.data.auth.FirebaseAuthRepository): com.doomscrollduel.domain.repository.AuthRepository
+
+    @Binds
+    abstract fun profileRepository(impl: com.doomscrollduel.data.social.FirebaseProfileRepository): com.doomscrollduel.domain.social.ProfileRepository
+
+    @Binds
+    abstract fun friendsRepository(impl: com.doomscrollduel.data.social.FirebaseFriendsRepository): com.doomscrollduel.domain.repository.FriendsRepository
+
+    @Binds
+    abstract fun broadcastRepository(impl: com.doomscrollduel.data.broadcast.BroadcastManager): com.doomscrollduel.domain.social.BroadcastRepository
+
+    @Binds
+    abstract fun duelRepository(impl: com.doomscrollduel.data.social.FirebaseDuelRepository): com.doomscrollduel.domain.social.DuelRepository
+
+    @Binds
+    abstract fun peopleRepository(impl: com.doomscrollduel.data.social.FirebasePeopleRepository): com.doomscrollduel.domain.social.PeopleRepository
+
+    @Binds
+    abstract fun contactsRepository(impl: com.doomscrollduel.data.social.DeviceContactsRepository): com.doomscrollduel.domain.social.ContactsRepository
 }
 
 @Module

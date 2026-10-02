@@ -23,19 +23,33 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.ui.semantics.Role
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.doomscrollduel.R
 import com.doomscrollduel.core.common.openAccessibilitySettings
 import com.doomscrollduel.core.common.openUrl
-import com.doomscrollduel.core.designsystem.components.ChunkyButton
-import com.doomscrollduel.core.designsystem.components.ChunkyButtonStyle
-import com.doomscrollduel.core.designsystem.components.ChunkyCard
-import com.doomscrollduel.core.designsystem.components.DuelScreen
-import com.doomscrollduel.core.designsystem.components.DuelText
-import com.doomscrollduel.core.designsystem.components.ScreenPreview
 import com.doomscrollduel.core.designsystem.theme.ChunkyMetrics
-import com.doomscrollduel.core.designsystem.theme.DuelTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import com.doomscrollduel.core.designsystem.components.ScreenPreview
+import com.doomscrollduel.feature.common.Kit
+import com.doomscrollduel.feature.common.KitButton
+import com.doomscrollduel.feature.common.KitButtonKind
+import com.doomscrollduel.feature.common.KitCard
+import com.doomscrollduel.feature.common.KitPage
+import com.doomscrollduel.feature.settings.neon.NText
+import com.doomscrollduel.feature.settings.neon.Neon
 
 /**
  * The Accessibility API prominent disclosure, shown before the permission is requested.
@@ -53,6 +67,7 @@ import com.doomscrollduel.core.designsystem.theme.DuelTheme
 fun DisclosureRoute(
     reviewOnly: Boolean,
     onClose: () -> Unit,
+    onOpenPrivacy: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DisclosureViewModel = hiltViewModel(),
 ) {
@@ -65,7 +80,7 @@ fun DisclosureRoute(
             onClose()
         },
         onNotNow = onClose,
-        onOpenPrivacy = { context.openUrl(context.getString(R.string.privacy_policy_url)) },
+        onOpenPrivacy = onOpenPrivacy,
         modifier = modifier,
     )
 }
@@ -78,101 +93,92 @@ fun DisclosureScreen(
     onOpenPrivacy: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = DuelTheme.colors
     // Back means "not now": the person is never forced into the permission.
     BackHandler(onBack = onNotNow)
 
-    DuelScreen(
+    KitPage(
         modifier = modifier,
+        bottomSpace = if (reviewOnly) 92.dp else 170.dp,
         bottom = {
-            if (reviewOnly) {
-                ChunkyButton(text = stringResource(R.string.disc_back), onClick = onNotNow, modifier = Modifier.fillMaxWidth())
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    ChunkyButton(
-                        text = stringResource(R.string.disc_not_now),
-                        onClick = onNotNow,
-                        style = ChunkyButtonStyle.Secondary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    ChunkyButton(
-                        text = stringResource(R.string.disc_agree),
-                        onClick = onAgree,
-                        style = ChunkyButtonStyle.Success,
-                        modifier = Modifier.weight(1f),
-                    )
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (reviewOnly) {
+                    KitButton(stringResource(R.string.disc_back), onNotNow)
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        KitButton(stringResource(R.string.disc_not_now), onNotNow, kind = KitButtonKind.Secondary, modifier = Modifier.weight(1f))
+                        KitButton(stringResource(R.string.disc_agree), onAgree, modifier = Modifier.weight(1f))
+                    }
+                    NText(stringResource(R.string.disc_not_now_note), 12.sp, color = Neon.Muted, align = TextAlign.Center, lineHeight = 16.sp, modifier = Modifier.fillMaxWidth())
                 }
-                DuelText(
-                    text = stringResource(R.string.disc_not_now_note),
-                    style = DuelTheme.typography.caption,
-                    color = colors.textMuted,
-                )
             }
         },
     ) {
-        DuelText(
+        Spacer(Modifier.height(12.dp))
+        NText(
             text = stringResource(R.string.disc_title),
-            style = DuelTheme.typography.title.copy(fontSize = 26.sp),
-            modifier = Modifier
-                .padding(top = 20.dp)
-                .semantics { heading() },
+            size = 28.sp,
+            weight = FontWeight.Black,
+            lineHeight = 34.sp,
+            modifier = Modifier.semantics { heading() },
         )
         Spacer(Modifier.height(8.dp))
-        DuelText(text = stringResource(R.string.disc_intro), style = DuelTheme.typography.bodyStrong)
+        NText(stringResource(R.string.disc_intro), 15.sp, weight = FontWeight.Bold, lineHeight = 22.sp)
 
-        Block(R.string.disc_does_title, colors.green, listOf(R.string.disc_does_1, R.string.disc_does_2, R.string.disc_does_3))
-        Block(R.string.disc_not_title, colors.red, listOf(R.string.disc_not_1, R.string.disc_not_2, R.string.disc_not_3))
-        Block(R.string.disc_data_title, colors.cyan, listOf(R.string.disc_data_1, R.string.disc_data_2, R.string.disc_data_3))
+        Block(R.string.disc_does_title, Kit.Green, listOf(R.string.disc_does_1, R.string.disc_does_2, R.string.disc_does_3))
+        Block(R.string.disc_not_title, Kit.Red, listOf(R.string.disc_not_1, R.string.disc_not_2, R.string.disc_not_3))
+        Block(R.string.disc_data_title, Kit.Blue, listOf(R.string.disc_data_1, R.string.disc_data_2, R.string.disc_data_3))
 
         Spacer(Modifier.height(16.dp))
         // Reviewers and many users read English first, so the same promise is repeated in English.
-        ChunkyCard(modifier = Modifier.fillMaxWidth(), fill = colors.lavender) {
-            DuelText(
+        KitCard(fill = Brush.horizontalGradient(listOf(Kit.Violet.copy(alpha = 0.22f), Kit.Surface)), edge = Kit.Violet.copy(alpha = 0.4f)) {
+            NText(
                 text = stringResource(R.string.disc_english_title),
-                style = DuelTheme.typography.heading.copy(fontSize = 20.sp),
-                color = colors.onBright,
+                size = 18.sp,
+                weight = FontWeight.ExtraBold,
                 modifier = Modifier.semantics { heading() },
             )
             Spacer(Modifier.height(6.dp))
-            DuelText(text = stringResource(R.string.disc_english_body), style = DuelTheme.typography.body, color = colors.onBright)
+            NText(stringResource(R.string.disc_english_body), 14.sp, lineHeight = 20.sp)
         }
 
-        Spacer(Modifier.height(16.dp))
-        DuelText(
-            text = stringResource(R.string.disc_privacy_link),
-            style = DuelTheme.typography.bodyStrong.copy(textDecoration = TextDecoration.Underline),
-            color = colors.cyan,
-            modifier = Modifier
-                .sizeIn(minHeight = ChunkyMetrics.MinTouchTarget)
-                .clickable(role = Role.Button, onClick = onOpenPrivacy)
-                .padding(vertical = 12.dp),
-        )
         Spacer(Modifier.height(8.dp))
+        BasicText(
+            text = stringResource(R.string.disc_privacy_link),
+            style = androidx.compose.ui.text.TextStyle(
+                fontFamily = com.doomscrollduel.core.designsystem.theme.Nunito,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 15.sp,
+                color = Neon.VioletLight,
+                textDecoration = TextDecoration.Underline,
+            ),
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .clickable(role = Role.Button, onClick = onOpenPrivacy)
+                .padding(vertical = 14.dp),
+        )
     }
 }
 
 @Composable
-private fun Block(titleRes: Int, accent: androidx.compose.ui.graphics.Color, lineRes: List<Int>) {
-    val colors = DuelTheme.colors
+private fun Block(titleRes: Int, accent: Color, lineRes: List<Int>) {
     Spacer(Modifier.height(16.dp))
-    ChunkyCard(modifier = Modifier.fillMaxWidth()) {
+    KitCard(radius = 22.dp) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             // Colour is only decoration: every block has a written heading and every line is plain text.
-            androidx.compose.foundation.layout.Box(
-                Modifier
-                    .height(24.dp)
-                    .width(8.dp)
-                    .background(accent),
-            )
-            DuelText(
+            Box(Modifier.height(22.dp).width(5.dp).clip(RoundedCornerShape(50)).background(accent))
+            NText(
                 text = stringResource(titleRes),
-                style = DuelTheme.typography.heading.copy(fontSize = 20.sp),
+                size = 18.sp,
+                weight = FontWeight.ExtraBold,
                 modifier = Modifier.semantics { heading() },
             )
         }
         lineRes.forEach {
             Spacer(Modifier.height(8.dp))
-            DuelText(text = stringResource(it), style = DuelTheme.typography.body, color = colors.text)
+            NText(stringResource(it), 14.sp, lineHeight = 20.sp)
         }
     }
 }
@@ -180,7 +186,3 @@ private fun Block(titleRes: Int, accent: androidx.compose.ui.graphics.Color, lin
 @Preview(widthDp = 390, heightDp = 1400)
 @Composable
 private fun DisclosurePreview() = ScreenPreview { DisclosureScreen(reviewOnly = false, onAgree = {}, onNotNow = {}, onOpenPrivacy = {}) }
-
-@Preview(widthDp = 390, heightDp = 1400)
-@Composable
-private fun DisclosureReviewPreview() = ScreenPreview { DisclosureScreen(reviewOnly = true, onAgree = {}, onNotNow = {}, onOpenPrivacy = {}) }

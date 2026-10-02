@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
     The Accessibility API prominent disclosure. Google Play requires this text to be shown inside the app, before the
     permission is requested, and agreed to with a tap. DO NOT edit it casually:
       - it must always match what the service really does (docs/privacy-data-flow.md, ReelAccessibilityService);
       - when it changes, bump AccessibilityConsent.DISCLOSURE_VERSION and run
-        `scripts/check-play-readiness.sh --update-hash`, and re-record the Play Console video.
+        `scripts/check-play-readiness.sh with its update-hash option`, and re-record the Play Console video.
     Keep this file to the disclosure only; the hash is taken over the whole file.
 -->
 <resources>

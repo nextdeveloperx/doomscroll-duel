@@ -32,17 +32,6 @@ import com.doomscrollduel.R
 import com.doomscrollduel.billing.StoreProblem
 import com.doomscrollduel.billing.StoreState
 import com.doomscrollduel.core.common.openSubscriptionManagement
-import com.doomscrollduel.core.designsystem.components.BackButton
-import com.doomscrollduel.core.designsystem.components.ChunkyButton
-import com.doomscrollduel.core.designsystem.components.ChunkyButtonStyle
-import com.doomscrollduel.core.designsystem.components.ChunkyCard
-import com.doomscrollduel.core.designsystem.components.DuelIcon
-import com.doomscrollduel.core.designsystem.components.DuelIcons
-import com.doomscrollduel.core.designsystem.components.DuelScreen
-import com.doomscrollduel.core.designsystem.components.DuelText
-import com.doomscrollduel.core.designsystem.components.ScreenPreview
-import com.doomscrollduel.core.designsystem.components.StatusPill
-import com.doomscrollduel.core.designsystem.theme.DuelTheme
 import com.doomscrollduel.domain.billing.PlanOffer
 import com.doomscrollduel.domain.billing.PlanPricing
 import com.doomscrollduel.domain.billing.ProFeature
@@ -54,6 +43,31 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import com.doomscrollduel.core.designsystem.components.DuelIcon
+import com.doomscrollduel.core.designsystem.components.ScreenPreview
+import com.doomscrollduel.feature.common.Kit
+import com.doomscrollduel.feature.common.KitButton
+import com.doomscrollduel.feature.common.KitButtonKind
+import com.doomscrollduel.feature.common.KitCard
+import com.doomscrollduel.feature.common.KitIconDisc
+import com.doomscrollduel.feature.common.KitPage
+import com.doomscrollduel.feature.common.KitPill
+import com.doomscrollduel.feature.settings.neon.NText
+import com.doomscrollduel.feature.settings.neon.Neon
+import com.doomscrollduel.feature.settings.neon.NeonIcons
 
 class PaywallActions(
     val onBack: () -> Unit,
@@ -91,73 +105,55 @@ fun PaywallScreen(
     actions: PaywallActions,
     modifier: Modifier = Modifier,
 ) {
-    val colors = DuelTheme.colors
     val isPro = ui.view.isPro
     val showOffers = !isPro && ui.view !is ProView.OnHold && ui.view !is ProView.Paused && ui.view !is ProView.PaymentPending
     val busy = ui.busy != PaywallBusy.NONE
 
-    DuelScreen(
+    KitPage(
         modifier = modifier,
+        title = stringResource(R.string.paywall_title),
+        onBack = actions.onBack,
+        bottomSpace = 250.dp,
         bottom = {
-            val ready = ui.store as? StoreState.Ready
-            if (showOffers && ready != null) {
-                ChunkyButton(
-                    text = stringResource(if (ui.busy == PaywallBusy.BUYING) R.string.paywall_buy_busy else R.string.paywall_buy),
-                    onClick = actions.onBuy,
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                // Right under the button, where Google Play expects the renewal terms to be visible.
-                DuelText(
-                    text = stringResource(R.string.paywall_cta_terms),
-                    style = DuelTheme.typography.caption,
-                    color = colors.textMuted,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            if (!isPro || ui.view is ProView.Ending || ui.view is ProView.GracePeriod) {
-                // Always visible: someone who already paid (new phone, reinstall) must be able to find this at once.
-                ChunkyButton(
-                    text = stringResource(if (ui.busy == PaywallBusy.RESTORING) R.string.paywall_restore_busy else R.string.paywall_restore),
-                    onClick = actions.onRestore,
-                    enabled = !busy,
-                    style = ChunkyButtonStyle.Secondary,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            if (ui.view !is ProView.Free && ui.view !is ProView.Expired && ui.view !is ProView.ClockSuspect) {
-                ChunkyButton(
-                    text = stringResource(
-                        when (ui.view) {
-                            is ProView.Ending -> R.string.paywall_status_ending_cta
-                            is ProView.GracePeriod, ProView.OnHold -> R.string.paywall_status_grace_cta
-                            else -> R.string.paywall_manage
-                        },
-                    ),
-                    onClick = actions.onManage,
-                    style = ChunkyButtonStyle.Success,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                val ready = ui.store as? StoreState.Ready
+                if (showOffers && ready != null) {
+                    KitButton(
+                        text = stringResource(if (ui.busy == PaywallBusy.BUYING) R.string.paywall_buy_busy else R.string.paywall_buy),
+                        onClick = actions.onBuy,
+                        enabled = !busy,
+                        icon = NeonIcons.Crown,
+                    )
+                    // Right under the button, where Google Play expects the renewal terms to be visible.
+                    NText(stringResource(R.string.paywall_cta_terms), 11.sp, color = Neon.Muted, align = TextAlign.Center, lineHeight = 14.sp, modifier = Modifier.fillMaxWidth())
+                }
+                if (!isPro || ui.view is ProView.Ending || ui.view is ProView.GracePeriod) {
+                    // Always visible: someone who already paid (new phone, reinstall) must be able to find this at once.
+                    KitButton(
+                        text = stringResource(if (ui.busy == PaywallBusy.RESTORING) R.string.paywall_restore_busy else R.string.paywall_restore),
+                        onClick = actions.onRestore,
+                        enabled = !busy,
+                        kind = KitButtonKind.Secondary,
+                    )
+                }
+                if (ui.view !is ProView.Free && ui.view !is ProView.Expired && ui.view !is ProView.ClockSuspect) {
+                    KitButton(
+                        text = stringResource(
+                            when (ui.view) {
+                                is ProView.Ending -> R.string.paywall_status_ending_cta
+                                is ProView.GracePeriod, ProView.OnHold -> R.string.paywall_status_grace_cta
+                                else -> R.string.paywall_manage
+                            },
+                        ),
+                        onClick = actions.onManage,
+                    )
+                }
             }
         },
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            BackButton(onClick = actions.onBack)
-            DuelText(
-                text = stringResource(R.string.paywall_title),
-                style = DuelTheme.typography.title.copy(fontSize = 26.sp),
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-
         ui.message?.let {
             MessageCard(it, actions.onDismissMessage)
             Spacer(Modifier.height(16.dp))
@@ -170,23 +166,22 @@ fun PaywallScreen(
         SectionLabel(R.string.paywall_section_benefits)
         BenefitsCard()
         Spacer(Modifier.height(8.dp))
-        DuelText(text = stringResource(R.string.paywall_free_keeps), style = DuelTheme.typography.caption, color = colors.textMuted)
+        NText(stringResource(R.string.paywall_free_keeps), 12.sp, color = Neon.Muted, lineHeight = 16.sp)
 
         if (showOffers) {
             SectionLabel(R.string.paywall_section_plans)
             when (val store = ui.store) {
-                StoreState.Loading -> DuelText(text = stringResource(R.string.paywall_loading), style = DuelTheme.typography.body, color = colors.textMuted)
+                StoreState.Loading -> NText(stringResource(R.string.paywall_loading), 14.sp, color = Neon.Muted)
                 is StoreState.Unavailable -> UnavailableCard(store.problem, actions.onRetryStore)
                 is StoreState.Ready -> PlanCards(store.offers, ui.selected, actions.onSelectPlan)
             }
         }
 
         Spacer(Modifier.height(20.dp))
-        DuelText(text = stringResource(R.string.paywall_fine_print), style = DuelTheme.typography.caption, color = colors.textMuted)
+        NText(stringResource(R.string.paywall_fine_print), 12.sp, color = Neon.Muted, lineHeight = 16.sp)
         Spacer(Modifier.height(8.dp))
         // Said plainly on purpose: Pro does not touch the in-app currency, and it cannot be bought.
-        DuelText(text = stringResource(R.string.paywall_virtual_promise), style = DuelTheme.typography.caption, color = colors.textMuted)
-        Spacer(Modifier.height(16.dp))
+        NText(stringResource(R.string.paywall_virtual_promise), 12.sp, color = Neon.Muted, lineHeight = 16.sp)
     }
 }
 
@@ -194,18 +189,21 @@ fun PaywallScreen(
 
 @Composable
 private fun HeroCard(trigger: ProFeature?) {
-    val colors = DuelTheme.colors
-    ChunkyCard(modifier = Modifier.fillMaxWidth(), fill = colors.pink) {
-        DuelText(
-            text = stringResource(R.string.paywall_hero_title),
-            style = DuelTheme.typography.heading,
-            color = colors.onBright,
-        )
-        Spacer(Modifier.height(4.dp))
-        DuelText(
+    KitCard(
+        radius = 26.dp,
+        fill = Brush.horizontalGradient(listOf(Kit.Pink, Kit.VioletDeep)),
+        edge = Color.Transparent,
+        padding = PaddingValues(20.dp),
+    ) {
+        KitIconDisc(NeonIcons.Crown, Color.White, size = 48.dp)
+        Spacer(Modifier.height(12.dp))
+        NText(stringResource(R.string.paywall_hero_title), 24.sp, weight = FontWeight.Black, lineHeight = 29.sp)
+        Spacer(Modifier.height(6.dp))
+        NText(
             text = if (trigger != null) proFeatureReason(trigger) else stringResource(R.string.paywall_hero_sub),
-            style = DuelTheme.typography.bodyStrong,
-            color = colors.onBright,
+            size = 15.sp,
+            weight = FontWeight.SemiBold,
+            lineHeight = 21.sp,
         )
     }
 }
@@ -213,31 +211,33 @@ private fun HeroCard(trigger: ProFeature?) {
 /** What is going on with the subscription right now. Nothing is shown for a plain free user. */
 @Composable
 private fun StatusCard(view: ProView) {
-    val colors = DuelTheme.colors
     val zone = remember { ZoneId.systemDefault() }
     fun date(ms: Long): String =
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault()).format(Instant.ofEpochMilli(ms).atZone(zone))
 
-    val (fill, text) = when (view) {
+    val (tone, text) = when (view) {
         ProView.Free -> return
-        is ProView.Active -> colors.green to stringResource(R.string.paywall_status_active, date(view.renewsAtMs))
-        is ProView.Ending -> colors.orange to stringResource(R.string.paywall_status_ending, date(view.endsAtMs))
-        is ProView.GracePeriod -> colors.orange to stringResource(R.string.paywall_status_grace, date(view.untilMs))
-        ProView.OnHold -> colors.red to stringResource(R.string.paywall_status_hold)
-        ProView.Paused -> colors.orange to stringResource(R.string.paywall_status_paused)
-        ProView.PaymentPending -> colors.cyan to stringResource(R.string.paywall_status_pending)
-        ProView.Expired -> colors.lavender to stringResource(R.string.paywall_status_expired)
-        ProView.ClockSuspect -> colors.red to stringResource(R.string.paywall_status_clock)
+        is ProView.Active -> Kit.Green to stringResource(R.string.paywall_status_active, date(view.renewsAtMs))
+        is ProView.Ending -> Kit.Orange to stringResource(R.string.paywall_status_ending, date(view.endsAtMs))
+        is ProView.GracePeriod -> Kit.Orange to stringResource(R.string.paywall_status_grace, date(view.untilMs))
+        ProView.OnHold -> Kit.Red to stringResource(R.string.paywall_status_hold)
+        ProView.Paused -> Kit.Orange to stringResource(R.string.paywall_status_paused)
+        ProView.PaymentPending -> Kit.Blue to stringResource(R.string.paywall_status_pending)
+        ProView.Expired -> Kit.Violet to stringResource(R.string.paywall_status_expired)
+        ProView.ClockSuspect -> Kit.Red to stringResource(R.string.paywall_status_clock)
     }
-    ChunkyCard(modifier = Modifier.fillMaxWidth(), fill = fill) {
-        DuelText(text = text, style = DuelTheme.typography.bodyStrong, color = colors.onBright)
+    KitCard(
+        fill = Brush.horizontalGradient(listOf(tone.copy(alpha = 0.2f), tone.copy(alpha = 0.2f))),
+        edge = tone.copy(alpha = 0.5f),
+    ) {
+        NText(text, 14.sp, weight = FontWeight.Bold, lineHeight = 19.sp)
     }
     Spacer(Modifier.height(16.dp))
 }
 
 @Composable
 private fun BenefitsCard() {
-    ChunkyCard(modifier = Modifier.fillMaxWidth()) {
+    KitCard(padding = PaddingValues(16.dp)) {
         val items = listOf(
             R.string.benefit_unlimited_duels,
             R.string.benefit_squad,
@@ -247,10 +247,10 @@ private fun BenefitsCard() {
             R.string.benefit_skins,
         )
         items.forEachIndexed { index, res ->
-            if (index > 0) Spacer(Modifier.height(10.dp))
+            if (index > 0) Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                DuelIcon(DuelIcons.Check, tint = DuelTheme.colors.green, contentDescription = null, modifier = Modifier.size(22.dp))
-                DuelText(text = stringResource(res), style = DuelTheme.typography.bodyStrong, modifier = Modifier.weight(1f))
+                KitIconDisc(NeonIcons.Check, Kit.Green, size = 28.dp)
+                NText(stringResource(res), 14.sp, weight = FontWeight.Bold, modifier = Modifier.weight(1f), lineHeight = 19.sp)
             }
         }
     }
@@ -275,35 +275,31 @@ private fun PlanCards(offers: List<PlanOffer>, selected: ProPlan, onSelect: (Pro
 
 @Composable
 private fun PlanCard(offer: PlanOffer, selected: Boolean, savingPercent: Int?, perMonth: String?, onClick: () -> Unit) {
-    val colors = DuelTheme.colors
-    val ink = if (selected) colors.onBright else colors.text
     val name = stringResource(if (offer.plan == ProPlan.YEARLY) R.string.plan_yearly else R.string.plan_monthly)
     val price = stringResource(if (offer.plan == ProPlan.YEARLY) R.string.plan_per_year else R.string.plan_per_month, offer.formattedPrice)
     val extra = perMonth?.let { stringResource(R.string.plan_yearly_per_month, it) }.orEmpty()
     val spoken = stringResource(R.string.plan_card_description, name, price, extra)
 
-    ChunkyCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics { this.selected = selected; contentDescription = spoken },
-        fill = if (selected) colors.yellow else colors.surface,
+    KitCard(
+        modifier = Modifier.semantics { this.selected = selected; contentDescription = spoken },
+        radius = 22.dp,
+        fill = if (selected) Brush.horizontalGradient(listOf(Kit.Gold.copy(alpha = 0.22f), Kit.Surface)) else Brush.verticalGradient(listOf(Kit.Surface, Kit.Surface)),
+        edge = if (selected) Kit.Gold else Kit.Edge,
         onClick = onClick,
     ) {
         Column(modifier = Modifier.clearAndSetSemantics { }) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DuelText(text = name, style = DuelTheme.typography.heading, color = ink, modifier = Modifier.weight(1f))
-                if (savingPercent != null) {
-                    StatusPill(text = stringResource(R.string.plan_saving, savingPercent), fill = colors.green)
-                }
+                NText(name, 18.sp, weight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                if (savingPercent != null) KitPill(stringResource(R.string.plan_saving, savingPercent), tone = Kit.Green, filled = true)
             }
             Spacer(Modifier.height(4.dp))
-            DuelText(text = price, style = DuelTheme.typography.bodyStrong, color = ink)
-            if (perMonth != null) DuelText(text = extra, style = DuelTheme.typography.caption, color = ink)
+            NText(price, 15.sp, weight = FontWeight.Bold)
+            if (perMonth != null) NText(extra, 12.sp, color = Neon.Muted)
             if (selected) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    DuelIcon(DuelIcons.Check, tint = ink, contentDescription = null, modifier = Modifier.size(18.dp))
-                    DuelText(text = stringResource(R.string.plan_selected), style = DuelTheme.typography.captionStrong, color = ink)
+                    DuelIcon(NeonIcons.Check, tint = Kit.Gold, contentDescription = null, modifier = Modifier.size(18.dp))
+                    NText(stringResource(R.string.plan_selected), 12.sp, color = Kit.Gold, weight = FontWeight.ExtraBold)
                 }
             }
         }
@@ -312,9 +308,8 @@ private fun PlanCard(offer: PlanOffer, selected: Boolean, savingPercent: Int?, p
 
 @Composable
 private fun UnavailableCard(problem: StoreProblem, onRetry: () -> Unit) {
-    val colors = DuelTheme.colors
-    ChunkyCard(modifier = Modifier.fillMaxWidth(), fill = colors.surface) {
-        DuelText(
+    KitCard {
+        NText(
             text = stringResource(
                 when (problem) {
                     StoreProblem.PLAY_MISSING -> R.string.store_problem_play_missing
@@ -322,19 +317,24 @@ private fun UnavailableCard(problem: StoreProblem, onRetry: () -> Unit) {
                     StoreProblem.NO_PLANS -> R.string.store_problem_no_plans
                 },
             ),
-            style = DuelTheme.typography.bodyStrong,
+            size = 14.sp,
+            weight = FontWeight.Bold,
+            lineHeight = 19.sp,
         )
         Spacer(Modifier.height(10.dp))
-        ChunkyButton(text = stringResource(R.string.paywall_retry), onClick = onRetry, style = ChunkyButtonStyle.Secondary, modifier = Modifier.fillMaxWidth())
+        KitButton(stringResource(R.string.paywall_retry), onRetry, kind = KitButtonKind.Secondary)
     }
 }
 
 @Composable
 private fun MessageCard(message: PurchaseMessage, onDismiss: () -> Unit) {
-    val colors = DuelTheme.colors
     val good = message == PurchaseMessage.VERIFIED || message == PurchaseMessage.PENDING
-    ChunkyCard(modifier = Modifier.fillMaxWidth(), fill = if (good) colors.green else colors.red) {
-        DuelText(
+    val tone = if (good) Kit.Green else Kit.Red
+    KitCard(
+        fill = Brush.horizontalGradient(listOf(tone.copy(alpha = 0.2f), tone.copy(alpha = 0.2f))),
+        edge = tone.copy(alpha = 0.5f),
+    ) {
+        NText(
             text = stringResource(
                 when (message) {
                     PurchaseMessage.VERIFIED -> R.string.paywall_msg_verified
@@ -347,21 +347,23 @@ private fun MessageCard(message: PurchaseMessage, onDismiss: () -> Unit) {
                     PurchaseMessage.FAILED -> R.string.paywall_msg_failed
                 },
             ),
-            style = DuelTheme.typography.bodyStrong,
-            color = colors.onBright,
+            size = 14.sp,
+            weight = FontWeight.Bold,
+            lineHeight = 19.sp,
         )
-        Spacer(Modifier.height(8.dp))
-        ChunkyButton(text = stringResource(R.string.paywall_msg_dismiss), onClick = onDismiss, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(10.dp))
+        KitButton(stringResource(R.string.paywall_msg_dismiss), onDismiss, kind = KitButtonKind.Secondary)
     }
 }
 
 @Composable
 private fun SectionLabel(textRes: Int) {
-    DuelText(
+    NText(
         text = stringResource(textRes),
-        style = DuelTheme.typography.captionStrong,
-        color = DuelTheme.colors.textMuted,
-        modifier = Modifier.padding(top = 20.dp, bottom = 8.dp),
+        size = 15.sp,
+        weight = FontWeight.ExtraBold,
+        color = Neon.VioletLight,
+        modifier = Modifier.padding(top = 22.dp, bottom = 10.dp),
     )
 }
 
@@ -394,20 +396,4 @@ private fun PaywallFreePreview() = ScreenPreview { PaywallScreen(previewState(tr
 
 @Preview(widthDp = 390, heightDp = 844)
 @Composable
-private fun PaywallMonthlySelectedPreview() = ScreenPreview { PaywallScreen(previewState(selected = ProPlan.MONTHLY), NoActions) }
-
-@Preview(widthDp = 390, heightDp = 844)
-@Composable
-private fun PaywallOfflinePreview() = ScreenPreview { PaywallScreen(previewState(store = StoreState.Unavailable(StoreProblem.NO_NETWORK)), NoActions) }
-
-@Preview(widthDp = 390, heightDp = 844)
-@Composable
 private fun PaywallProPreview() = ScreenPreview { PaywallScreen(previewState(view = ProView.Active(ProPlan.YEARLY, 1_900_000_000_000L)), NoActions) }
-
-@Preview(widthDp = 390, heightDp = 844)
-@Composable
-private fun PaywallGracePreview() = ScreenPreview { PaywallScreen(previewState(view = ProView.GracePeriod(ProPlan.MONTHLY, 1_900_000_000_000L)), NoActions) }
-
-@Preview(widthDp = 390, heightDp = 844)
-@Composable
-private fun PaywallPendingPreview() = ScreenPreview { PaywallScreen(previewState(message = PurchaseMessage.PENDING, busy = PaywallBusy.NONE), NoActions) }

@@ -9,10 +9,11 @@ import com.doomscrollduel.R
 enum class DuelTab(val id: String) {
     HOME("home"),
     BATTLES("battles"),
-    SETTINGS("settings"),
+    PROGRESS("progress"),
+    PROFILE("profile"),
 }
 
-/** The app's bottom navigation: Home, Battles, Settings. */
+/** The app's bottom navigation: Home, Battles, Progress. Settings opens from the gear on Home. */
 @Composable
 fun DuelTabBar(
     selected: DuelTab,
@@ -22,7 +23,8 @@ fun DuelTabBar(
     val items = listOf(
         BottomNavItem(DuelTab.HOME.id, stringResource(R.string.tab_home), DuelIcons.Home),
         BottomNavItem(DuelTab.BATTLES.id, stringResource(R.string.tab_battles), DuelIcons.Bolt),
-        BottomNavItem(DuelTab.SETTINGS.id, stringResource(R.string.tab_settings), DuelIcons.Gear),
+        BottomNavItem(DuelTab.PROGRESS.id, stringResource(R.string.tab_progress), DuelIcons.Chart),
+        BottomNavItem(DuelTab.PROFILE.id, stringResource(R.string.tab_profile), DuelIcons.Friends),
     )
     BottomNavBar(
         items = items,

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
@@ -68,6 +69,15 @@ internal fun ChunkySurface(
                     .graphicsLayer { translationY = pressTravel.toPx() * pressProgress.coerceIn(0f, 1f) }
                     .clip(shape)
                     .background(fill)
+                    // Soft studio light: a highlight along the top and a little shade at the bottom, so faces feel
+                    // like raised, glossy pieces instead of flat stickers. Kept faint so text contrast is unchanged.
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.White.copy(alpha = 0.16f),
+                            0.45f to Color.Transparent,
+                            1f to Color.Black.copy(alpha = 0.10f),
+                        ),
+                    )
                     .border(ChunkyMetrics.OutlineWidth, ink, shape),
                 contentAlignment = contentAlignment,
                 content = content,

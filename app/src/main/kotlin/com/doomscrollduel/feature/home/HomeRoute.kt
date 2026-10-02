@@ -18,15 +18,26 @@ import com.doomscrollduel.tracking.health.TrackingIssue
 @Composable
 fun HomeRoute(
     onNewBattle: () -> Unit,
-    onOpenBattle: () -> Unit,
+    onOpenBattle: (String) -> Unit,
     onOpenBatteryGuide: () -> Unit,
     onOpenDisclosure: () -> Unit,
+    onOpenSettings: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
+    onOpenFriends: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
     entry: AccessibilityEntryViewModel = hiltViewModel(),
     usagePrompt: UsageDataPromptViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val session: com.doomscrollduel.feature.auth.SessionViewModel = hiltViewModel()
+    val profileState by session.profile.collectAsStateWithLifecycle()
+    // The avatar shows the real person: their name once known, a question mark for a guest.
+    val avatarName = when (val p = profileState) {
+        is com.doomscrollduel.domain.social.ProfileState.Ready -> p.profile.displayName
+        com.doomscrollduel.domain.social.ProfileState.SignedOut -> "?"
+        else -> ""
+    }
     val usageChoice by usagePrompt.choice.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -39,7 +50,11 @@ fun HomeRoute(
     HomeScreen(
         state = state,
         onNewBattle = onNewBattle,
-        onOpenBattle = onOpenBattle,
+        onOpenBattle = { state.battle?.duelId?.takeIf { it.isNotEmpty() }?.let(onOpenBattle) },
+        onOpenSettings = onOpenSettings,
+        onOpenProfile = onOpenProfile,
+        onOpenFriends = onOpenFriends,
+        avatarName = avatarName,
         onFixTracking = { issue ->
             when (issue) {
                 // The system screen may only be opened after the person agreed to the disclosure.

@@ -1,4 +1,6 @@
 # Secrets and build output
+# (app/google-services.json is NOT ignored on purpose: the team needs the same Firebase project config. It holds client
+#  identifiers, not secrets; restrict its API key to the app in Google Cloud Console. See docs/team-setup.md.)
 *.hprof
 *.jks
 *.keystore
@@ -6,9 +8,11 @@
 .gradle/
 .idea/
 .kotlin/
-app/google-services.json
+*.log
 build/
+functions/lib/
 keystore.properties
 local.properties
+node_modules/
 scripts/legal-config.json
 web/

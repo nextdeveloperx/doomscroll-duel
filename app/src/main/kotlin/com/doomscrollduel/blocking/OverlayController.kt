@@ -96,7 +96,7 @@ class OverlayController(
 }
 
 /** Compose needs a lifecycle and a saved-state registry, and a service window has neither, so we provide them. */
-private class OverlayLifecycleOwner : SavedStateRegistryOwner {
+internal class OverlayLifecycleOwner : SavedStateRegistryOwner {
     private val registry = LifecycleRegistry(this)
     private val savedState = SavedStateRegistryController.create(this)
 

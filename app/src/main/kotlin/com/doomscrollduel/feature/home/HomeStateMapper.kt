@@ -30,8 +30,8 @@ object HomeStateMapper {
         reelLimit = limit,
         perApp = TrackedApp.entries.map { AppCount(it, stats.perApp[it] ?: 0) },
         issue = health.issue,
-        // A duel's own count starts at its start time; until duels are real this mirrors today's total.
-        battle = battle?.copy(myReels = stats.total),
+        // A battle counts from its own start time, so the caller passes it with the right numbers already.
+        battle = battle,
         window = window,
     )
 }

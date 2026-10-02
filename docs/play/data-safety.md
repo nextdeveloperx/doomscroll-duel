@@ -27,6 +27,7 @@ results is a user-directed feature, not a transfer to a third party).
 | Personal info | Email address | Yes | No | Required if you sign in with Google | Account management | Sign-in |
 | Personal info | Phone number | Yes | No | Required if you sign in by phone | Account management | Sign-in. Declare only if phone sign-in ships |
 | Personal info | User IDs | Yes | No | Required | App functionality, Account management | Account ID, username |
+| Contacts | Contacts | Yes (hashed) | No | **Optional** | App functionality | Only if the person taps "Contacts dikhao" and allows READ_CONTACTS. The phone sends SHA-256 hashes of contact email addresses, never names, numbers or the addresses. The server compares them with stored hashes of signed-in users and keeps neither the list nor the result. Declare as collected, optional, not shared |
 | Financial info | Purchase history | Yes | No | Required for Pro | App functionality | Google Play purchase token, plan, status, end date. **No** card or UPI data reaches us, so do not tick "User payment info" |
 | Photos and videos | Photos / Videos | Yes | No | **Optional** | App functionality | Dare proof, private between two players, deleted after 7 days. Declare only if the dare proof upload ships |
 | App activity | App interactions | Yes | No | Required for challenges | App functionality | Daily reel counts (total and per app: Instagram, YouTube, Facebook, Snapchat) uploaded only for challenges you join; duel history |
@@ -34,7 +35,7 @@ results is a user-directed feature, not a transfer to a third party).
 | App activity | App interactions (analytics) | Yes, **optional** | No | Optional (off until the person says yes) | Analytics | Nine anonymous events with bucketed values (`docs/analytics-events.md`). No names, ids, exact counts |
 | App info and performance | Crash logs and Diagnostics | Yes, **optional** | No | Optional (off until the person says yes) | Analytics, App functionality | Crashlytics crash reports; exception messages are stripped; device model and OS version are attached by Firebase |
 
-Not collected: Location, Contacts, Messages, Audio, Files and docs, Calendar, Health and fitness, Web browsing,
+Not collected: Location, Messages, Audio, Files and docs, Calendar, Health and fitness, Web browsing,
 Installed apps, Advertising ID. Analytics and crash reports are in the table above and are collected only after the person says yes.
 
 For each collected type, answer **"Is this data processed ephemerally?" = No**. Purposes: App functionality and Account management for account data; Analytics for the optional rows only. **Never** tick Advertising or marketing, Personalization, Fraud

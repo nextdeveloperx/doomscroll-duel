@@ -27,6 +27,7 @@ You must be at least **16 years old** to create an account and use the App. We d
 |---|---|---|
 | Account details | Sign-in method (Google account or phone number), the email or phone number linked to it, a unique account ID, the display name and username you choose, the avatar colour you pick | To create your account, let friends find you by username, keep you signed in, and answer support requests |
 | Friends and invites | Your friends list and invite links you create or accept | To run duels, squads and pacts with the people you choose |
+| Contact matching (optional) | Only if you allow Contacts: a one-way SHA-256 hash of each email address in your contacts, made on your phone. We do not receive names, phone numbers or the addresses themselves, and we do not keep the list or the result | To show which of your contacts already use the App, so you can invite them. You can say no and still add friends by username or invite link |
 | Reel counts | For each day: your total reel count and the count for each of Instagram, YouTube, Facebook and Snapchat. A count is only a number. It never includes titles, accounts, captions, links or anything you watched | To decide who wins a duel and to show your progress. Counts are kept on your phone. They are uploaded only for a duel, squad battle or night pact you are part of, and only the people in that challenge can see them |
 | Duel history | Who you played, dates, limits, the entry coins, the result | To show results, history and streaks |
 | Coins | Your virtual coin balance and what you earned or spent it on | To run the in-app coin system |
@@ -38,7 +39,7 @@ You must be at least **16 years old** to create an account and use the App. We d
 
 **Kept only on your phone (we never receive it):** your reel limit, Strict Lock, bedtime and focus schedules, the friend you chose as unlock buddy, the record that you agreed to the Accessibility disclosure, and your local reel history.
 
-**What we do not collect:** your contacts, location, microphone, camera (except a photo or video you choose to send for a dare), messages, passwords, browsing history, the content of other apps, advertising ID. We do not use advertising or cross-app tracking. Analytics and crash reports are collected only if you allow them (see above).
+**What we do not collect:** your contact names, phone numbers or email addresses (see "Finding friends in your contacts" below), location, microphone, camera (except a photo or video you choose to send for a dare), messages, passwords, browsing history, the content of other apps, advertising ID. We do not use advertising or cross-app tracking. Analytics and crash reports are collected only if you allow them (see above).
 
 ## 4. The Accessibility service (important)
 

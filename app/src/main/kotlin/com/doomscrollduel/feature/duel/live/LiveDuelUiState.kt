@@ -5,12 +5,19 @@ const val WarningThreshold = 5
 
 data class LiveFighter(val name: String, val reels: Int)
 
+/** Where a battle is: waiting for the other player to accept, running, over, or closed without being played. */
+enum class LivePhase { WAITING, ACTIVE, ENDED, CLOSED }
+
 data class LiveDuelUiState(
     val me: LiveFighter,
     val opponent: LiveFighter,
     val reelLimit: Int,
     val timeLeft: String,
     val stakeCoins: Int,
+    val phase: LivePhase = LivePhase.ACTIVE,
+    val duelId: String = "",
+    /** I sent this challenge, so I may take it back while it is still waiting. */
+    val canCancel: Boolean = false,
 ) {
     val reelsLeft: Int get() = reelLimit - me.reels
 

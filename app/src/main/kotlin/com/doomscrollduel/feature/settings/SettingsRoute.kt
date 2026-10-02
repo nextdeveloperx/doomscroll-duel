@@ -11,6 +11,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.doomscrollduel.tracking.service.CounterBadgePrefs
+import com.doomscrollduel.feature.auth.SessionViewModel
+import com.doomscrollduel.domain.social.ProfileState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -32,12 +37,23 @@ fun SettingsRoute(
     onOpenDisclosure: () -> Unit,
     onOpenDisclosureReview: () -> Unit,
     onOpenDeleteAccount: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+    onOpenTerms: () -> Unit,
+    onBack: () -> Unit = {},
+    onOpenFriends: () -> Unit = {},
+    onSignIn: () -> Unit = {},
+    onChooseUsername: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
     entry: AccessibilityEntryViewModel = hiltViewModel(),
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var counterBadge by remember { mutableStateOf(CounterBadgePrefs.isEnabled(context)) }
+    val session: SessionViewModel = hiltViewModel()
+    val profileState by session.profile.collectAsStateWithLifecycle()
+    val signedInProfile = (profileState as? ProfileState.Ready)?.profile
+    val signedIn = profileState != ProfileState.SignedOut
 
     // The user may have just come back from a system settings page.
     LifecycleResumeEffect(viewModel) {
@@ -58,14 +74,28 @@ fun SettingsRoute(
             onFixNotifications = { fixNotifications(context) { permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) } },
             onDismissMessage = viewModel::dismissMessage,
             onSeePro = onOpenPaywall,
-            onOpenPrivacy = { context.openUrl(context.getString(R.string.privacy_policy_url)) },
-            onOpenTerms = { context.openUrl(context.getString(R.string.terms_url)) },
+            onOpenPrivacy = onOpenPrivacy,
+            onOpenTerms = onOpenTerms,
+            onCounterBadge = { counterBadge = it; CounterBadgePrefs.setEnabled(context, it) },
+            onOpenFriends = onOpenFriends,
+            onSignIn = onSignIn,
+            onSetUsername = onChooseUsername,
+            onSignOut = session::signOut,
             onOpenDisclosure = onOpenDisclosureReview,
             onOpenDeleteAccount = onOpenDeleteAccount,
             onUsageData = viewModel::setUsageData,
         )
     }
-    SettingsScreen(ui = ui, actions = actions, modifier = modifier)
+    SettingsScreen(
+        ui = ui,
+        actions = actions,
+        counterBadge = counterBadge,
+        accountUsername = signedInProfile?.username,
+        needsUsername = profileState == ProfileState.NeedsUsername,
+        signedIn = signedIn,
+        onBack = onBack,
+        modifier = modifier,
+    )
 }
 
 /**

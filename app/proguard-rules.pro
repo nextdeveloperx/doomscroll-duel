@@ -18,6 +18,10 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
+# WebRTC (Broadcast) calls its Java classes from native code by name.
+-keep class org.webrtc.** { *; }
+-dontwarn org.webrtc.**
+
 # Do not warn about optional annotations the libraries mention.
 -dontwarn javax.annotation.**
 -dontwarn org.checkerframework.**

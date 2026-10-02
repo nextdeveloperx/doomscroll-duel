@@ -143,6 +143,15 @@ object DuelIcons {
     }
 
     /** Gear: 8-tooth outline with a hole in the middle. */
+    /** Three bars of different heights: the Progress tab. */
+    val Chart: ImageVector by lazy {
+        icon("Chart") {
+            moveTo(2.5f, 21f); lineTo(2.5f, 12f); lineTo(7.5f, 12f); lineTo(7.5f, 21f); close()
+            moveTo(9.5f, 21f); lineTo(9.5f, 4f); lineTo(14.5f, 4f); lineTo(14.5f, 21f); close()
+            moveTo(16.5f, 21f); lineTo(16.5f, 9f); lineTo(21.5f, 9f); lineTo(21.5f, 21f); close()
+        }
+    }
+
     val Gear: ImageVector by lazy {
         icon("Gear", PathFillType.EvenOdd) {
             for (i in 0 until 8) {

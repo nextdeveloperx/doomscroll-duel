@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Brain</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+  #stage { position: fixed; inset: 0; z-index: 2; }
+  #sun, #crack { position: fixed; display: none; pointer-events: none; }
+  body.faceoff #sun, body.faceoff #crack { display: block; }
+  body.faceoff { background: radial-gradient(120% 90% at 50% 0%, #6b34b8 0%, #4a1d96 55%, #2f1170 100%); }
+  body.spot { background: radial-gradient(60% 55% at 50% 52%, var(--glow, #ff7ac644) 0%, #00000000 72%); }
+  #sun {
+    z-index: 1; left: 50%; top: 52%; width: 74vmin; height: 74vmin; transform: translate(-50%, -50%); border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, #fff3a0 0%, #ffd93d 58%, #ffa94d 100%);
+    box-shadow: 0 0 9vmin 3vmin rgba(255, 217, 61, 0.38);
+  }
+  #crack { z-index: 3; inset: 0; width: 100%; height: 100%; }
+  /* Battle banner: a dark arena, red glow behind the pink fighter and blue glow behind the blue one, no sun. */
+  body.arena { background:
+    radial-gradient(52% 78% at 20% 55%, rgba(255, 52, 96, .62) 0%, rgba(255, 52, 96, 0) 72%),
+    radial-gradient(52% 78% at 80% 55%, rgba(48, 150, 255, .62) 0%, rgba(48, 150, 255, 0) 72%),
+    linear-gradient(180deg, #1a0a36 0%, #0b0620 100%); }
+  body.arena #sun { display: none; }
+  #fx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 1; display: none; pointer-events: none; }
+  body.arena #fx { display: block; }
+  body.arena { background-image:
+    radial-gradient(26% 13% at 19% 88%, rgba(255, 80, 120, .55) 0%, rgba(255, 80, 120, 0) 100%),
+    radial-gradient(26% 13% at 81% 88%, rgba(70, 160, 255, .55) 0%, rgba(70, 160, 255, 0) 100%),
+    radial-gradient(52% 78% at 20% 55%, rgba(255, 52, 96, .55) 0%, rgba(255, 52, 96, 0) 72%),
+    radial-gradient(52% 78% at 80% 55%, rgba(48, 150, 255, .55) 0%, rgba(48, 150, 255, 0) 72%),
+    linear-gradient(180deg, #160a38 0%, #070a24 100%); }
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+<div id="stage"></div>
+<div id="sun"></div>
+<svg id="crack" viewBox="0 0 100 100" preserveAspectRatio="none">
+  <defs><filter id="g" x="-50%" y="-10%" width="200%" height="120%"><feGaussianBlur stdDeviation="1.4"/></filter></defs>
+  <polyline filter="url(#g)" fill="none" stroke="#ff8a5b" stroke-opacity=".75" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" points="51.5,0 48.5,14 52.5,25 48,38 53,50 48.2,63 52.2,76 49,88 50.5,100"/>
+  <polyline fill="none" stroke="#ff8a5b" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round" points="51.5,0 48.5,14 52.5,25 48,38 53,50 48.2,63 52.2,76 49,88 50.5,100"/>
+  <polyline fill="none" stroke="#ffe04d" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" points="51.5,0 48.5,14 52.5,25 48,38 53,50 48.2,63 52.2,76 49,88 50.5,100"/>
+  <polyline fill="none" stroke="#fff" stroke-width=".55" stroke-linejoin="round" stroke-linecap="round" points="51.5,0 48.5,14 52.5,25 48,38 53,50 48.2,63 52.2,76 49,88 50.5,100"/>
+</svg>
+<script src="three.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var Q = new URLSearchParams(location.search);
+  var FACEOFF = Q.get('mode') === 'faceoff';
+  var PCT = Math.max(0, parseFloat(Q.get('p') || '0'));       // % of today's reel limit used. 0 = fresh, 100+ = zombie
+  var COLOR = '#' + (Q.get('color') || 'f58bb0');
+  var COLOR2 = '#' + (Q.get('color2') || '5bc8ff');
+  var CALM = Q.get('calm') === '1';
+  var FREEZE = Q.get('freeze') === '1';                              // debug: draw one frame at t0 and stop
+  var T_OFFSET = parseFloat(Q.get('t0') || '0');                   // debug: start the animation clock later
+  document.body.classList.add(FACEOFF ? 'faceoff' : 'spot');
+  if (FACEOFF && Q.get('arena') === '1') document.body.classList.add('arena');
+  document.documentElement.style.setProperty('--glow', COLOR + '55');
+
+  function smoothstep(a, b, x) { var t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+  function mix(a, b, t) { return a + (b - a) * t; }
+
+  // How bored / worn out the brain looks. The whole character is driven by these numbers.
+  var ZOMBIE = !FACEOFF && PCT >= 100;
+  var DROOP = FACEOFF ? 0 : smoothstep(18, 88, PCT);           // eyelids, slouch, limp arms
+  var SLEEPY = FACEOFF ? 0 : smoothstep(62, 98, PCT);          // bags, Zzz, small frown
+  var ENERGY = 1 - DROOP;                                      // bounce and arm waving
+
+  // ---------- 3D simplex noise ----------
+  var perm = new Uint8Array(512);
+  var G = [[1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],[1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],[0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1]];
+  (function () {
+    var p = [], i, s = 90210;
+    for (i = 0; i < 256; i++) p[i] = i;
+    for (i = 255; i > 0; i--) { s = (s * 16807) % 2147483647; var j = Math.floor((s / 2147483647) * (i + 1)); var t = p[i]; p[i] = p[j]; p[j] = t; }
+    for (i = 0; i < 512; i++) perm[i] = p[i & 255];
+  })();
+  function snoise(xin, yin, zin) {
+    var F3 = 1 / 3, G3 = 1 / 6, n0, n1, n2, n3;
+    var s = (xin + yin + zin) * F3, i = Math.floor(xin + s), j = Math.floor(yin + s), k = Math.floor(zin + s);
+    var t = (i + j + k) * G3, x0 = xin - (i - t), y0 = yin - (j - t), z0 = zin - (k - t);
+    var i1, j1, k1, i2, j2, k2;
+    if (x0 >= y0) {
+      if (y0 >= z0) { i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 1; k2 = 0; }
+      else if (x0 >= z0) { i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 0; k2 = 1; }
+      else { i1 = 0; j1 = 0; k1 = 1; i2 = 1; j2 = 0; k2 = 1; }
+    } else {
+      if (y0 < z0) { i1 = 0; j1 = 0; k1 = 1; i2 = 0; j2 = 1; k2 = 1; }
+      else if (x0 < z0) { i1 = 0; j1 = 1; k1 = 0; i2 = 0; j2 = 1; k2 = 1; }
+      else { i1 = 0; j1 = 1; k1 = 0; i2 = 1; j2 = 1; k2 = 0; }
+    }
+    var x1 = x0 - i1 + G3, y1 = y0 - j1 + G3, z1 = z0 - k1 + G3;
+    var x2 = x0 - i2 + 2 * G3, y2 = y0 - j2 + 2 * G3, z2 = z0 - k2 + 2 * G3;
+    var x3 = x0 - 1 + 3 * G3, y3 = y0 - 1 + 3 * G3, z3 = z0 - 1 + 3 * G3;
+    var ii = i & 255, jj = j & 255, kk = k & 255;
+    function corner(tx, gi, px, py, pz) { return tx < 0 ? 0 : (tx *= tx, tx * tx * (G[gi][0] * px + G[gi][1] * py + G[gi][2] * pz)); }
+    var g0 = perm[ii + perm[jj + perm[kk]]] % 12, g1 = perm[ii + i1 + perm[jj + j1 + perm[kk + k1]]] % 12;
+    var g2 = perm[ii + i2 + perm[jj + j2 + perm[kk + k2]]] % 12, g3 = perm[ii + 1 + perm[jj + 1 + perm[kk + 1]]] % 12;
+    n0 = corner(0.6 - x0 * x0 - y0 * y0 - z0 * z0, g0, x0, y0, z0);
+    n1 = corner(0.6 - x1 * x1 - y1 * y1 - z1 * z1, g1, x1, y1, z1);
+    n2 = corner(0.6 - x2 * x2 - y2 * y2 - z2 * z2, g2, x2, y2, z2);
+    n3 = corner(0.6 - x3 * x3 - y3 * y3 - z3 * z3, g3, x3, y3, z3);
+    return 32 * (n0 + n1 + n2 + n3);
+  }
+
+  // ---------- renderer / scene / light ----------
+  var host = document.getElementById('stage');
+  var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.setClearColor(0x000000, 0);
+  host.appendChild(renderer.domElement);
+
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  var CAM = FACEOFF ? { y: 0.35, z: 10.6, ty: -0.45, h: 5.4, w: 7.4 } : { y: 0.4, z: 9.8, ty: -0.15, h: 6.0, w: 4.8 };
+  var ARENA = FACEOFF && Q.get('arena') === '1';
+  if (ARENA) CAM = { y: 0.7, z: 10.6, ty: 0.7, h: 4.5, w: 9.0 };   // wide banner: fighters stand at the edges, the title takes the middle
+
+  // Studio light: soft sky/ground fill, a warm key from the top right, a cool rim from behind, a pink bounce below.
+  scene.add(new THREE.HemisphereLight(0xfff4f8, 0x6a3fa0, 0.6));
+  var key = new THREE.DirectionalLight(0xfff0e0, 1.4); key.position.set(3.5, 5, 7); scene.add(key);
+  var rim = new THREE.DirectionalLight(0x9fd0ff, 0.9); rim.position.set(-5, 3, -4); scene.add(rim);
+  var bounce = new THREE.PointLight(0xff9ac8, 3, 14, 2); bounce.position.set(-3, -2, 5); scene.add(bounce);
+
+  // ---------- the brain body (front of the character is +z, the two hemispheres are split along x) ----------
+  var A = 1.12, B = 0.98, C = 0.98;
+  function lerpColor(c1, c2, t) { return new THREE.Color(c1).lerp(new THREE.Color(c2), t); }
+
+  function bodyPoint(dx, dy, dz) {
+    var px = dx * A, py = dy < 0 ? dy * B * 0.84 : dy * B, pz = dz * C;
+    var wx = snoise(px * 0.7 + 3.1, py * 0.7, pz * 0.7) * 0.22;
+    var wy = snoise(px * 0.8, py * 0.8 + 7.7, pz * 0.8) * 0.22;
+    var wz = snoise(px * 0.8, py * 0.8, pz * 0.8 + 11.3) * 0.22;
+    var qx = px + wx, qy = py + wy, qz = pz + wz;
+    // Few, wide, soft folds (like clay): contour lines of a very smooth field, so the brain reads at a glance.
+    var field = snoise(qx * 0.95, qy * 0.95, qz * 0.95) * 1.7 + snoise(qx * 1.9 + 9, qy * 1.9, qz * 1.9) * 0.28;
+    var stripe = 0.5 + 0.5 * Math.cos(field * 6.2832);
+    var g = 1 - smoothstep(0.0, 0.42, stripe);
+    // A fully smooth patch on the front (+z): the face sits on it, so eyes and mouth are never lost in the folds.
+    var face = smoothstep(0.22, 0.58, dz) * smoothstep(1.0, 0.45, Math.abs(dx)) * smoothstep(1.0, 0.42, Math.abs(dy + 0.1));
+    g *= 1 - 0.98 * face;
+    // Longitudinal fissure between the hemispheres, across the top.
+    var fis = Math.exp(-Math.pow(dx / 0.05, 2)) * smoothstep(-0.2, 0.45, dy) * (1 - face);
+    g = Math.min(1, g + fis);
+    var len = Math.sqrt(px * px + py * py + pz * pz) || 1;
+    var off = 0.05 * (1 - g) - 0.03 * g - 0.08 * fis;
+    return { x: px + (px / len) * off, y: py + (py / len) * off, z: pz + (pz / len) * off, g: g };
+  }
+
+  function buildBodyGeometry(base, groove) {
+    var geo = new THREE.SphereGeometry(1, FACEOFF ? 260 : 340, FACEOFF ? 190 : 240);
+    var pos = geo.attributes.position, col = new Float32Array(pos.count * 3), c = new THREE.Color();
+    for (var i = 0; i < pos.count; i++) {
+      var p = bodyPoint(pos.getX(i), pos.getY(i), pos.getZ(i));
+      pos.setXYZ(i, p.x, p.y, p.z);
+      c.copy(lerpColor(base, groove, Math.min(1, p.g * 0.5)));
+      c.offsetHSL(0, 0, snoise(p.x * 1.6, p.y * 1.6, p.z * 1.6) * 0.05 + smoothstep(-0.7, 0.9, p.y) * 0.07);
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  function surfaceZ(x, y) {
+    var by = y < 0 ? B * 0.84 : B;
+    // + FACE_BULGE: the real surface is puffed out a little, and anything placed on the bare ellipsoid would sink in.
+    return C * Math.sqrt(Math.max(0.03, 1 - (x * x) / (A * A) - (y * y) / (by * by))) + 0.06;
+  }
+  // Tilt (about x) that lays a flat shape on the face at height y.
+  function faceTilt(x, y) {
+    var by = y < 0 ? B * 0.84 : B;
+    return Math.atan2(-(y / (by * by)), (surfaceZ(x, y) - 0.06) / (C * C));
+  }
+  // Sticker outline: a dark shell slightly bigger than the shape, drawn from the inside (back faces only).
+  var INK = 0x1a0a33;
+  var inkBack = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
+  function glossy(opts) { return new THREE.MeshPhysicalMaterial(Object.assign({ roughness: 0.42, metalness: 0, clearcoat: 0.85, clearcoatRoughness: 0.22 }, opts)); }
+  function tube(points, radius, mat) {
+    var curve = new THREE.CatmullRomCurve3(points.map(function (p) { return new THREE.Vector3(p[0], p[1], p[2]); }));
+    return new THREE.Mesh(new THREE.TubeGeometry(curve, 24, radius, 12, false), mat);
+  }
+  function sphere(r, mat, sx, sy, sz) { var m = new THREE.Mesh(new THREE.SphereGeometry(r, 28, 20), mat); m.scale.set(sx || 1, sy || 1, sz || 1); return m; }
+  function outlinedSphere(r, mat, sx, sy, sz, t) {
+    var g = new THREE.Group(); g.add(sphere(r, mat, sx, sy, sz)); g.add(sphere(r + (t || 0.035), inkBack, sx, sy, sz)); return g;
+  }
+  function outlinedTube(points, r, mat, t) {
+    var g = new THREE.Group(); g.add(tube(points, r, mat)); g.add(tube(points, r + (t || 0.035), inkBack)); return g;
+  }
+  // The open, happy mouth: a dark D shape with a tongue and a thin outline.
+  function openMouth(scale) {
+    var s = new THREE.Shape();
+    s.moveTo(-0.25, 0.03); s.quadraticCurveTo(0, 0.09, 0.25, 0.03); s.bezierCurveTo(0.22, -0.3, -0.22, -0.3, -0.25, 0.03);
+    var grp = new THREE.Group();
+    var rim = new THREE.Mesh(new THREE.ShapeGeometry(s, 24), new THREE.MeshBasicMaterial({ color: INK })); rim.scale.set(1.14, 1.16, 1); rim.position.set(0, -0.01, -0.004); grp.add(rim);
+    grp.add(new THREE.Mesh(new THREE.ShapeGeometry(s, 24), new THREE.MeshBasicMaterial({ color: 0x3a0f22 })));
+    var tongue = new THREE.Mesh(new THREE.CircleGeometry(0.14, 28), new THREE.MeshBasicMaterial({ color: 0xff6f8e }));
+    tongue.scale.set(1, 0.52, 1); tongue.position.set(0, -0.2, 0.003); grp.add(tongue);
+    grp.scale.setScalar(scale || 1); return grp;
+  }
+  function textSprite(txt, size) {
+    var c = document.createElement('canvas'); c.width = c.height = 128;
+    var g = c.getContext('2d'); g.font = 'bold 96px "Arial Rounded MT Bold", Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.lineWidth = 12; g.strokeStyle = '#2a0f40'; g.strokeText(txt, 64, 70); g.fillStyle = '#ffffff'; g.fillText(txt, 64, 70);
+    var s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
+    s.scale.set(size, size, 1); return s;
+  }
+
+  // ---------- phone, scrolling feed and posable arms (Home screen: the brain doomscrolls) ----------
+  var UP = new THREE.Vector3(0, 1, 0), PS = 1.25;                  // PS: how big the phone is
+  function makeReelFeed() {
+    var c = document.createElement('canvas'); c.width = 192; c.height = 352;
+    var g = c.getContext('2d'), tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    var palettes = [['#ff7ac6', '#7c3aed'], ['#3de0ff', '#4a1d96'], ['#ffd93d', '#ff5f8a'], ['#4df0a0', '#0ea5e9'], ['#ffa94d', '#ff4d6d']];
+    function card(idx, y) {
+      var p = palettes[((idx % 5) + 5) % 5], gr = g.createLinearGradient(0, y, 0, y + 352);
+      gr.addColorStop(0, p[0]); gr.addColorStop(1, p[1]); g.fillStyle = gr; g.fillRect(0, y, 192, 352);
+      g.fillStyle = 'rgba(255,255,255,.22)'; g.beginPath(); g.arc(96, y + 150, 52, 0, 6.283); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.92)'; g.beginPath(); g.moveTo(84, y + 128); g.lineTo(84, y + 172); g.lineTo(122, y + 150); g.closePath(); g.fill();
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(24, y + 300, 13, 0, 6.283); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(46, y + 290, 76, 8); g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(46, y + 306, 54, 7);
+      g.fillStyle = '#ff4d6d'; g.beginPath(); g.moveTo(164, y + 266); g.bezierCurveTo(144, y + 248, 154, y + 230, 164, y + 244);
+      g.bezierCurveTo(174, y + 230, 184, y + 248, 164, y + 266); g.fill();
+    }
+    return { tex: tex, draw: function (pos) { var i = Math.floor(pos), f = pos - i; g.clearRect(0, 0, 192, 352); card(i, -f * 352); card(i + 1, (1 - f) * 352); tex.needsUpdate = true; } };
+  }
+  function makePhone() {
+    var s = new THREE.Shape(), w = 0.27, h = 0.47, r = 0.08;
+    s.moveTo(-w + r, -h); s.lineTo(w - r, -h); s.quadraticCurveTo(w, -h, w, -h + r); s.lineTo(w, h - r); s.quadraticCurveTo(w, h, w - r, h);
+    s.lineTo(-w + r, h); s.quadraticCurveTo(-w, h, -w, h - r); s.lineTo(-w, -h + r); s.quadraticCurveTo(-w, -h, -w + r, -h);
+    var geo = new THREE.ExtrudeGeometry(s, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 3, curveSegments: 10 });
+    geo.translate(0, 0, -0.035);
+    var grp = new THREE.Group();
+    grp.add(new THREE.Mesh(geo, glossy({ color: 0x1c1030, roughness: 0.3 })));
+    var ol = new THREE.Mesh(geo, inkBack); ol.scale.set(1.09, 1.06, 1.5); grp.add(ol);
+    var feed = makeReelFeed(); feed.draw(0);
+    var screen = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.84), new THREE.MeshBasicMaterial({ map: feed.tex }));
+    screen.position.z = 0.067; grp.add(screen);
+    grp.userData.feed = feed; return grp;
+  }
+  // Soft, tapered limbs: a chain of overlapping balls (thick at the shoulder, thin at the wrist) with a dark outline,
+  // so they read as squishy clay and not as a plastic pipe.
+  function softLimb(points, r, mat) {
+    var curve = new THREE.CatmullRomCurve3(points.map(function (p) { return new THREE.Vector3(p[0], p[1], p[2]); }));
+    var g = new THREE.Group(), n = Math.max(14, Math.round(curve.getLength() / 0.045));
+    for (var i = 0; i <= n; i++) {
+      var t = i / n, p = curve.getPoint(t), rr = r * (0.95 - 0.3 * t);
+      var m = sphere(rr, mat); m.position.copy(p); g.add(m);
+      var o = sphere(rr + 0.03, inkBack); o.position.copy(p); g.add(o);
+    }
+    return g;
+  }
+  var FINGER_ARC = [-0.1, 0.0, 0.1];
+  function makeHand(mat) {
+    var h = new THREE.Group();
+    h.add(outlinedSphere(0.2, mat, 1, 1.0, 0.85, 0.032));
+    var thumb = outlinedSphere(0.085, mat, 1, 1.5, 1, 0.028); thumb.position.set(0.17, 0.0, 0.08); thumb.rotation.z = -0.9; h.add(thumb);
+    h.userData.fingers = FINGER_ARC.map(function (x, i) {
+      var pivot = new THREE.Group(); pivot.position.set(x * 1.45, 0.14, 0.02);
+      var f = outlinedSphere(0.07, mat, 1, 1.9, 1, 0.026); f.position.y = 0.11; pivot.add(f); h.add(pivot); return pivot;
+    });
+    return h;
+  }
+  // The arm is a curve from the shoulder through the elbow to the hand, drawn as a taper of balls, ending in a hand with fingers.
+  function makeArmRig(side, mat, parent) {
+    var N = 30, balls = [], grp = new THREE.Group(); parent.add(grp);
+    for (var i = 0; i < N; i++) {
+      var r = mix(0.118, 0.078, i / (N - 1)), m = sphere(r, mat), o = sphere(r + 0.03, inkBack);
+      grp.add(m); grp.add(o); balls.push({ m: m, o: o });
+    }
+    var hand = makeHand(mat); parent.add(hand);
+    return { side: side, S: new THREE.Vector3(side * 1.3, -0.55, 0.0), E: new THREE.Vector3(), balls: balls, hand: hand, curl: [0.8, 0.8, 0.8] };
+  }
+  function solveArm(rig, H) {
+    var S = rig.S, d = S.distanceTo(H), L = Math.max(0.78, d * 0.54), hh = Math.sqrt(Math.max(0, L * L - d * d / 4));
+    var dir = H.clone().sub(S).normalize(), hint = new THREE.Vector3(rig.side * 0.8, -0.9, -0.3);
+    hint.sub(dir.clone().multiplyScalar(hint.dot(dir))).normalize();
+    rig.E.copy(S).add(H).multiplyScalar(0.5).add(hint.multiplyScalar(hh));
+    var C1 = rig.E.clone().multiplyScalar(2).sub(S.clone().add(H).multiplyScalar(0.5));   // control point so the curve passes through the elbow
+    var n = rig.balls.length;
+    rig.balls.forEach(function (b, i) {
+      var t = i / (n - 1), u = 1 - t;
+      var p = S.clone().multiplyScalar(u * u).add(C1.clone().multiplyScalar(2 * u * t)).add(H.clone().multiplyScalar(t * t));
+      b.m.position.copy(p); b.o.position.copy(p);
+    });
+    rig.hand.position.copy(H);
+    rig.hand.rotation.z = rig.side * -0.35;
+    rig.hand.userData.fingers.forEach(function (f, i) { f.rotation.x = -rig.curl[i] * 1.25; });
+  }
+
+  // ---------- the character ----------
+  function makeCharacter(baseHex, opts) {
+    var fight = !!opts.fight;
+    var root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+    var head = new THREE.Group(); head.scale.setScalar(1.2); head.position.y = 0.12; body.add(head);   // the brain is the star: bigger than the body
+    var anim = { arms: [], zs: [], yawn: null, drop: null, lids: [], talk: null };
+
+    // Colour follows the mood: bright and pink when fresh, washed out when bored, green when it has had too much.
+    var hsl = {}; new THREE.Color(baseHex).getHSL(hsl);
+    var base = new THREE.Color().setHSL(hsl.h, hsl.s * (1 - 0.6 * DROOP), hsl.l * (1 - 0.1 * DROOP));
+    if (ZOMBIE) base = new THREE.Color('#8bdb6a');
+    var groove = lerpColor(base, ZOMBIE ? '#1d3a12' : '#4a1230', 0.5);
+
+    var bodyGeo = buildBodyGeometry(base, groove);
+    head.add(new THREE.Mesh(bodyGeo, glossy({ vertexColors: true })));
+    var bodyOutline = new THREE.Mesh(bodyGeo, inkBack); bodyOutline.scale.setScalar(1.022); head.add(bodyOutline);   // shares the geometry
+
+    // --- eyes: big, round and looking straight at you ---
+    var white = glossy({ color: 0xfff7ee, roughness: 0.2, clearcoat: 1 });
+    var ink = new THREE.MeshStandardMaterial({ color: 0x1b0d10, roughness: 0.3 });
+    var iris = glossy({ color: ZOMBIE ? 0x9ac04a : 0x5a3320, roughness: 0.25, clearcoat: 1 });
+    var skin = glossy({ color: base, roughness: 0.45 });
+    var browMat = new THREE.MeshStandardMaterial({ color: 0x4a2a1c, roughness: 0.6 });
+    var EX = 0.4, EY = 0.12, ER = 0.29;
+    var lidCover = ZOMBIE ? 0 : (fight ? 0 : DROOP * 0.7 * Math.PI);
+    [-1, 1].forEach(function (side) {
+      var x = side * EX, z = surfaceZ(x, EY);
+      var eye = new THREE.Group(); eye.position.set(x, EY, z - 0.02); eye.rotation.y = side * 0.16; head.add(eye);
+      eye.add(outlinedSphere(ER, white, 1, 1.1, 0.78, 0.03));
+      if (ZOMBIE) {
+        [0.8, -0.8].forEach(function (a) { var bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.46, 0.05), ink); bar.position.z = 0.17; bar.rotation.z = a; eye.add(bar); });
+      } else {
+        var gy = -0.03 * DROOP;                                         // bored eyes drift down
+        var ir = sphere(0.165, iris, 1, 1, 0.5); ir.position.set(0, gy, 0.165); eye.add(ir);
+        var pu = sphere(0.1, ink, 1, 1, 0.45); pu.position.set(0, gy, 0.215); eye.add(pu);
+        var hl = new THREE.Mesh(new THREE.SphereGeometry(0.048, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffffff })); hl.position.set(0.06, gy + 0.08, 0.245); eye.add(hl);
+        var hl2 = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff })); hl2.position.set(-0.045, gy - 0.05, 0.22); eye.add(hl2);
+      }
+      if (!ZOMBIE) {
+        // Eyelid: a skin dome that swings over the eye. -1.45 = raised out of sight, 0 = covers the top half, +1.45 = shut.
+        // The base angle sags with boredom; blinking swings it shut and back (see updateBlink).
+        var lidPivot = new THREE.Group(); lidPivot.position.z = -0.02; eye.add(lidPivot);
+        var lid = new THREE.Mesh(new THREE.SphereGeometry(ER * 1.13, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), skin);
+        lid.scale.set(1.0, 1.0, 0.95); lidPivot.add(lid);
+        // The lash line: a curved dark stroke on the front of the dome, so a shut eye reads as a closed eye (a "u" shape).
+        var lashR = ER * 1.13, lashPts = [];
+        for (var u = -5; u <= 5; u++) {
+          var lx = u * 0.05, lz = 0.075 * (1 - Math.pow(lx / 0.25, 2)), ly = Math.sqrt(Math.max(0.0001, lashR * lashR - lx * lx - lz * lz)) * 0.99 + 0.012;
+          lashPts.push([lx, ly, lz]);
+        }
+        lidPivot.add(tube(lashPts, 0.024, ink));
+        var lidBase = fight ? (ARENA ? -0.66 : -1.42) : -1.42 + DROOP * 1.3;
+        lidPivot.rotation.x = lidBase; if (ARENA) lidPivot.rotation.z = side * 0.34;   // glaring: the lids slope down toward the nose
+        anim.lids.push({ pivot: lidPivot, base: lidBase, tilt: side });
+      }
+      if (SLEEPY > 0.15 && !ZOMBIE) {                                    // eye bags
+        var bag = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.028, 8, 24, Math.PI), new THREE.MeshStandardMaterial({ color: 0x5b2c63, transparent: true, opacity: 0.35 + 0.4 * SLEEPY, roughness: 1 }));
+        bag.rotation.z = Math.PI; bag.position.set(0, -0.2, 0.1); eye.add(bag);
+      }
+      if (!ZOMBIE) {                                                     // brows
+        var slope = fight ? (ARENA ? 0.98 : 0.5) : (-0.12 + 0.17 * smoothstep(25, 50, PCT) - 0.36 * smoothstep(58, 92, PCT));
+        var by = (ARENA ? 0.47 : 0.53) - 0.07 * DROOP, b = new THREE.Mesh(new THREE.CapsuleGeometry(ARENA ? 0.062 : 0.04, ARENA ? 0.36 : 0.3, 6, 10), browMat);
+        b.position.set(x, by, surfaceZ(x, by) + 0.01); b.rotation.z = Math.PI / 2 + side * slope; b.rotation.y = side * 0.2; head.add(b);
+      }
+    });
+
+    // --- mouth: smile at 0 %, flat when bored, a small frown when worn out, a yawn now and then ---
+    var my = -0.34, mouth;
+    var happyOpen = !ZOMBIE && (fight || PCT < 28);                      // a big open smile while it is fresh
+    if (happyOpen) {
+      mouth = openMouth(fight ? 0.9 : 1.05);
+      if (fight && ARENA) anim.shout = mouth;                            // it yells: see draw()
+      mouth.position.set(0, my + 0.02, surfaceZ(0, my) + 0.012); mouth.rotation.x = faceTilt(0, my);
+      head.add(mouth);
+      if (!fight) {                                                      // it talks: the mouth opens wide, then closes to a smile, then opens again
+        var cm = [];
+        for (var q = -6; q <= 6; q++) { var tq = q / 6, mxq = tq * 0.26, yq = my - 0.11 * (1 - tq * tq); cm.push([mxq, yq, surfaceZ(mxq, yq) + 0.012]); }
+        var closedSmile = new THREE.Group(); closedSmile.add(tube(cm, 0.04, inkBack)); closedSmile.add(tube(cm, 0.03, ink));
+        closedSmile.visible = false; head.add(closedSmile);
+        anim.talk = { open: mouth, closed: closedSmile };
+      }
+    } else {
+      // closed mouth, made of a thick line: smile -> flat -> frown as the reels pile up
+      var curve = ZOMBIE ? -0.2 : mix(0.9, -0.7, smoothstep(28, 92, PCT));
+      var mp = [];
+      for (var k = -6; k <= 6; k++) {
+        var t = k / 6, mx = t * 0.26, yy = my - curve * 0.12 * (1 - t * t) + (ZOMBIE ? 0.035 * (k % 2 ? 1 : -1) : 0);
+        mp.push([mx, yy, surfaceZ(mx, yy) + 0.012]);
+      }
+      mouth = new THREE.Group(); mouth.add(tube(mp, 0.04, inkBack)); mouth.add(tube(mp, 0.03, ink)); head.add(mouth);
+    }
+    if (!ZOMBIE && !fight && PCT >= 30 && PCT < 98) {                    // and a yawn now and then
+      var open = new THREE.Group();
+      var oRim = new THREE.Mesh(new THREE.CircleGeometry(0.19, 32), new THREE.MeshBasicMaterial({ color: INK })); oRim.scale.set(0.86, 1.2, 1); oRim.position.y = -0.14; open.add(oRim);
+      var oIn = new THREE.Mesh(new THREE.CircleGeometry(0.155, 32), new THREE.MeshBasicMaterial({ color: 0x3a0f22 })); oIn.scale.set(0.86, 1.2, 1); oIn.position.set(0, -0.14, 0.003); open.add(oIn);
+      var oTg = new THREE.Mesh(new THREE.CircleGeometry(0.09, 24), new THREE.MeshBasicMaterial({ color: 0xff6f8e })); oTg.scale.set(1, 0.55, 1); oTg.position.set(0, -0.25, 0.006); open.add(oTg);
+      open.position.set(0, my + 0.0, surfaceZ(0, my) + 0.016); open.rotation.x = faceTilt(0, my); open.scale.set(1, 0.001, 1); head.add(open);
+      anim.yawn = { open: open, mouth: mouth };
+    }
+    if (!ZOMBIE && PCT < 55) {
+      [-1, 1].forEach(function (side) {
+        var cheek = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), new THREE.MeshStandardMaterial({ color: 0xff5f8a, transparent: true, opacity: 0.4 * (1 - DROOP), roughness: 1 }));
+        cheek.scale.set(1.1, 0.65, 0.3); cheek.position.set(side * 0.62, -0.2, surfaceZ(side * 0.62, -0.2) + 0.01); head.add(cheek);
+      });
+    }
+
+    // --- arms and hands ---
+    var limb = glossy({ color: base.clone().lerp(new THREE.Color(0xffffff), 0.08), roughness: 0.64, clearcoat: 0.22, clearcoatRoughness: 0.5 });
+    var phoneMode = !fight && !ZOMBIE;                                   // Home: the brain stands there doomscrolling
+    if (phoneMode) {
+      var phone = makePhone(); phone.scale.setScalar(PS); phone.position.set(0, -1.3, 1.08); phone.rotation.x = -0.22; body.add(phone);
+      anim.phone = phone; anim.rigs = [-1, 1].map(function (side) { return makeArmRig(side, limb, body); });
+    }
+    (phoneMode ? [] : [-1, 1]).forEach(function (side) {
+      var grp = new THREE.Group(); grp.position.set(side * 1.16, -0.1, 0.05); body.add(grp);
+      var hand, elbow;
+      if (fight) { elbow = [side * 0.28, -0.5, 0.42]; hand = [side * -0.22, -0.18, 0.92]; }
+      else if (ZOMBIE) { elbow = [side * 0.12, -0.12, 0.62]; hand = [side * -0.4, 0.0, 1.25]; }
+      else {
+        var up = ENERGY;                                               // arms up and waving when fresh, hanging when worn out
+        elbow = [side * mix(0.2, 0.34, up), mix(-0.42, -0.05, up), 0.1];
+        hand = [side * mix(0.08, 0.5, up), mix(-0.98, 0.62, up), mix(0.2, 0.18, up)];
+      }
+      grp.add(softLimb([[0, 0, 0], elbow, hand], 0.12, limb));
+      var h = outlinedSphere(0.24, limb, 1, 1.05, 0.95, 0.035); h.position.set(hand[0], hand[1], hand[2]); grp.add(h);
+      var th = outlinedSphere(0.1, limb, 1, 1, 1, 0.03); th.position.set(hand[0] + side * -0.17, hand[1] + 0.05, hand[2] + 0.12); grp.add(th);
+      anim.arms.push({ g: grp, side: side });
+    });
+
+    // --- legs and shoes ---
+    var shoeMat = glossy({ color: base.clone().lerp(new THREE.Color(0x2a0f40), 0.3) });
+    [-1, 1].forEach(function (side) {
+      var hip = new THREE.Group(); hip.position.set(side * 0.44, -0.98, 0.02); body.add(hip);
+      hip.add(softLimb([[0, 0, 0], [side * 0.05, -0.45, 0.04], [side * 0.1, -0.85, 0.1]], 0.14, limb));
+      var shoe = outlinedSphere(0.26, shoeMat, 1.0, 0.55, 1.5, 0.035); shoe.position.set(side * 0.12, -0.96, 0.3); hip.add(shoe);
+    });
+
+    // --- little extras that sell the mood ---
+    if (!fight && !ZOMBIE && PCT >= 60) {
+      var drop = sphere(0.075, glossy({ color: 0x6fe3ff, roughness: 0.1, transparent: true, opacity: 0.9 }), 0.8, 1.35, 0.8);
+      head.add(drop); anim.drop = drop;
+    }
+    if (!fight && !ZOMBIE && PCT >= 80) {
+      ['Z', 'z', 'Z'].forEach(function (ch, i) { var s = textSprite(ch, 0.34 + i * 0.1); s.position.set(0.7, 1.05, 0.3); head.add(s); anim.zs.push(s); });
+    }
+    root.userData = { body: body, anim: anim };
+    return root;
+  }
+
+  function shadowDisc(w, h) {
+    var c = document.createElement('canvas'); c.width = c.height = 128;
+    var g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+    gr.addColorStop(0, 'rgba(10,0,25,.6)'); gr.addColorStop(1, 'rgba(10,0,25,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; return m;
+  }
+
+  // ---------- compose ----------
+  var chars = [];
+  if (FACEOFF) {
+    var a = makeCharacter(COLOR, { fight: true }), b = makeCharacter(COLOR2, { fight: true });
+    var FX = ARENA ? 3.25 : 1.8, FS = ARENA ? 0.98 : 0.92, FR = ARENA ? 0.38 : 0.5;
+    a.position.set(-FX, 0.8, 0); a.rotation.y = FR; a.scale.setScalar(FS);
+    b.position.set(FX, 0.8, 0); b.rotation.y = -FR; b.scale.setScalar(FS);
+    scene.add(a); scene.add(b); chars.push(a, b);
+    [-FX, FX].forEach(function (x) { var s = shadowDisc(3.2, 1.4); s.position.set(x, -1.05, 0.2); scene.add(s); });
+  } else {
+    var one = makeCharacter(COLOR, { fight: false });
+    one.position.set(0, 0.55, 0); scene.add(one); chars.push(one);
+    var sh = shadowDisc(3.0, 1.3); sh.position.set(0, -1.4, 0.2); scene.add(sh);
+  }
+
+  function resize() {
+    var w = window.innerWidth || 300, h = window.innerHeight || 300, aspect = w / h;
+    renderer.setSize(w, h); camera.aspect = aspect; if (ARENA) fxSize();
+    var needH = Math.max(CAM.h, CAM.w / aspect);                       // fit the whole character, whatever the box shape
+    camera.fov = 2 * Math.atan(needH / 2 / CAM.z) * 180 / Math.PI;
+    camera.position.set(0, CAM.y, CAM.z); camera.lookAt(0, CAM.ty, 0);
+    camera.updateProjectionMatrix();
+    draw(0);
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------- animation ----------
+  var SPEED = mix(1, 0.4, DROOP);
+  var swipeClock = 0, lastT = 0, feedPos = 0;
+  var SWIPE_PERIOD = mix(1.5, 3.4, DROOP);                              // a bored brain scrolls slower
+  // One hand holds the phone; the other swipes. Every ~11 s the swiping hand leaves for a few seconds
+  // (a wave) and the phone stays in one hand, then it goes back to scrolling.
+  function posePhone(an, t) {
+    var T = t % 11, free = smoothstep(7.2, 7.8, T) * (1 - smoothstep(9.9, 10.4, T));
+    var dt = Math.max(0, Math.min(0.1, t - lastT)); lastT = t;
+    if (free < 0.05) swipeClock += dt / SWIPE_PERIOD;
+    var frac = swipeClock - Math.floor(swipeClock), swipe = smoothstep(0.18, 0.55, frac);
+    var pos = Math.floor(swipeClock) + swipe;
+    if (Math.abs(pos - feedPos) > 0.004) { feedPos = pos; an.phone.userData.feed.draw(pos); }
+    var ph = an.phone;
+    ph.rotation.x = mix(-0.22, -0.34, free); ph.position.y = -1.3 - 0.05 * free + Math.sin(t * 1.3) * 0.012;
+    function toBody(x, y, z) { return new THREE.Vector3(x, y, z).multiplyScalar(PS).applyEuler(ph.rotation).add(ph.position); }
+    var left = toBody(-0.3, -0.1, 0.03);                                // the holding hand: on the left edge, always
+    var swipeY = mix(-0.28, 0.2, swipe), lift = (frac < 0.18 || frac > 0.55) ? 0.1 : 0;
+    var right = toBody(0.1, swipeY, 0.11 + lift);
+    var wave = new THREE.Vector3(1.32, 0.35 + 0.07 * Math.sin(t * 9), 0.45);
+    right.lerp(wave, free);
+    curlFingers(an, swipe, free);
+    solveArm(an.rigs[0], left); solveArm(an.rigs[1], right);
+  }
+  // Fingers: the holding hand grips the phone edge; the swiping hand points one finger at the screen; the waving hand is open.
+  function curlFingers(an, swiping, free) {
+    an.rigs[0].curl = [0.85, 0.85, 0.85];
+    an.rigs[1].curl = [mix(0.15, 0.05, free), mix(0.95, 0.05, free), mix(0.95, 0.05, free)];   // index finger out; the rest tucked
+  }
+  // Blinks: a quick shut-and-open every few seconds (a tired brain blinks slower and sometimes twice).
+  function updateBlink(an, t, idx) {
+    var P = mix(3.3, 4.8, DROOP), dur = mix(0.17, 0.36, DROOP), tt = t + idx * 1.3 + 0.6;
+    var phase = tt % P, n = Math.floor(tt / P), amt = 0;
+    if (phase < dur) amt = Math.sin(phase / dur * Math.PI);
+    else if (n % 3 === 2 && phase > dur + 0.12 && phase < dur * 2 + 0.12) amt = Math.sin((phase - dur - 0.12) / dur * Math.PI);
+    an.lids.forEach(function (l) { l.pivot.rotation.x = mix(l.base, 1.42, amt); });
+  }
+  // Talking: the mouth opens wide, closes to a smile, opens again.
+  function updateTalk(an, t) {
+    var cyc = (t % 3.6), open = cyc < 2.3 ? smoothstep(0, 0.35, cyc) * (1 - smoothstep(1.9, 2.3, cyc)) : 0;
+    var wob = 0.9 + 0.1 * Math.sin(t * 9);
+    an.talk.open.visible = open > 0.12; an.talk.closed.visible = open <= 0.12;
+    an.talk.open.scale.set(1.05, Math.max(0.05, open * wob * 1.05), 1);
+  }
+
+  // ---------- battle banner backdrop: flames and embers on the red side, cold fire and lightning on the blue side ----------
+  var fxCv = document.getElementById('fx'), fxCtx = fxCv ? fxCv.getContext('2d') : null, fxD = 1;
+  function fxSize() {
+    if (!fxCv) return;
+    fxD = Math.min(window.devicePixelRatio || 1, 2);
+    fxCv.width = Math.round((window.innerWidth || 300) * fxD); fxCv.height = Math.round((window.innerHeight || 150) * fxD);
+  }
+  function rnd(n) { var x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+  function tongue(c, x, W, H, hgt, w, t, i, hot) {
+    var tip = x + Math.sin(t * 4 + i * 1.9) * w * 0.6;
+    var g = c.createLinearGradient(0, H, 0, H - hgt);
+    g.addColorStop(0, hot ? 'rgba(255,214,90,.95)' : 'rgba(190,235,255,.95)');
+    g.addColorStop(0.35, hot ? 'rgba(255,110,36,.75)' : 'rgba(70,150,255,.75)');
+    g.addColorStop(1, hot ? 'rgba(200,20,50,0)' : 'rgba(60,70,255,0)');
+    c.fillStyle = g; c.beginPath(); c.moveTo(x - w, H);
+    c.quadraticCurveTo(x - w * 0.5, H - hgt * 0.55, tip, H - hgt);
+    c.quadraticCurveTo(x + w * 0.5, H - hgt * 0.5, x + w, H); c.closePath(); c.fill();
+  }
+  function bolt(c, x0, y1, seed, col, lw, a) {
+    var pts = [[x0, 0]], n = 8, x = x0;
+    for (var k = 1; k <= n; k++) { x += (rnd(seed + k) - 0.5) * lw * 14; pts.push([x, y1 * k / n]); }
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    [[lw * 3.2, 0.28, col], [lw * 1.5, 0.7, col], [lw * 0.6, 1, '#ffffff']].forEach(function (pass) {
+      c.strokeStyle = pass[2]; c.globalAlpha = a * pass[1]; c.lineWidth = pass[0];
+      c.beginPath(); c.moveTo(pts[0][0], pts[0][1]); for (var q = 1; q < pts.length; q++) c.lineTo(pts[q][0], pts[q][1]); c.stroke();
+    });
+    c.globalAlpha = 1;
+  }
+  function drawFx(t) {
+    if (!fxCtx) return;
+    var c = fxCtx, W = fxCv.width, H = fxCv.height, i, k;
+    c.clearRect(0, 0, W, H); c.globalCompositeOperation = 'lighter';
+    // corner lights
+    [[0.05, 'rgba(255,70,110,', 0], [0.95, 'rgba(70,160,255,', 1]].forEach(function (L, j) {
+      var pulse = 0.55 + 0.25 * Math.sin(t * 3 + j * 2), g = c.createRadialGradient(W * L[0], 0, 0, W * L[0], 0, W * 0.3);
+      g.addColorStop(0, L[1] + pulse + ')'); g.addColorStop(1, L[1] + '0)'); c.fillStyle = g; c.fillRect(0, 0, W, H * 0.7);
+    });
+    // fire (left) and cold fire (right) along the floor, lower towards the middle so the title stays clear
+    for (i = 0; i < 9; i++) {
+      var f = 1 - i / 10, hgt = H * (0.2 + 0.3 * rnd(i + 2)) * (0.5 + 0.5 * f) * (1 + 0.16 * Math.sin(t * 5.3 + i * 1.3));
+      tongue(c, W * (0.015 + i * 0.05), W, H, hgt, W * 0.045, t, i, true);
+      tongue(c, W * (0.985 - i * 0.05), W, H, hgt * 0.9, W * 0.04, t + 1.7, i + 20, false);
+    }
+    // embers and sparks rising
+    for (k = 0; k < 46; k++) {
+      var right = k % 2, p = (t * (0.1 + 0.2 * rnd(k + 9)) + rnd(k + 3)) % 1;
+      var px = W * (right ? 0.54 + 0.44 * rnd(k) : 0.02 + 0.44 * rnd(k)) + Math.sin(t * 2 + k) * W * 0.012, py = H * (1 - p * 0.98);
+      var r = (1.4 + 2.6 * rnd(k + 5)) * fxD, g2 = c.createRadialGradient(px, py, 0, px, py, r * 2.6);
+      g2.addColorStop(0, right ? 'rgba(200,235,255,' + (1 - p) + ')' : 'rgba(255,200,90,' + (1 - p) + ')');
+      g2.addColorStop(1, right ? 'rgba(60,140,255,0)' : 'rgba(255,60,30,0)');
+      c.fillStyle = g2; c.beginPath(); c.arc(px, py, r * 2.6, 0, 6.2832); c.fill();
+    }
+    // lightning
+    var slot = Math.floor(t * 1.7), fr = t * 1.7 - slot;
+    [0, 1].forEach(function (side) {
+      var sd = slot * 7 + side * 131;
+      if (rnd(sd) > 0.35 && fr < 0.5) {
+        var x0 = W * (side ? 0.62 + 0.3 * rnd(sd + 1) : 0.08 + 0.3 * rnd(sd + 1));
+        bolt(c, x0, H * (0.5 + 0.25 * rnd(sd + 2)), sd + 10, side ? '#5fb8ff' : '#ff5a3c', 2.2 * fxD, (1 - fr / 0.5) * (fr < 0.08 ? 1 : 0.8));
+      }
+    });
+    c.globalCompositeOperation = 'source-over';
+  }
+
+  function draw(t) {
+    if (ARENA) drawFx(t);
+    var s = t * SPEED;
+    chars.forEach(function (ch, idx) {
+      var a = ch.userData.anim;
+      if (a.rigs) posePhone(a, CALM ? 0.4 : t);
+      if (!CALM) { if (a.lids.length) updateBlink(a, t, idx); if (a.talk) updateTalk(a, t); }
+    });
+    chars.forEach(function (ch, idx) {
+      var body = ch.userData.body, an = ch.userData.anim, ph = s * 2.2 + idx * 1.4;
+      if (!CALM) {
+        if (FACEOFF) {
+          if (ARENA) {
+            var lean = idx === 0 ? -1 : 1;                                   // each fighter leans in toward the other and shakes with rage
+            body.position.y = Math.abs(Math.sin(ph * 1.7)) * 0.1;
+            body.rotation.z = lean * (0.05 + 0.02 * Math.sin(t * 7)) ; body.position.x = Math.sin(t * 23 + idx) * 0.012;
+            an.arms.forEach(function (a, i) { a.g.rotation.x = Math.sin(t * 6.4 + i * 2.4 + idx) * 0.42; });
+            if (an.shout) { var k = 0.8 + 0.32 * Math.abs(Math.sin(t * 5.2 + idx * 1.7)); an.shout.scale.set(1.0, 0.9 * k, 1); }
+          } else {
+            body.position.y = Math.abs(Math.sin(ph)) * 0.07;
+            an.arms.forEach(function (a, i) { a.g.rotation.x = Math.sin(t * 3.2 + i * 1.6) * 0.12; });
+          }
+        } else if (ZOMBIE) {
+          body.position.y = Math.sin(ph * 0.6) * 0.03; body.rotation.z = Math.sin(ph * 0.5) * 0.06;
+          an.arms.forEach(function (a, i) { a.g.rotation.x = Math.sin(t * 1.4 + i) * 0.08; });
+        } else {
+          // Fresh: hops and waves. Bored: a slow sway, a forward slouch and arms swinging loosely.
+          body.position.y = Math.abs(Math.sin(ph)) * 0.09 * ENERGY + Math.sin(ph * 0.6) * 0.02;
+          body.rotation.z = Math.sin(ph * 0.5) * mix(0.02, 0.07, DROOP);
+          body.rotation.x = 0.16 * DROOP + 0.02 * Math.sin(ph * 0.7);
+          an.arms.forEach(function (a, i) {
+            a.g.rotation.z = a.side * (Math.sin(t * 3.4 + i * 2.0) * 0.16 * ENERGY + Math.sin(t * 0.9 + i) * 0.04 * DROOP);
+          });
+          body.rotation.y = Math.sin(t * 0.5) * 0.12;
+        }
+        if (an.yawn) {                                                   // a yawn every few seconds once it is bored enough
+          var cyc = (t % 7), y = cyc < 2.2 ? Math.sin(cyc / 2.2 * Math.PI) : 0;
+          an.yawn.open.scale.set(1, Math.max(0.001, y * 1.1), 0.5); an.yawn.mouth.visible = y < 0.05;
+        }
+        if (an.drop) { an.drop.position.set(0.82, 0.62 - ((t * 0.6) % 1) * 0.35, surfaceZ(0.82, 0.3) * 0.5 + 0.22); }
+        an.zs.forEach(function (z, i) { var f = ((t * 0.35 + i * 0.33) % 1); z.position.set(0.72 + f * 0.35, 1.0 + f * 0.7, 0.3); z.material.opacity = 1 - f; });
+      } else {
+        an.zs.forEach(function (z, i) { z.position.set(0.8 + i * 0.12, 1.1 + i * 0.25, 0.3); });
+        if (an.drop) an.drop.position.set(0.82, 0.5, 0.55);
+      }
+    });
+    renderer.render(scene, camera);
+  }
+  var t0 = performance.now(), running = true;
+  function loop() { if (!running) return; draw((performance.now() - t0) / 1000 + T_OFFSET); requestAnimationFrame(loop); }
+  document.addEventListener('visibilitychange', function () { running = !document.hidden; if (running && !CALM) loop(); });
+  resize();
+  if (FREEZE) { swipeClock = 0; lastT = T_OFFSET - 0.05; draw(T_OFFSET); } else if (!CALM) loop();
+})();
+</script>
+</body>
+</html>

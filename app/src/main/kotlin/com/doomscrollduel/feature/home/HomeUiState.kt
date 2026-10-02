@@ -14,6 +14,11 @@ data class ActiveBattleUi(
     val opponentReels: Int,
     val timeLeft: String,
     val stakeCoins: Int,
+    val duelId: String = "",
+    /** I challenged them and they have not answered yet. */
+    val waiting: Boolean = false,
+    /** The battle is over and its result has not been opened yet. */
+    val finished: Boolean = false,
 )
 
 data class HomeUiState(

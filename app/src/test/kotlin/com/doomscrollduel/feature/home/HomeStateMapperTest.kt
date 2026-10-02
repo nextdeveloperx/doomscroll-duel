@@ -59,10 +59,11 @@ class HomeStateMapperTest {
     }
 
     @Test
-    fun `the duel card shows the real count for me`() {
-        val battle = ActiveBattleUi("Aman", myReels = 0, opponentReels = 31, timeLeft = "3h", stakeCoins = 50)
+    fun `the duel card is passed through as it is`() {
+        // Its count starts at the battle's own start time, so it is NOT replaced by today's total (12 + 5).
+        val battle = ActiveBattleUi("Aman", myReels = 4, opponentReels = 31, timeLeft = "3h", stakeCoins = 50)
         val state = map(stats(ig = 12, yt = 5), battle = battle)
-        assertEquals(17, state.battle?.myReels)
+        assertEquals(4, state.battle?.myReels)
         assertEquals(31, state.battle?.opponentReels)
         assertNull(map(stats()).battle)
     }

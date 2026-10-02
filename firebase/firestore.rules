@@ -30,27 +30,232 @@ service cloud.firestore {
     }
 
     // Username -> uid lookup, so friends can be added by username.
-    // `get` only: usernames cannot be listed or enumerated. Claimed through a Cloud Function.
+    // `get` only: usernames cannot be listed or enumerated.
+    //
+    // Claiming. The Cloud Function `completeProfile` does it with the admin SDK. While that function is not deployed the app
+    // does the same thing itself, so the rule below allows exactly what the function would write and nothing more:
+    //  - create only (a name that exists can never be taken over, changed or deleted by a client),
+    //  - the document says who owns it and that must be the signed-in person,
+    //  - the name must be a valid username, and the same batch must create that person's profile with that very name,
+    //    so one person ends up with one username.
     match /usernames/{name} {
       allow get: if signedIn();
-      allow list, create, update, delete: if false;
+      allow create: if signedIn()
+        && name.matches('^[a-z][a-z0-9_.]{2,19}$')
+        && !name.matches('.*(__|[.][.]|_[.]|[.]_).*')
+        && !name.matches('.*[_.]$')
+        && !(name in ['admin', 'support', 'help', 'doomscroll', 'duel', 'official', 'moderator', 'system'])
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username == name;
+      allow list, update, delete: if false;
     }
 
     // Profile: the owner and that person's friends can read it. The owner may edit display fields only.
+    // The first write of the profile (username, display name, colour) may come from the app together with the username
+    // claim above; server-owned fields such as the email hash can only be written by functions.
     match /users/{uid} {
       allow read: if isSelf(uid) || areFriends(uid);
-      allow create, delete: if false;
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['username', 'displayName', 'avatarColor', 'createdAt'])
+        && request.resource.data.username is string
+        && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 1
+        && request.resource.data.displayName.size() <= 30
+        && request.resource.data.avatarColor == 'pink'
+        && request.resource.data.createdAt == request.time;
+      allow delete: if false;
       allow update: if isSelf(uid)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'avatarColor'])
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() >= 1
         && request.resource.data.displayName.size() <= 30;
 
-      // Friend edges are created by the acceptInvite / addByUsername functions on both sides.
+      // Friend edges. The Cloud Functions (acceptInvite / addFriendByUsername) write both sides with the admin SDK. While the
+      // functions are not deployed, the person who ACCEPTS an invite may write the two edges themselves, and only when an
+      // invite from that very person is waiting in their own inbox. Two cases, one condition:
+      //   users/{me}/friends/{inviter}   written by me          (my side)
+      //   users/{inviter}/friends/{me}   written by me as friendUid (the inviter's side)
+      // Both edges describe `friendUid` and must match that person's public directory entry, so nobody can invent a name.
       match /friends/{friendUid} {
         allow read: if isSelf(uid);
-        allow write: if false;
+        allow create: if signedIn()
+          && uid != friendUid
+          && ((isSelf(uid) && exists(/databases/$(database)/documents/users/$(uid)/inbox/$(friendUid)))
+              || (request.auth.uid == friendUid && exists(/databases/$(database)/documents/users/$(friendUid)/inbox/$(uid))))
+          && request.resource.data.keys().hasOnly(['uid', 'username', 'displayName', 'since'])
+          && request.resource.data.uid == friendUid
+          && request.resource.data.username == get(/databases/$(database)/documents/directory/$(friendUid)).data.username
+          && request.resource.data.displayName == get(/databases/$(database)/documents/directory/$(friendUid)).data.displayName
+          && request.resource.data.since == request.time;
+        allow update, delete: if false;
       }
+
+      // Invites waiting for me. Anyone signed in may leave ONE invite per person (the document id is the sender's uid, so a
+      // second one is an overwrite, which is refused). Only I can read, accept or decline mine.
+      match /inbox/{fromUid} {
+        allow read, delete: if isSelf(uid);
+        allow create: if signedIn()
+          && request.auth.uid == fromUid
+          && uid != fromUid
+          && request.resource.data.keys().hasOnly(['fromUid', 'fromUsername', 'fromName', 'createdAt'])
+          && request.resource.data.fromUid == fromUid
+          && request.resource.data.fromUsername == get(/databases/$(database)/documents/directory/$(fromUid)).data.username
+          && request.resource.data.fromName == get(/databases/$(database)/documents/directory/$(fromUid)).data.displayName
+          && request.resource.data.createdAt == request.time
+          && !exists(/databases/$(database)/documents/users/$(uid)/friends/$(fromUid));
+        allow update: if false;
+      }
+
+      // "Come to my broadcast": one per sender (the document id is the sender's uid). The sender must be in that room right now, the
+      // room and title are checked against the room itself, and a sender can send again only after 30 seconds. Only I read or clear mine.
+      match /broadcastInvites/{fromUid} {
+        allow read, delete: if isSelf(uid);
+        allow create: if signedIn()
+          && request.auth.uid == fromUid
+          && uid != fromUid
+          && request.resource.data.keys().hasOnly(['fromUid', 'fromName', 'roomId', 'title', 'createdAt'])
+          && request.resource.data.fromUid == fromUid
+          && request.resource.data.fromName == get(/databases/$(database)/documents/directory/$(fromUid)).data.displayName
+          && request.resource.data.roomId is string
+          && exists(/databases/$(database)/documents/broadcasts/$(request.resource.data.roomId)/members/$(fromUid))
+          && request.resource.data.title == get(/databases/$(database)/documents/broadcasts/$(request.resource.data.roomId)).data.title
+          && request.resource.data.createdAt == request.time;
+        allow update: if signedIn()
+          && request.auth.uid == fromUid
+          && request.resource.data.keys().hasOnly(['fromUid', 'fromName', 'roomId', 'title', 'createdAt'])
+          && request.resource.data.fromUid == fromUid
+          && request.resource.data.fromName == get(/databases/$(database)/documents/directory/$(fromUid)).data.displayName
+          && exists(/databases/$(database)/documents/broadcasts/$(request.resource.data.roomId)/members/$(fromUid))
+          && request.resource.data.title == get(/databases/$(database)/documents/broadcasts/$(request.resource.data.roomId)).data.title
+          && request.time > resource.data.createdAt + duration.value(30, 's')
+          && request.resource.data.createdAt == request.time;
+      }
+
+      // Who I have invited (so the button can say "BHEJA"). Mine alone.
+      match /sentInvites/{targetUid} {
+        allow read, write: if isSelf(uid);
+      }
+    }
+
+    // The public directory: every signed-in person's username and display name, nothing else (no email, no hash, no counts).
+    // This is what the People list shows. Created together with the profile, so one person has exactly one entry that always
+    // matches the claimed username; the owner may only change the display name.
+    match /directory/{uid} {
+      allow read: if signedIn();
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['username', 'displayName', 'createdAt'])
+        && request.resource.data.username is string
+        && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 1
+        && request.resource.data.displayName.size() <= 30
+        && request.resource.data.createdAt == request.time;
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() >= 1
+        && request.resource.data.displayName.size() <= 30;
+      allow delete: if false;
+    }
+
+    // Broadcast: a voice room between friends. The audio and the chat never touch Firestore: they travel peer to peer (WebRTC),
+    // and chat is kept only on each phone. Firestore holds just who is in the room and the short-lived connection messages
+    // (offer / answer / network candidate) people exchange to find each other; those are deleted as soon as they are read.
+    //  - a room is created by its host and can be joined by ANY signed-in person (the list shows every live room), unless the host
+    //    has removed that person: the host's removal writes a `kicked` document, and a kicked person cannot join again;
+    //  - a member document is the person's own, and its time is refreshed every few seconds while they are in the room;
+    //  - a connection message can be written only by its sender, to somebody who is in the same room, and read or deleted only
+    //    by the person it is addressed to.
+    match /broadcasts/{room} {
+      allow get, list: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['hostUid', 'hostName', 'title', 'createdAt', 'seenAt'])
+        && request.resource.data.hostUid == request.auth.uid
+        && request.resource.data.hostName is string && request.resource.data.hostName.size() >= 1 && request.resource.data.hostName.size() <= 30
+        && request.resource.data.title is string && request.resource.data.title.size() >= 1 && request.resource.data.title.size() <= 40
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.seenAt == request.time;
+      // A sign of life (host or member), or the host closing the room: `closed` can only be switched on, only by the host, and only
+      // that field changes. Everybody in the room sees the mark and leaves.
+      allow update: if signedIn()
+        && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenAt'])
+              && request.resource.data.seenAt == request.time
+              && (resource.data.hostUid == request.auth.uid
+                  || exists(/databases/$(database)/documents/broadcasts/$(room)/members/$(request.auth.uid))))
+            || (resource.data.hostUid == request.auth.uid
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['closed'])
+                && request.resource.data.closed == true));
+      allow delete: if signedIn() && resource.data.hostUid == request.auth.uid;
+
+      function roomData() {
+        return get(/databases/$(database)/documents/broadcasts/$(room)).data;
+      }
+
+      function inRoom(uid) {
+        return exists(/databases/$(database)/documents/broadcasts/$(room)/members/$(uid));
+      }
+
+      match /members/{uid} {
+        allow read: if signedIn();
+        allow create: if isSelf(uid)
+          && !exists(/databases/$(database)/documents/broadcasts/$(room)/kicked/$(uid))
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'username', 'joinedAt', 'seenAt'])
+          && request.resource.data.uid == uid
+          && request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 30
+          && request.resource.data.username is string && request.resource.data.username.size() <= 20
+          && request.resource.data.joinedAt == request.time
+          && request.resource.data.seenAt == request.time;
+        allow update: if isSelf(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenAt'])
+          && request.resource.data.seenAt == request.time;
+        // The person leaves, or the host removes someone.
+        allow delete: if isSelf(uid) || roomData().hostUid == request.auth.uid;
+      }
+
+      // Removed by the host. Only the host writes it; the removed person and the host can read it.
+      match /kicked/{uid} {
+        allow read: if signedIn() && (isSelf(uid) || roomData().hostUid == request.auth.uid);
+        allow create: if signedIn()
+          && roomData().hostUid == request.auth.uid
+          && uid != request.auth.uid
+          && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+          && request.resource.data.uid == uid
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+
+      match /signals/{id} {
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['from', 'to', 'type', 'sdp', 'mid', 'index', 'candidate', 'createdAt'])
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.to is string
+          && request.resource.data.type in ['offer', 'answer', 'ice']
+          && inRoom(request.auth.uid) && inRoom(request.resource.data.to)
+          && (!('sdp' in request.resource.data) || request.resource.data.sdp.size() <= 30000)
+          && (!('candidate' in request.resource.data) || request.resource.data.candidate.size() <= 2000)
+          && request.resource.data.createdAt == request.time;
+        allow get, list, delete: if signedIn() && resource.data.to == request.auth.uid;
+        allow update: if false;
+      }
+    }
+
+    // Contacts matching without a Cloud Function. A person's own email, hashed (SHA-256, 64 hex characters), points at their uid.
+    // The phone looks up the hash of each contact's email ONE DOCUMENT AT A TIME (get), so the index cannot be listed or downloaded.
+    // The rules cannot recompute a hash, so a person could register someone else's hash; the worst that does is make a wrong
+    // person appear as a match in that contact's list, and the real owner can still register theirs only if it is free.
+    match /emailIndex/{hash} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && hash.matches('^[0-9a-f]{64}$')
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
     // Invites are created and accepted only through callable functions.
@@ -60,10 +265,55 @@ service cloud.firestore {
 
     // A duel between two players. Created and moved between states by functions.
     // Clients list their own duels with: where('players', 'array-contains', uid)
+    //
+    // While the Cloud Functions are not deployed, the two players run the duel themselves under these rules:
+    //  - create: a player challenges one of their FRIENDS; the duel starts 'pending' with the settings checked here;
+    //  - accept / decline: only the invited player, only from 'pending'. Accepting sets the start from the server clock (the end is start + hours);
+    //  - cancel: the challenger, only while still pending;
+    //  - finish: either player, only after the end time;
+    //  - counts: each player writes their own (see below). Coins are NOT moved by this: wallets stay server-only.
     match /duels/{duelId} {
       allow get: if signedIn() && request.auth.uid in resource.data.players;
       allow list: if signedIn() && request.auth.uid in resource.data.players;
-      allow create, update, delete: if false;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['players', 'challengerUid', 'opponentUid', 'challengerName', 'opponentName',
+                                                 'status', 'reelLimit', 'hours', 'stakeCoins', 'createdAt'])
+        && request.resource.data.challengerUid == request.auth.uid
+        && request.resource.data.opponentUid is string
+        && request.resource.data.opponentUid != request.auth.uid
+        && request.resource.data.players == [request.auth.uid, request.resource.data.opponentUid]
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid)/friends/$(request.resource.data.opponentUid))
+        && request.resource.data.status == 'pending'
+        && request.resource.data.reelLimit is int && request.resource.data.reelLimit >= 10 && request.resource.data.reelLimit <= 1000
+        && request.resource.data.hours in [6, 24, 168]
+        && request.resource.data.stakeCoins in [25, 50, 100]
+        && request.resource.data.challengerName is string && request.resource.data.challengerName.size() >= 1 && request.resource.data.challengerName.size() <= 30
+        && request.resource.data.opponentName is string && request.resource.data.opponentName.size() >= 1 && request.resource.data.opponentName.size() <= 30
+        && request.resource.data.createdAt == request.time;
+      allow update: if signedIn() && request.auth.uid in resource.data.players && (
+          // accept
+          (resource.data.status == 'pending' && request.auth.uid == resource.data.opponentUid
+            && request.resource.data.status == 'active'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'startAt'])
+            && request.resource.data.startAt == request.time)
+          // decline
+          || (resource.data.status == 'pending' && request.auth.uid == resource.data.opponentUid
+            && request.resource.data.status == 'declined'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+          // cancel
+          || (resource.data.status == 'pending' && request.auth.uid == resource.data.challengerUid
+            && request.resource.data.status == 'cancelled'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+          // leave: either player may drop a battle that is running; it ends for both and has no result
+          || (resource.data.status == 'active'
+            && request.resource.data.status == 'cancelled'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+          // finish
+          || (resource.data.status == 'active' && request.time >= resource.data.startAt + duration.value(resource.data.hours, 'h')
+            && request.resource.data.status == 'finished'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+        );
+      allow delete: if false;
 
       function duel() {
         return get(/databases/$(database)/documents/duels/$(duelId)).data;
@@ -75,6 +325,11 @@ service cloud.firestore {
 
       function isActive() {
         return duel().status == 'active';
+      }
+
+      // After the end the two final counts stay readable to the two players, so both see the same result.
+      function isFinished() {
+        return duel().status == 'finished';
       }
 
       function validCount() {
@@ -99,8 +354,8 @@ service cloud.firestore {
 
       // Today's count for one player. Both players read it, but only while the duel is active.
       match /counts/{uid} {
-        allow read: if isPlayer() && isActive();
-        allow create, update: if isSelf(uid) && isPlayer() && isActive() && validCount();
+        allow read: if isPlayer() && (isActive() || isFinished());
+        allow create, update: if isSelf(uid) && isPlayer() && isActive() && request.time < duel().startAt + duration.value(duel().hours, 'h') && validCount();
         allow delete: if false;
       }
     }
@@ -114,10 +369,11 @@ service cloud.firestore {
     }
 
     // Push tokens: the owner registers and removes their own devices. Nobody else can read them.
+    // The app writes its token on every start, so a second write (an update) must be allowed too; the document holds a time only.
     match /users/{uid}/fcmTokens/{token} {
       allow read: if false;
-      allow create, delete: if isSelf(uid);
-      allow update: if false;
+      allow create, update: if isSelf(uid) && request.resource.data.keys().hasOnly(['createdAt']);
+      allow delete: if isSelf(uid);
     }
 
     // What the SERVER knows about a person's Pro subscription. Written only by verifyPurchase / playNotifications

@@ -11,6 +11,7 @@ import com.doomscrollduel.domain.analytics.Analytics
 import com.doomscrollduel.domain.blocking.BlockingController
 import com.doomscrollduel.domain.legal.AccessibilityConsent
 import com.doomscrollduel.domain.legal.ConsentStore
+import com.doomscrollduel.domain.repository.ReelLimitStore
 import com.doomscrollduel.domain.repository.ReelRepository
 import com.doomscrollduel.tracking.detector.SurfaceRulesHolder
 import com.doomscrollduel.tracking.detector.ReelEventProcessor
@@ -48,10 +49,12 @@ class ReelAccessibilityService : AccessibilityService() {
     @Inject lateinit var surfaceRules: SurfaceRulesHolder
     @Inject lateinit var consent: ConsentStore
     @Inject lateinit var analytics: Analytics
+    @Inject lateinit var limits: ReelLimitStore
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var presenter: BlockingPresenter? = null
+    private var badge: ReelCounterBadge? = null
     private val debuggable by lazy { applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 }
 
     override fun onServiceConnected() {
@@ -67,6 +70,7 @@ class ReelAccessibilityService : AccessibilityService() {
             scope = mainScope,
             analytics = analytics,
         )
+        badge = ReelCounterBadge(this, mainScope, repository, limits, ReelScreenProbe { surfaceRules.current })
         scheduler.schedule()
         scope.launch { repository.ensureToday() }
         // Best effort: Android may refuse to start a foreground service from the background.
@@ -91,12 +95,17 @@ class ReelAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        pipeline.onEvent(event)?.let { app -> presenter?.onTrackedEvent(app) }
+        pipeline.onEvent(event)?.let { app ->
+            badge?.onTrackedEvent()
+            presenter?.onTrackedEvent(app)
+        }
     }
 
     override fun onInterrupt() = Unit
 
     override fun onDestroy() {
+        badge?.hide()
+        badge = null
         presenter?.shutdown()
         presenter = null
         mainScope.cancel()

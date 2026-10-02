@@ -12,13 +12,21 @@ sealed interface AddFriendResult {
     data object NotFound : AddFriendResult
     data object AlreadyFriends : AddFriendResult
     data object CannotAddSelf : AddFriendResult
+    data object NoNetwork : AddFriendResult
+    data object NotSignedIn : AddFriendResult
+    data object Failed : AddFriendResult
 }
 
 sealed interface AcceptInviteResult {
     data class Accepted(val friend: Friend) : AcceptInviteResult
     data object InvalidOrExpired : AcceptInviteResult
     data object AlreadyFriends : AcceptInviteResult
+    data object NoNetwork : AcceptInviteResult
+    data object NotSignedIn : AcceptInviteResult
+    data object Failed : AcceptInviteResult
 }
+
+enum class SendInviteResult { SENT, ALREADY_SENT, ALREADY_FRIENDS, NOT_FOUND, NO_NETWORK, NOT_SIGNED_IN, FAILED }
 
 /** Friends are created only on the server (Cloud Function), never by writing both sides from the client. */
 interface FriendsRepository {
@@ -27,9 +35,13 @@ interface FriendsRepository {
     suspend fun addByUsername(username: Username): AddFriendResult
 
     /** Asks the server for a fresh invite code to put in a link. */
-    suspend fun createInvite(): InviteCode
+    /** Null when the server could not make one (offline, or not signed in). */
+    suspend fun createInvite(): InviteCode?
 
     suspend fun acceptInvite(code: InviteCode): AcceptInviteResult
+
+    /** "Join karo": sends a personal invite, with a push notification, to someone who already has the app. */
+    suspend fun inviteUser(uid: String): SendInviteResult
 }
 
 /** An opponent's count for today, shown only while a duel between the two players is active. */

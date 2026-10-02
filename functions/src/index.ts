@@ -1,29 +1,11 @@
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
-import { getMessaging } from "firebase-admin/messaging";
+import { push } from "./push";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { askVerdict, isExpired, PastRequest, Status, WINDOW_MS } from "./unlockRules";
 
 initializeApp();
 const db = getFirestore();
-
-async function tokensOf(uid: string): Promise<string[]> {
-  const snap = await db.collection("users").doc(uid).collection("fcmTokens").get();
-  return snap.docs.map((d) => d.id);
-}
-
-async function push(uid: string, data: Record<string, string>): Promise<void> {
-  const tokens = await tokensOf(uid);
-  if (tokens.length === 0) return;
-  // Data-only, high priority: the app builds the Approve/Deny notification itself.
-  const res = await getMessaging().sendEachForMulticast({ tokens, data, android: { priority: "high" } });
-  const dead = res.responses
-    .map((r, i) => ({ r, token: tokens[i] }))
-    .filter(({ r }) => !r.success && r.error?.code === "messaging/registration-token-not-registered");
-  await Promise.all(
-    dead.map(({ token }) => db.collection("users").doc(uid).collection("fcmTokens").doc(token).delete()),
-  );
-}
 
 /** The caller asks one friend to lift their Strict Lock. Server decides quota, so a modified app cannot cheat it. */
 export const requestUnlock = onCall(async (req) => {
@@ -99,3 +81,6 @@ export const respondUnlock = onCall(async (req) => {
 export { verifyPurchase, playNotifications, refreshStaleEntitlements } from "./purchases";
 export { claimCheckIn } from "./claimCoins";
 export { deleteAccount } from "./deleteAccount";
+export { checkUsername, completeProfile, createInvite, acceptInvite, addFriendByUsername, matchContacts, inviteUser, registerEmailHash } from "./social";
+
+export { onInviteInboxCreated } from "./inboxPush";

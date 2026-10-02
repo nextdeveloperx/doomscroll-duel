@@ -71,7 +71,7 @@ to gambling words and to anything that looks like paying to win or turning coins
 | Terms of Use with objectionable-content rules | **DONE** text (`terms-of-use.md`); **YOU** host it and link it; the app also needs to show the Terms before first use (with A2) |
 | Moderation process and response time | **YOU**: someone must read reports; the Terms promise action on serious reports within 24 hours, change the promise if you cannot keep it |
 | Remove a user's content on request / on deletion | **DONE** on deletion (`deletion.ts`) |
-| Predators and minors (16-17 users meeting strangers) | Friends only, by username or invite link; no search of strangers, no contact upload, no chat. Keep it that way |
+| Predators and minors (16-17 users meeting strangers) | Friends only, by username, invite link or opt-in contact match (hashed emails, only people already in the phone contacts); no search of strangers, no chat. Keep it that way |
 
 ## F. Subscription disclosures
 
@@ -116,7 +116,7 @@ to gambling words and to anything that looks like paying to win or turning coins
 
 | Risk | Status |
 |---|---|
-| Unneeded dangerous permissions | **DONE** (`check-play-readiness.sh` fails on SMS, call log, contacts, location, SYSTEM_ALERT_WINDOW, QUERY_ALL_PACKAGES, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, READ/WRITE_EXTERNAL_STORAGE) |
+| Unneeded dangerous permissions | **DONE** (`check-play-readiness.sh` fails on SMS, call log, location, SYSTEM_ALERT_WINDOW, QUERY_ALL_PACKAGES, REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, READ/WRITE_EXTERNAL_STORAGE) |
 | Foreground service type without declaration | **YOU**: declare "special use" with the manifest subtype and a short video |
 | Notification permission asked at a bad time | **DONE**: asked from the Settings "Fix" button, not on first launch |
 | `allowBackup` leaks local data | **DONE**: false |

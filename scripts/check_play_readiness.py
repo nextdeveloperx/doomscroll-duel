@@ -80,13 +80,26 @@ manifest = read(ROOT / "app/src/main/AndroidManifest.xml")
 permissions = set(re.findall(r'<uses-permission android:name="([^"]+)"', manifest))
 forbidden = {
     "android.permission.READ_SMS", "android.permission.RECEIVE_SMS", "android.permission.SEND_SMS",
-    "android.permission.READ_CALL_LOG", "android.permission.READ_CONTACTS", "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.READ_CALL_LOG", "android.permission.ACCESS_FINE_LOCATION",
     "android.permission.ACCESS_COARSE_LOCATION", "android.permission.SYSTEM_ALERT_WINDOW", "android.permission.QUERY_ALL_PACKAGES",
     "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS", "android.permission.READ_EXTERNAL_STORAGE",
     "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.RECORD_AUDIO", "android.permission.CAMERA",
 }
 for p in sorted(permissions & forbidden):
     fail(f"permission {p} is not allowed (Play restricts it or the policy says we never collect it)")
+# 4a. Contacts are allowed only for the opt-in "find friends" feature, and only while the policy says exactly what is sent.
+if "android.permission.READ_CONTACTS" in permissions:
+    policy = read(ROOT / "docs/play/privacy-policy.md")
+    safety = read(ROOT / "docs/play/data-safety.md")
+    if "SHA-256 hash" not in policy or "Contact matching" not in policy:
+        fail("READ_CONTACTS is declared but docs/play/privacy-policy.md does not explain the hashed contact matching")
+    if "| Contacts | Contacts |" not in safety:
+        fail("READ_CONTACTS is declared but docs/play/data-safety.md does not list Contacts as collected (hashed, optional)")
+    contacts_src = read(KT / "data/social/DeviceContactsRepository.kt")
+    if "EmailHash.ofAll" not in contacts_src or "ContactsContract.CommonDataKinds.Email.ADDRESS" not in contacts_src:
+        fail("contacts must be read as email addresses and hashed on the phone (EmailHash.ofAll) before anything is sent")
+    if "DISPLAY_NAME" in contacts_src or "Phone.NUMBER" in contacts_src:
+        fail("DeviceContactsRepository must not read contact names or phone numbers")
 if 'android:allowBackup="false"' not in manifest:
     fail('android:allowBackup must be "false"')
 

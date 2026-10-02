@@ -32,5 +32,5 @@ duels/{duelId}/counts/{uid}            { uid, total, perApp{instagram,youtube,fa
 
 - `counts` is readable by the two players only while `status == 'active'`; each player writes only their
   own document. See `firebase/firestore.rules`.
-- Friends are added by username or invite link. No phone contacts are read or uploaded.
+- Friends are added by username, invite link, or the Contacts match (opt-in). The phone hashes contact emails (SHA-256) and sends only the hashes to `matchContacts`; names, numbers and addresses stay on the phone, and the server stores no contact data. `users/{uid}.emailHash` is written by the server from the verified sign-in token.
 - Coins are virtual and written only by Cloud Functions.

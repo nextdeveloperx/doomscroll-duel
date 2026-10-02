@@ -107,5 +107,5 @@ Keep the English summary on screen long enough to read. Do not skip the Not now 
   Foreground service permissions, with a short video of the notification.
 - **POST_NOTIFICATIONS**: friend-unlock requests and the counter notification. Ask at a moment the user understands (the
   Settings "Fix" button does this).
-- Nothing else sensitive is requested: no SMS, call log, contacts, location, SYSTEM_ALERT_WINDOW, QUERY_ALL_PACKAGES or
+- Nothing else sensitive is requested for the accessibility feature: no SMS, call log, location, SYSTEM_ALERT_WINDOW, QUERY_ALL_PACKAGES or
   REQUEST_IGNORE_BATTERY_OPTIMIZATIONS (`scripts/check-play-readiness.sh` fails if one appears).

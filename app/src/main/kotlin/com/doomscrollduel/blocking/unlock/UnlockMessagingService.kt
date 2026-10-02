@@ -4,6 +4,7 @@ import com.doomscrollduel.blocking.BlockingScheduler
 import com.doomscrollduel.blocking.TrustedTime
 import com.doomscrollduel.domain.blocking.BlockingController
 import com.doomscrollduel.domain.blocking.UnlockCoordinator
+import com.doomscrollduel.feature.friends.FriendNotifications
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
@@ -29,6 +30,21 @@ class UnlockMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
+        when (data["type"]) {
+            "friend_invite" -> {
+                val code = data["code"] ?: return
+                FriendNotifications.showInvite(this, code, data["fromName"].orEmpty())
+                return
+            }
+            "friend_invite_inbox" -> {
+                FriendNotifications.showInviteFromPerson(this, data["fromUid"].orEmpty(), data["fromName"].orEmpty())
+                return
+            }
+            "friend_joined" -> {
+                FriendNotifications.showJoined(this, data["fromName"].orEmpty())
+                return
+            }
+        }
         val requestId = data["requestId"] ?: return
         when (data["type"]) {
             "unlock_request" -> UnlockNotifications.showRequest(this, requestId, data["fromName"].orEmpty())
