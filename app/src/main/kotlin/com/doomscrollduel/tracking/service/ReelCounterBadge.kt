@@ -26,6 +26,7 @@ import com.doomscrollduel.domain.repository.ReelLimitStore
 import com.doomscrollduel.domain.repository.ReelRepository
 import com.doomscrollduel.feature.counter.FloatingCounter
 import com.doomscrollduel.feature.counter.PILL_HEIGHT
+import com.doomscrollduel.feature.counter.cutoutGapCenterOffset
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -56,21 +57,29 @@ object CounterBadgePrefs {
  * tracked app is no longer in front (checked a few times a second, since leaving it raises no event of its own) or
  * the person has turned the on-screen counter off in Settings.
  *
- * Dynamic-Island-style placement, measured rather than guessed (see the `ReelBadgeDiag` log line in [attach]):
- * on a device with a real camera cutout, there is nowhere *below* the status bar that is safe from a tracked app's
- * own header — Instagram's Reels screen, for one, draws its own centered "Reels" title starting right at the
- * status bar's bottom edge, so any pill placed there collides with it regardless of how small the margin is. The
- * one row that is genuinely empty next to the cutout is the status bar's own band: nothing else occupies the
- * horizontal space immediately beside a centered punch-hole (the clock sits far left, battery/signal icons far
- * right), so [topOffsetPx] centers the pill vertically *within* that band — overlapping the cutout's own row, never
+ * Dynamic-Island-style placement, measured on-device rather than guessed:
+ *
+ * Vertically ([topOffsetPx]): on a device with a real camera cutout, there is nowhere *below* the status bar that
+ * is safe from a tracked app's own header — Instagram's Reels screen, for one, draws its own centered "Reels" title
+ * starting right at the status bar's bottom edge, so any pill placed there collides with it regardless of how small
+ * the margin is. The one row that is genuinely empty next to the cutout is the status bar's own band: nothing else
+ * occupies the horizontal space immediately beside a centered punch-hole (the clock sits far left, battery/signal
+ * icons far right), so the pill is centered vertically *within* that band — overlapping the cutout's own row, never
  * the app underneath — only falling back to sitting just below the status bar (the old behaviour) on a device with
  * no cutout to hug, where that band is usually too short for a 34dp pill to fit inside at all.
- * [cutoutCenterOffsetDp] handles the horizontal half of this: it centers on the cutout's own x-position, not just
- * the screen's middle, via a Compose offset on top of a full-width, centered Box — so an off-center punch-hole
- * (left-aligned, say) still gets hugged rather than missed, and a phone with no cutout falls back to true
- * screen-center. Both are read fresh from the real system insets and cutout geometry on every (re)attach, each
- * applied exactly once (the window `y` here, the Compose `offset` there) — [FloatingCounter] itself carries no
- * positioning logic of its own.
+ *
+ * Horizontally (in [attach], using [com.doomscrollduel.feature.counter.cutoutGapCenterOffset]): the pill does not
+ * just center itself on the cutout as a whole — it reserves a gap between the mascot and the count sized to the
+ * cutout's own measured width (plus a little clearance), and is anchored by its *left* edge so that gap's center,
+ * not the pill's own geometric center, lands exactly on the physical cutout. That keeps the mascot to the cutout's
+ * left and the count to its right, with neither glyph ever rendering where the lens sits, and keeps working as the
+ * count grows from "9" to "1,000" — a wider count only pushes the pill's right edge further out, it never drags
+ * the gap (or the mascot) off the cutout. A phone with no cutout at all gets the plain, ungapped, screen-centered
+ * layout instead ([FloatingCounter]'s `cutoutClearanceDp = null` default).
+ *
+ * Both halves are read fresh from the real system insets and cutout geometry on every (re)attach, each applied
+ * exactly once (the window `y` here, the Compose `offset` there) — [FloatingCounter] itself carries no positioning
+ * logic beyond reserving the gap it's told to reserve.
  */
 class ReelCounterBadge(
     private val service: AccessibilityService,
@@ -117,7 +126,22 @@ class ReelCounterBadge(
 
     private fun attach() {
         val lifecycleOwner = OverlayLifecycleOwner().also { it.start() }
-        val cutoutOffset = cutoutCenterOffsetDp()
+        // Read the cutout's bounds exactly once per attach and derive everything (vertical offset, horizontal
+        // gap, horizontal anchor) from this same Rect, rather than querying WindowManager repeatedly — keeps the
+        // vertical and horizontal halves of this layout consistent with each other on every attach.
+        val density = service.resources.displayMetrics.density
+        val cutout = cutoutRectPx()
+        val cutoutClearanceDp = cutout?.let { ((it.width() / density) + CUTOUT_EXTRA_CLEARANCE_DP).dp }
+        val pillAlignment: Alignment
+        val pillOffsetDp: Dp
+        if (cutout != null && cutoutClearanceDp != null) {
+            pillAlignment = Alignment.TopStart
+            val gapCenterOffsetDp = cutoutGapCenterOffset(cutoutClearanceDp)
+            pillOffsetDp = (cutout.centerX() / density).dp - gapCenterOffsetDp
+        } else {
+            pillAlignment = Alignment.TopCenter
+            pillOffsetDp = 0.dp
+        }
         val composeView = ComposeView(service).apply {
             setViewTreeLifecycleOwner(lifecycleOwner)
             setViewTreeSavedStateRegistryOwner(lifecycleOwner)
@@ -125,14 +149,14 @@ class ReelCounterBadge(
                 DuelTheme {
                     val count by repository.observeToday().map { it.total }.collectAsState(initial = 0)
                     val limit by limits.limit.collectAsState(initial = ReelLimitStore.DEFAULT)
-                    // Full-width Box + TopCenter + offset (rather than a WRAP_CONTENT window centered on the
-                    // screen) so the pill lands centered on the physical cutout even when that cutout is not
-                    // itself in the middle of the screen, with no dependency on the pill's own measured width.
+                    // Full-width Box (rather than a WRAP_CONTENT window) so the pill can be anchored by its own
+                    // left edge when there's a cutout to straddle, with no dependency on its measured width.
                     Box(modifier = Modifier.fillMaxWidth()) {
                         FloatingCounter(
                             count = count,
                             limit = limit,
-                            modifier = Modifier.align(Alignment.TopCenter).offset(x = cutoutOffset),
+                            cutoutClearanceDp = cutoutClearanceDp,
+                            modifier = Modifier.align(pillAlignment).offset(x = pillOffsetDp),
                         )
                     }
                 }
@@ -149,7 +173,7 @@ class ReelCounterBadge(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
-            y = topOffsetPx()
+            y = topOffsetPx(cutout, density)
         }
         runCatching { windowManager.addView(composeView, params) }
             .onSuccess {
@@ -162,19 +186,18 @@ class ReelCounterBadge(
     /**
      * How far down from the very top of the screen the badge's window should start, in pixels.
      *
-     * With a real camera cutout: the pill is centered *within* the status-bar/cutout band itself — the only row
-     * that both hugs the cutout and is free of any tracked app's own header — clamped to never go negative if that
-     * band is somehow shorter than the pill (a very slim cutout height). Without one: falls back to sitting just
-     * below the status bar with a small fixed margin, the old behaviour, since there's no cutout to hug and this
-     * device's status-bar band is usually too short to center a 34dp pill inside anyway.
+     * With a real camera cutout ([cutout] non-null): the pill is centered *within* the status-bar/cutout band
+     * itself — the only row that both hugs the cutout and is free of any tracked app's own header — clamped to
+     * never go negative if that band is somehow shorter than the pill (a very slim cutout height). Without one:
+     * falls back to sitting just below the status bar with a small fixed margin, the old behaviour, since there's
+     * no cutout to hug and this device's status-bar band is usually too short to center a 34dp pill inside anyway.
      *
      * The status-bar/cutout inset itself is read fresh from the real system insets on every (re)attach (API 30+:
      * [WindowManager.getCurrentWindowMetrics]; older: the system's own status-bar height resource, the same value
      * `statusBarsPadding()` would have used) rather than a screen-specific guess, so this lands correctly on phones
      * with different status-bar heights and cutout shapes.
      */
-    private fun topOffsetPx(): Int {
-        val density = service.resources.displayMetrics.density
+    private fun topOffsetPx(cutout: Rect?, density: Float): Int {
         val inset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val bars = windowManager.currentWindowMetrics.windowInsets
                 .getInsets(WindowInsets.Type.statusBars() or WindowInsets.Type.displayCutout())
@@ -185,35 +208,22 @@ class ReelCounterBadge(
             if (id > 0) service.resources.getDimensionPixelSize(id) else (DEFAULT_STATUS_BAR_DP * density).toInt()
         }
         val pillHeightPx = PILL_HEIGHT.value * density
-        return if (cutoutCenterXPx() != null) {
+        return if (cutout != null) {
             ((inset - pillHeightPx) / 2f).toInt().coerceAtLeast(0)
         } else {
             inset + (EXTRA_MARGIN_DP * density).toInt()
         }
     }
 
-    /**
-     * How far the pill's own center should sit from the screen's horizontal center, so that it lands on the
-     * physical camera cutout's center instead — zero (true screen-center) on a device with no cutout, or if the
-     * cutout's bounds could not be read. [cutoutCenterXPx] is the only thing here that can vary by device; this
-     * just converts that to a density-independent offset.
-     */
-    private fun cutoutCenterOffsetDp(): Dp {
-        val cutoutCenterX = cutoutCenterXPx() ?: return 0.dp
-        val density = service.resources.displayMetrics.density
-        val screenWidthPx = service.resources.displayMetrics.widthPixels
-        return ((cutoutCenterX - screenWidthPx / 2) / density).dp
-    }
-
-    /** The physical camera cutout's horizontal center in pixels, or null on a device with no cutout (or pre-API 28). */
-    private fun cutoutCenterXPx(): Int? {
+    /** The physical camera cutout's bounds in pixels, or null on a device with no cutout (or pre-API 28). */
+    private fun cutoutRectPx(): Rect? {
         val cutout = when {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> windowManager.currentWindowMetrics.windowInsets.displayCutout
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.P -> legacyDisplayCutout()
             else -> null
         }
         val rect: Rect = cutout?.boundingRectTop ?: return null
-        return if (rect.isEmpty) null else rect.centerX()
+        return if (rect.isEmpty) null else rect
     }
 
     /** [android.view.Display.getCutout] is deprecated in favour of [WindowManager.getCurrentWindowMetrics] (API 30+); this is only reached below that. */
@@ -223,10 +233,13 @@ class ReelCounterBadge(
     private companion object {
         const val WATCH_MS = 500L
 
-        /** Breathing room below the status bar / cutout — just enough that the pill never sits flush against it. */
+        /** Breathing room below the status bar / cutout on a device with NO cutout — never sits flush against it. */
         const val EXTRA_MARGIN_DP = 6f
 
         /** Pre-API 30 fallback only, for the rare device where the status-bar dimen resource is missing. */
         const val DEFAULT_STATUS_BAR_DP = 24f
+
+        /** Extra width either side of the cutout's own measured width, so neither glyph sits flush against the lens. */
+        const val CUTOUT_EXTRA_CLEARANCE_DP = 8f
     }
 }

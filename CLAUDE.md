@@ -330,3 +330,29 @@ claims needed correction once actually run on a phone, see below.
   with "Reels", the back arrow, the "+" icon, or the clock/battery/signal icons. Compile, 480 unit tests, and
   `assembleDebug` all still pass; no detection/counting/coin logic touched, `FloatingCounter.kt`'s fade/target-reached
   state machine untouched (only `ReelCounterBadge.kt`'s window-y math and `PILL_HEIGHT`'s visibility changed).
+
+## Floating counter: mascot-left / camera-gap / count-right layout (Oct 2026)
+- Owner's annotated screenshot showed the real punch-hole sitting ON TOP of the count digits, because the pill from the
+  previous entry centered itself (icon+number as one packed group) on the cutout's center — with the icon narrower than
+  the number's trailing content, the group's own visual center did not land where the pill's geometric/layout center did,
+  so the physical lens ended up over the number rather than in empty space. Wanted: mascot left of the lens, lens itself
+  unobstructed in the middle, full number right of the lens, as one pill.
+- Fix: `FloatingCounter` takes a new `cutoutClearanceDp: Dp?` (null = old compact layout, used automatically on any
+  device without a cutout) that inserts a `Spacer` of that width between the mascot and the count — sized by
+  `ReelCounterBadge` to the cutout's own measured width (`Rect.width()`) plus 8dp clearance each use, not a guess. The
+  new `cutoutGapCenterOffset()` function (in `FloatingCounter.kt`, not private, so the service can call it) gives the
+  fixed distance from the pill's own LEFT edge to that gap's center — fixed because the gap always sits right after the
+  mascot, regardless of how wide the trailing count grows. `ReelCounterBadge.attach()` uses that to anchor the pill via
+  `Alignment.TopStart` with a computed `Modifier.offset(x = cutout.centerX()/density - gapCenterOffsetDp)`, instead of
+  centering the whole pill as before — so the GAP's center lands exactly on the physical cutout, and a count growing
+  from "9" to "1,000" only ever pushes the pill's right edge further out, never drags the gap (or the mascot) off the
+  lens. The cutout `Rect` is now read once per `attach()` and threaded through to both the vertical (`topOffsetPx`) and
+  horizontal math, replacing the two separate WindowManager queries the previous entry's code made.
+- Verified live on the Motorola, confirmed in foreground via `dumpsys window` before every screenshot (one stray tap
+  this round landed on an active WhatsApp call screen briefly — backed out immediately via `dumpsys`-confirmed navigation,
+  nothing from it was read or screenshotted): the "Reels" title-header view now shows the mascot clearly left of the
+  cutout, a visible empty gap where the lens sits, and the full count readable to its right, with the "Reels" title
+  itself still completely unobstructed below. Idle fade re-checked and still dims the whole pill (icon, gap, number)
+  together, unchanged. Compile, 480 unit tests, and `assembleDebug` all pass; only `FloatingCounter.kt`'s layout
+  (new optional Spacer, extracted padding/icon-size constants) and `ReelCounterBadge.kt`'s horizontal-anchor math
+  changed — detection, counting, coin and leaderboard logic untouched.
