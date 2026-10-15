@@ -297,12 +297,12 @@ claims needed correction once actually run on a phone, see below.
   `Display.getCutout()` on 28-29); the window is full-width with the pill placed via `Box(fillMaxWidth) { align(TopCenter)
   .offset(x = ...) }`, so an off-center punch-hole still gets hugged and a cutout-less device falls back to true
   screen-center. The clearance margin below the cutout dropped from 40dp to 6dp to close the gap the owner flagged.
-- NOT verified live this round: the Motorola was not reconnected, and setting up an emulator here hit a real environment
-  limit — the background-task runner's own low-memory guard killed both a system-image download (at 1GB RAM free) and the
-  emulator boot itself (at 4.6GB free afterward), so it is not simply a RAM-headroom problem this environment can work
-  around. An AVD (`reel_test`, Pixel 6 profile, API 35 google_apis x86_64) and its system image ARE installed at
-  `F:\AppData\Local\Android` for whoever opens it directly from Android Studio's own AVD Manager instead of through this
-  background-task path. Owner chose to skip live verification for now rather than keep burning time on it; compile,
-  480 unit tests and `assembleDebug` all still pass — this is a design/positioning change only, no detection or counting
-  logic touched, but the on-device look has only been reasoned through code + the first pass's real screenshots, not
-  re-confirmed after the second (slimmer, cutout-centered) pass.
+- Setting up an emulator in this environment hit a real limit along the way (not device-related): the background-task
+  runner's own low-memory guard killed both a system-image download (at 1GB RAM free) and the emulator boot itself (at
+  4.6GB free afterward) — not simply a RAM-headroom problem this environment can work around. An AVD (`reel_test`, Pixel 6
+  profile, API 35 google_apis x86_64) and its system image ARE installed at `F:\AppData\Local\Android` for whoever opens it
+  directly from Android Studio's own AVD Manager instead of through this background-task path.
+- Confirmed live on the Motorola once reconnected: Instagram Home feed AND the Reels tab both show the slim cream pill
+  snug below the status bar/cutout, centered on the punch-hole, not overlapping Instagram's own "Reels" title, back arrow,
+  "+" icon or any status-bar icons; count updated 328->329 on a real swipe; the idle fade still visibly dims the pill a few
+  seconds after the last count, same as before this redesign (no regression in the ACTIVE/IDLE state machine).
