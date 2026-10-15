@@ -109,8 +109,12 @@ private const val IDLE_ALPHA = 0.22f
 private const val FADE_DURATION_MS = 500
 private const val IDLE_TIMEOUT_MS = 2_500L
 
-/** Dynamic-Island-style targets: slim (34dp tall), roomy enough for a short count without padding a long one. */
-private val PILL_HEIGHT = 34.dp
+/**
+ * Dynamic-Island-style targets: slim (34dp tall), roomy enough for a short count without padding a long one.
+ * [PILL_HEIGHT] is not private — [com.doomscrollduel.tracking.service.ReelCounterBadge] needs the real value to
+ * center the pill within the status-bar/cutout band rather than guessing at its height from the outside.
+ */
+val PILL_HEIGHT = 34.dp
 private val PILL_MIN_WIDTH = 118.dp
 
 @Preview(name = "Floating counter, active", widthDp = 200)

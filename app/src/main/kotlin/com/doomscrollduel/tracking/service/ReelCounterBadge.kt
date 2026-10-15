@@ -25,6 +25,7 @@ import com.doomscrollduel.core.designsystem.theme.DuelTheme
 import com.doomscrollduel.domain.repository.ReelLimitStore
 import com.doomscrollduel.domain.repository.ReelRepository
 import com.doomscrollduel.feature.counter.FloatingCounter
+import com.doomscrollduel.feature.counter.PILL_HEIGHT
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -55,14 +56,21 @@ object CounterBadgePrefs {
  * tracked app is no longer in front (checked a few times a second, since leaving it raises no event of its own) or
  * the person has turned the on-screen counter off in Settings.
  *
- * Dynamic-Island-style placement: the pill sits snug against the bottom of the status bar / camera cutout
- * ([topOffsetPx], the window's own `y`) and is horizontally centered on the physical cutout itself, not just the
- * middle of the screen ([cutoutCenterOffsetDp], a Compose offset on top of a full-width, centered Box) — so an
- * off-center punch-hole (left-aligned, say) still gets the pill hugging it rather than sitting at screen-center and
- * missing it. Both numbers are read fresh from the real system insets and cutout geometry every time the window is
- * (re)attached, never a fixed dp guess, and a phone with no cutout at all just falls back to true screen-center.
- * Each offset is applied exactly once — the window `y` here, the Compose `offset` there — so there is nothing to
- * double up; [FloatingCounter] itself carries no positioning logic of its own.
+ * Dynamic-Island-style placement, measured rather than guessed (see the `ReelBadgeDiag` log line in [attach]):
+ * on a device with a real camera cutout, there is nowhere *below* the status bar that is safe from a tracked app's
+ * own header — Instagram's Reels screen, for one, draws its own centered "Reels" title starting right at the
+ * status bar's bottom edge, so any pill placed there collides with it regardless of how small the margin is. The
+ * one row that is genuinely empty next to the cutout is the status bar's own band: nothing else occupies the
+ * horizontal space immediately beside a centered punch-hole (the clock sits far left, battery/signal icons far
+ * right), so [topOffsetPx] centers the pill vertically *within* that band — overlapping the cutout's own row, never
+ * the app underneath — only falling back to sitting just below the status bar (the old behaviour) on a device with
+ * no cutout to hug, where that band is usually too short for a 34dp pill to fit inside at all.
+ * [cutoutCenterOffsetDp] handles the horizontal half of this: it centers on the cutout's own x-position, not just
+ * the screen's middle, via a Compose offset on top of a full-width, centered Box — so an off-center punch-hole
+ * (left-aligned, say) still gets hugged rather than missed, and a phone with no cutout falls back to true
+ * screen-center. Both are read fresh from the real system insets and cutout geometry on every (re)attach, each
+ * applied exactly once (the window `y` here, the Compose `offset` there) — [FloatingCounter] itself carries no
+ * positioning logic of its own.
  */
 class ReelCounterBadge(
     private val service: AccessibilityService,
@@ -152,13 +160,18 @@ class ReelCounterBadge(
     }
 
     /**
-     * How far down from the very top of the screen the badge's window should start, in pixels: tall enough to
-     * clear whichever is taller on this phone, the status bar or the camera cutout, plus a small fixed margin so
-     * it never sits flush against either. Read fresh from the real system insets every time the window is
-     * (re)attached (API 30+: [WindowManager.getCurrentWindowMetrics]; older: the system's own status-bar height
-     * resource, the same value `statusBarsPadding()` would have used) rather than a screen-specific guess, so it
-     * lands in the same place on phones with different status-bar heights and cutout shapes. The margin is kept
-     * deliberately small — a Dynamic Island hugs its cutout, it doesn't float well below it.
+     * How far down from the very top of the screen the badge's window should start, in pixels.
+     *
+     * With a real camera cutout: the pill is centered *within* the status-bar/cutout band itself — the only row
+     * that both hugs the cutout and is free of any tracked app's own header — clamped to never go negative if that
+     * band is somehow shorter than the pill (a very slim cutout height). Without one: falls back to sitting just
+     * below the status bar with a small fixed margin, the old behaviour, since there's no cutout to hug and this
+     * device's status-bar band is usually too short to center a 34dp pill inside anyway.
+     *
+     * The status-bar/cutout inset itself is read fresh from the real system insets on every (re)attach (API 30+:
+     * [WindowManager.getCurrentWindowMetrics]; older: the system's own status-bar height resource, the same value
+     * `statusBarsPadding()` would have used) rather than a screen-specific guess, so this lands correctly on phones
+     * with different status-bar heights and cutout shapes.
      */
     private fun topOffsetPx(): Int {
         val density = service.resources.displayMetrics.density
@@ -171,7 +184,12 @@ class ReelCounterBadge(
             val id = service.resources.getIdentifier("status_bar_height", "dimen", "android")
             if (id > 0) service.resources.getDimensionPixelSize(id) else (DEFAULT_STATUS_BAR_DP * density).toInt()
         }
-        return inset + (EXTRA_MARGIN_DP * density).toInt()
+        val pillHeightPx = PILL_HEIGHT.value * density
+        return if (cutoutCenterXPx() != null) {
+            ((inset - pillHeightPx) / 2f).toInt().coerceAtLeast(0)
+        } else {
+            inset + (EXTRA_MARGIN_DP * density).toInt()
+        }
     }
 
     /**

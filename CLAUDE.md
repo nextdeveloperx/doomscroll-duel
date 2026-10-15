@@ -306,3 +306,27 @@ claims needed correction once actually run on a phone, see below.
   snug below the status bar/cutout, centered on the punch-hole, not overlapping Instagram's own "Reels" title, back arrow,
   "+" icon or any status-bar icons; count updated 328->329 on a real swipe; the idle fade still visibly dims the pill a few
   seconds after the last count, same as before this redesign (no regression in the ACTIVE/IDLE state machine).
+
+## Floating counter position, corrected again: the pill lives IN the status-bar row, not below it (Oct 2026)
+- The "below the cutout, 6dp margin" placement from the previous entry still collided with Instagram's own Reels title —
+  measured with a temporary `Log.d("ReelBadgeDiag", ...)` in `ReelCounterBadge.attach()` (removed again once the fix was
+  confirmed): `density=2.125` (the OEM's overridden density, not the raw 400 `wm density` reports), `windowY=118px`, pill
+  height `72px` at that density, so the pill spanned y=118-190px while Instagram's own header starts flush at y~106px and
+  is ~100px tall — direct overlap, regardless of how small the margin was. Root cause: on a phone where an app draws its
+  own chrome right up against the status bar (Instagram's Reels screen does), there is NO row below the status bar that is
+  both close to the cutout and free of that app's header — closing the gap and avoiding the header were mutually exclusive
+  as long as the pill stayed below the inset.
+- Real fix: the pill now sits INSIDE the status-bar/cutout band itself (`ReelCounterBadge.topOffsetPx`, vertically centered
+  within that band when a real cutout exists: `y = (inset - pillHeightPx) / 2`, clamped to >=0) rather than below it. That
+  band is otherwise empty next to a centered punch-hole (clock sits far left, battery/signal icons far right; measured gap
+  ~570px either side on this phone against a ~280-320px pill), so it both hugs the cutout with zero gap AND never reaches
+  the row where any tracked app's own header lives. Falls back to the old below-the-status-bar placement (with a small
+  margin) only when there is no real cutout to hug (`cutoutCenterXPx() == null`), since on those phones the status-bar
+  band is usually too short to fit a 34dp pill inside at all. `FloatingCounter.PILL_HEIGHT` was made non-private so this
+  math uses the pill's real height instead of a second guess at the same number.
+- Verified live on the Motorola (API tap-confirmed via `dumpsys window | grep mCurrentFocus` before every screenshot, per
+  the standing rule in this file): both the full immersive Reels feed and the "Reels" title-header view now show the pill
+  sitting cleanly in the status-bar row, centered on the cutout, with the entire header area below it empty — no overlap
+  with "Reels", the back arrow, the "+" icon, or the clock/battery/signal icons. Compile, 480 unit tests, and
+  `assembleDebug` all still pass; no detection/counting/coin logic touched, `FloatingCounter.kt`'s fade/target-reached
+  state machine untouched (only `ReelCounterBadge.kt`'s window-y math and `PILL_HEIGHT`'s visibility changed).
