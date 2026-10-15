@@ -37,6 +37,32 @@ class ReelEventPipeline(
     /** The front screen (activity class) last seen for each tracked app. Only the class name of the screen, never anything on it. */
     private val frontScreen = arrayOfNulls<String>(TrackedApp.entries.size)
 
+    /**
+     * READ-ONLY DIAGNOSTIC PROTOTYPE — not wired to [processor] or to counting in any way, and never affects what is
+     * recorded. Purpose: measure, across real swipes, whether `contentChangeTypes=PANE_APPEARED` (bit 64 on a
+     * TYPE_WINDOW_CONTENT_CHANGED event) could ever be a usable "a new feed item appeared" signal for an app whose
+     * scroll events are rare (YouTube Shorts). It only decides "would this have been one count or a duplicate of the
+     * previous one", using a short correlation window, and logs that decision. It is not a production detector, has
+     * not been reviewed for the privacy rules beyond what [onEvent] already reads, and must not be promoted to real
+     * counting without that review.
+     */
+    private val lastPaneAppearedAt = LongArray(TrackedApp.entries.size) { NEVER }
+
+    private fun paneAppearedDiag(app: TrackedApp, changeTypes: Int, at: Long) {
+        // Matched on the literal bit (0x40) actually observed on device, not AccessibilityEvent's named constant:
+        // that constant's value did not match what device logs showed, so trusting the name over the measured
+        // value would have silently never fired. This is exactly the kind of assumption this diagnostic exists to
+        // catch rather than repeat.
+        if (!debugLog || changeTypes and OBSERVED_PANE_APPEARED_BIT == 0) return
+        val gap = at - lastPaneAppearedAt[app.ordinal]
+        if (gap >= PANE_CORRELATION_WINDOW_MS) {
+            Log.d(DIAG_TAG, "PANE_DIAG would-count app=${app.name} gapMs=$gap")
+        } else {
+            Log.d(DIAG_TAG, "PANE_DIAG dedup(same-burst) app=${app.name} gapMs=$gap")
+        }
+        lastPaneAppearedAt[app.ordinal] = at
+    }
+
     /** Handles one event. Returns the tracked app it came from (so the blocker can look), or null when it was ignored. */
     fun onEvent(event: AccessibilityEvent?): TrackedApp? {
         if (!consent()) return null
@@ -44,15 +70,25 @@ class ReelEventPipeline(
         val app = TrackedApp.fromPackage(e.packageName?.toString()) ?: return null
         val signal = when (e.eventType) {
             AccessibilityEvent.TYPE_VIEW_SCROLLED -> scrollSignal(app, e)
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> ReelSignal.ContentChanged(app, e.eventTime)
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                // changeTypes is a bitmask describing the KIND of change (subtree replaced, text changed, pane title...),
+                // never the content itself. Diagnostic only, for now: not used to decide anything yet.
+                if (debugLog) Log.d(DIAG_TAG, "contentChanged pkg=${app.packageName} swipeArmed=${processor.swipeArmed(app)} changeTypes=${e.contentChangeTypes}")
+                paneAppearedDiag(app, e.contentChangeTypes, e.eventTime)
+                ReelSignal.ContentChanged(app, e.eventTime)
+            }
             // A window change tells the blocker that the app came to the front, and which screen of it is now in front. Small
             // pop-ups and system widgets (android.* / androidx.*) do not count as a new screen.
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 val screen = e.className?.toString()
+                if (debugLog) Log.d(DIAG_TAG, "windowState pkg=${app.packageName} screen=${screen?.substringAfterLast('.')}")
                 if (screen != null && !screen.startsWith("android.") && !screen.startsWith("androidx.")) frontScreen[app.ordinal] = screen
                 null
             }
-            else -> return null
+            else -> {
+                if (debugLog) Log.d(DIAG_TAG, "otherEvent pkg=${app.packageName} type=${AccessibilityEvent.eventTypeToString(e.eventType)}")
+                return null
+            }
         }
         if (signal != null && processor.process(signal)) {
             val countedAt = wallClock()
@@ -91,6 +127,16 @@ class ReelEventPipeline(
 
         /** A little longer than the processor's pause between two swipes, so a swipe that has stopped is closed. */
         const val FLUSH_MS = 340L
+
+        /** PANE_DIAG only (see [paneAppearedDiag]): two PANE_APPEARED events closer together than this are treated as
+         * the same swipe's pair, not two transitions. Chosen from observed pairs landing ~0.5s apart and distinct
+         * swipes being ~1.5s+ apart in a real test; not yet validated across enough samples to trust for counting. */
+        const val PANE_CORRELATION_WINDOW_MS = 800L
+
+        /** The bit seen in practice on device when a YouTube Shorts pane change happened, 0x40. */
+        const val OBSERVED_PANE_APPEARED_BIT = 0x40
+
+        private const val NEVER = -1_000_000_000_000L
     }
 }
 

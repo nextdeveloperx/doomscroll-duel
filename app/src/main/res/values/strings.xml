@@ -185,6 +185,7 @@
     <string name="oem_realme_oppo">Realme / Oppo / OnePlus</string>
     <string name="oem_vivo">Vivo / iQOO</string>
     <string name="oem_samsung">Samsung</string>
+    <string name="oem_motorola">Motorola</string>
     <string name="oem_other">Android</string>
     <string name="battery_step_number">Step %1$d</string>
     <string name="step_open_battery_list">Battery optimization ki list kholo (neeche wala button dabao).</string>
@@ -198,6 +199,7 @@
     <string name="step_samsung_unrestricted">Settings, Apps, DoomScroll, Battery mein "Unrestricted" chuno.</string>
     <string name="step_samsung_sleeping_apps">Settings, Battery, Background usage limits mein DoomScroll ko "Sleeping apps" aur "Deep sleeping apps" se hatao.</string>
     <string name="step_samsung_unused_apps">Settings, Apps, DoomScroll mein "Pause app activity if unused" OFF karo.</string>
+    <string name="step_motorola_background_use">Settings, Battery, Smart background use mein DoomScroll dhundo aur background mein chalne do (neeche wala button dabake seedha wahan jao).</string>
     <string name="step_lock_in_recents">Recent apps mein DoomScroll card ko dabake rakho aur "Lock" chuno.</string>
     <string name="battery_open_settings">BATTERY SETTINGS KHOLO</string>
     <string name="battery_open_oem_settings">AUTOSTART SETTINGS KHOLO</string>
@@ -683,6 +685,16 @@
     <string name="progress_peak_day">Top din</string>
     <string name="progress_pro_title">Pro lo, reels block karo</string>
     <string name="progress_pro_action">Pro plans dekho</string>
+
+    <!-- Leaderboard (inside Progress) -->
+    <string name="leaderboard_title">Leaderboard</string>
+    <string name="leaderboard_tab_friends">Dost</string>
+    <string name="leaderboard_tab_india">India</string>
+    <string name="leaderboard_error">Leaderboard load nahi ho saka.</string>
+    <string name="leaderboard_retry">DOBARA TRY KARO</string>
+    <string name="leaderboard_empty_friends">Abhi koi dost ka score nahi hai. Dost banao aur jeeto!</string>
+    <string name="leaderboard_empty_india">Is mahine abhi koi score nahi hai.</string>
+    <string name="leaderboard_row_description">Rank %1$d, %2$s, %3$d coins</string>
     <string name="progress_chart_none">Is dauraan koi reel nahi.</string>
     <string name="progress_chart_day">Total %1$d reels. Sabse zyada %2$s ke aaspaas.</string>
     <string name="progress_chart_week">Total %1$d reels. Sabse zyada %2$s ko.</string>

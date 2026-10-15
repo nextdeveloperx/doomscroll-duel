@@ -211,6 +211,82 @@ await check("only the host closes the room", async () => {
   await assertSucceeds(deleteDoc(doc(alice, "broadcasts", room)));
 });
 
+// --- coin wallet ops (append-only ledger under wallets/{uid}/ops/{opId}; alice and bob are friends from above)
+// A fresh ACTIVE duel for the hold tests, created the normal (rules-checked) way.
+const holdDuelRef = doc(collection(alice, "duels"));
+const holdDuelId = holdDuelRef.id;
+await check("set up an active duel for the hold tests", async () => {
+  await setDoc(holdDuelRef, duelData());
+  await updateDoc(doc(bob, "duels", holdDuelId), { status: "active", startAt: serverTimestamp() });
+});
+await check("alice escrows her own stake (hold)", () =>
+  assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", `${holdDuelId}:hold:alice`), { kind: "hold", amount: 50, duelId: holdDuelId, at: serverTimestamp() })));
+await check("the same hold id cannot be applied twice", () =>
+  assertFails(setDoc(doc(alice, "wallets", "alice", "ops", `${holdDuelId}:hold:alice`), { kind: "hold", amount: 50, duelId: holdDuelId, at: serverTimestamp() })));
+await check("alice cannot hold bob's stake for him", () =>
+  assertFails(setDoc(doc(alice, "wallets", "bob", "ops", `${holdDuelId}:hold:bob`), { kind: "hold", amount: 50, duelId: holdDuelId, at: serverTimestamp() })));
+await check("the hold amount must match the duel's stake", () =>
+  assertFails(setDoc(doc(bob, "wallets", "bob", "ops", `${holdDuelId}:hold:bob`), { kind: "hold", amount: 999, duelId: holdDuelId, at: serverTimestamp() })));
+await check("hold ops cannot be edited or deleted", async () => {
+  await assertFails(updateDoc(doc(alice, "wallets", "alice", "ops", `${holdDuelId}:hold:alice`), { amount: 1 }));
+  await assertFails(deleteDoc(doc(alice, "wallets", "alice", "ops", `${holdDuelId}:hold:alice`)));
+});
+await check("nobody else reads alice's wallet ops", () => assertFails(getDocs(collection(bob, "wallets", "alice", "ops"))));
+
+// A FINISHED duel, seeded directly (bypassing rules, like a Cloud Function / the passage of real time would) so the
+// settle-time rules (release, transfer) can be tested without waiting out a real multi-hour duel window.
+const settleDuelId = "settle-test-duel";
+const settleStake = 50;
+await env.withSecurityRulesDisabled(async (ctx) => {
+  const db = ctx.firestore();
+  await setDoc(doc(db, "duels", settleDuelId), duelData({ status: "finished", startAt: serverTimestamp() }));
+  await setDoc(doc(db, "duels", settleDuelId, "counts", "alice"), countOf("alice", 10)); // alice: fewer reels, alice wins
+  await setDoc(doc(db, "duels", settleDuelId, "counts", "bob"), countOf("bob", 40));
+});
+await check("alice (the winner) reclaims her own held stake (release)", () =>
+  assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", `${settleDuelId}:settle:release:alice`), { kind: "release", amount: settleStake, duelId: settleDuelId, at: serverTimestamp() })));
+await check("bob (the loser) cannot release his own held stake back to himself", () =>
+  assertFails(setDoc(doc(bob, "wallets", "bob", "ops", `${settleDuelId}:settle:release:bob`), { kind: "release", amount: settleStake, duelId: settleDuelId, at: serverTimestamp() })));
+await check("alice (the winner) credits her own wallet with bob's stake (transfer credit)", () =>
+  assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", `${settleDuelId}:settle:transfer`), { kind: "transfer_credit", amount: settleStake, duelId: settleDuelId, at: serverTimestamp() })));
+await check("alice (the winner) debits bob's held stake (transfer debit)", () =>
+  assertSucceeds(setDoc(doc(alice, "wallets", "bob", "ops", `${settleDuelId}:settle:transfer`), { kind: "transfer_debit", amount: settleStake, duelId: settleDuelId, at: serverTimestamp() })));
+await check("bob (the loser) cannot debit his own stake away himself", () =>
+  assertFails(setDoc(doc(bob, "wallets", "bob", "ops", `${settleDuelId}:settle:transfer:retry`), { kind: "transfer_debit", amount: settleStake, duelId: settleDuelId, at: serverTimestamp() })));
+await check("a stranger cannot touch either wallet", () =>
+  assertFails(setDoc(doc(carolDb, "wallets", "bob", "ops", `${settleDuelId}:settle:transfer:carol`), { kind: "transfer_debit", amount: settleStake, duelId: settleDuelId, at: serverTimestamp() })));
+
+// A tied duel: both stakes simply come back (no transfer either way).
+const tieDuelId = "tie-test-duel";
+await env.withSecurityRulesDisabled(async (ctx) => {
+  const db = ctx.firestore();
+  await setDoc(doc(db, "duels", tieDuelId), duelData({ status: "finished", startAt: serverTimestamp() }));
+  await setDoc(doc(db, "duels", tieDuelId, "counts", "alice"), countOf("alice", 20));
+  await setDoc(doc(db, "duels", tieDuelId, "counts", "bob"), countOf("bob", 20));
+});
+await check("a tied duel refunds both players, nobody is a loser", async () => {
+  await assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", `${tieDuelId}:settle:release:alice`), { kind: "release", amount: settleStake, duelId: tieDuelId, at: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(bob, "wallets", "bob", "ops", `${tieDuelId}:settle:release:bob`), { kind: "release", amount: settleStake, duelId: tieDuelId, at: serverTimestamp() }));
+});
+await check("a tie has no transfer for either side", async () => {
+  await assertFails(setDoc(doc(alice, "wallets", "alice", "ops", `${tieDuelId}:settle:transfer`), { kind: "transfer_credit", amount: settleStake, duelId: tieDuelId, at: serverTimestamp() }));
+  await assertFails(setDoc(doc(alice, "wallets", "bob", "ops", `${tieDuelId}:settle:transfer`), { kind: "transfer_debit", amount: settleStake, duelId: tieDuelId, at: serverTimestamp() }));
+});
+
+// --- leaderboard fields on the public directory
+await check("alice reports her own weekly coins", () =>
+  assertSucceeds(updateDoc(doc(alice, "directory", "alice"), { weeklyCoins: 100, weeklyPeriodKey: "2026-W41" })));
+await check("alice cannot report bob's weekly coins", () =>
+  assertFails(updateDoc(doc(alice, "directory", "bob"), { weeklyCoins: 100, weeklyPeriodKey: "2026-W41" })));
+await check("the weekly score cannot go down within the same week", () =>
+  assertFails(updateDoc(doc(alice, "directory", "alice"), { weeklyCoins: 10, weeklyPeriodKey: "2026-W41" })));
+await check("a new week may reset the score to a lower number", () =>
+  assertSucceeds(updateDoc(doc(alice, "directory", "alice"), { weeklyCoins: 0, weeklyPeriodKey: "2026-W42" })));
+await check("monthly coins work the same way, independently of weekly", () =>
+  assertSucceeds(updateDoc(doc(alice, "directory", "alice"), { monthlyCoins: 500, monthlyPeriodKey: "2026-10" })));
+await check("the directory leaderboard can be queried sorted by score", () =>
+  assertSucceeds(getDocs(query(collection(bob, "directory"), orderBy("monthlyCoins", "desc"), limit(50)))));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 await env.cleanup();
 process.exit(fail ? 1 : 0);

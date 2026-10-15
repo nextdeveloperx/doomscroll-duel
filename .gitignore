@@ -16,3 +16,6 @@ local.properties
 node_modules/
 scripts/legal-config.json
 web/
+
+# Local scratch: screenshots, logs, downloaded Gradle distribution used while testing on-device
+.dl-cache/

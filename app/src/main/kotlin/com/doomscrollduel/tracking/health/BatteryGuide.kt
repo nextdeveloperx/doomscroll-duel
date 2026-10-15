@@ -6,6 +6,7 @@ enum class OemFamily {
     REALME_OPPO,
     VIVO,
     SAMSUNG,
+    MOTOROLA,
     OTHER;
 
     companion object {
@@ -18,6 +19,7 @@ enum class OemFamily {
                 has("realme", "oppo", "oneplus") -> REALME_OPPO
                 has("vivo", "iqoo") -> VIVO
                 has("samsung") -> SAMSUNG
+                has("motorola") -> MOTOROLA
                 else -> OTHER
             }
         }
@@ -37,6 +39,7 @@ enum class BatteryStep {
     SAMSUNG_UNRESTRICTED,
     SAMSUNG_SLEEPING_APPS,
     SAMSUNG_UNUSED_APPS,
+    MOTOROLA_BACKGROUND_USE,
     LOCK_IN_RECENTS,
 }
 
@@ -64,6 +67,10 @@ object BatteryGuide {
                 BatteryStep.SAMSUNG_UNRESTRICTED,
                 BatteryStep.SAMSUNG_SLEEPING_APPS,
                 BatteryStep.SAMSUNG_UNUSED_APPS,
+            )
+            OemFamily.MOTOROLA -> listOf(
+                BatteryStep.MOTOROLA_BACKGROUND_USE,
+                BatteryStep.LOCK_IN_RECENTS,
             )
             OemFamily.OTHER -> emptyList()
         }

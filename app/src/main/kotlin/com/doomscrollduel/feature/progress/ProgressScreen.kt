@@ -103,6 +103,10 @@ fun ProgressScreen(
     modifier: Modifier = Modifier,
 ) {
     KitPage(modifier = modifier, title = stringResource(R.string.progress_title)) {
+        LeaderboardRoute()
+        Spacer(Modifier.height(20.dp))
+        Stats(ui)
+        Spacer(Modifier.height(20.dp))
         ModeSwitch(ui.mode, onMode)
         Spacer(Modifier.height(14.dp))
         DateRow(ui, onBack, onNext)
@@ -117,8 +121,6 @@ fun ProgressScreen(
                 )
             }
         }
-        Spacer(Modifier.height(14.dp))
-        Stats(ui)
         Spacer(Modifier.height(14.dp))
         ProPanel(onSeePro)
     }

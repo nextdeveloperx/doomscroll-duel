@@ -213,6 +213,12 @@ abstract class BindingsModule {
 
     @Binds
     abstract fun contactsRepository(impl: com.doomscrollduel.data.social.DeviceContactsRepository): com.doomscrollduel.domain.social.ContactsRepository
+
+    @Binds
+    abstract fun walletRepository(impl: com.doomscrollduel.data.coins.FirebaseWalletRepository): com.doomscrollduel.domain.coins.WalletRepository
+
+    @Binds
+    abstract fun leaderboardRepository(impl: com.doomscrollduel.data.social.FirebaseLeaderboardRepository): com.doomscrollduel.domain.social.LeaderboardRepository
 }
 
 @Module

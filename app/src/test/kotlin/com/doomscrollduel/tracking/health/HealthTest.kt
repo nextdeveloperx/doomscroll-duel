@@ -43,6 +43,7 @@ class HealthTest {
         assertEquals(OemFamily.VIVO, OemFamily.from("vivo", "vivo"))
         assertEquals(OemFamily.VIVO, OemFamily.from("vivo", "iQOO"))
         assertEquals(OemFamily.SAMSUNG, OemFamily.from("samsung", "samsung"))
+        assertEquals(OemFamily.MOTOROLA, OemFamily.from("motorola", "motorola"))
         assertEquals(OemFamily.OTHER, OemFamily.from("Google", "google"))
         assertEquals(OemFamily.OTHER, OemFamily.from(null, null))
     }
@@ -64,6 +65,8 @@ class HealthTest {
         assertTrue(BatteryStep.REALME_AUTO_LAUNCH in BatteryGuide.stepsFor(OemFamily.REALME_OPPO))
         assertTrue(BatteryStep.VIVO_BACKGROUND_POWER in BatteryGuide.stepsFor(OemFamily.VIVO))
         assertTrue(BatteryStep.SAMSUNG_SLEEPING_APPS in BatteryGuide.stepsFor(OemFamily.SAMSUNG))
+        assertTrue(BatteryStep.MOTOROLA_BACKGROUND_USE in BatteryGuide.stepsFor(OemFamily.MOTOROLA))
+        assertTrue(BatteryStep.LOCK_IN_RECENTS in BatteryGuide.stepsFor(OemFamily.MOTOROLA))
         assertFalse(BatteryStep.XIAOMI_AUTOSTART in BatteryGuide.stepsFor(OemFamily.SAMSUNG))
         assertFalse(BatteryStep.LOCK_IN_RECENTS in BatteryGuide.stepsFor(OemFamily.SAMSUNG))
     }

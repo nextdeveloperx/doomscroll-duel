@@ -1,12 +1,14 @@
 package com.doomscrollduel.data.social
 
 import android.content.Context
+import com.doomscrollduel.domain.coins.WalletRepository
 import com.doomscrollduel.domain.repository.AuthRepository
 import com.doomscrollduel.domain.repository.ReelRepository
 import com.doomscrollduel.domain.social.DuelAction
 import com.doomscrollduel.domain.social.DuelInfo
 import com.doomscrollduel.domain.social.DuelRepository
 import com.doomscrollduel.domain.social.DuelStatus
+import com.doomscrollduel.domain.social.LeaderboardRepository
 import com.doomscrollduel.feature.friends.FriendNotifications
 import com.doomscrollduel.tracking.model.TrackedApp
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -40,12 +42,16 @@ class DuelTracker @Inject constructor(
     private val auth: AuthRepository,
     private val duels: DuelRepository,
     private val reels: ReelRepository,
+    private val wallet: WalletRepository,
+    private val leaderboard: LeaderboardRepository,
     @ApplicationContext private val context: Context,
 ) {
     private val prefs = context.getSharedPreferences("duel_tracker", Context.MODE_PRIVATE)
     private val lastUploadedTotal = ConcurrentHashMap<String, Int>()
     private val lastUploadAt = ConcurrentHashMap<String, Long>()
     private val finishing = ConcurrentHashMap.newKeySet<String>()
+    private val held = ConcurrentHashMap.newKeySet<String>()
+    private val settled = ConcurrentHashMap.newKeySet<String>()
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun start(scope: CoroutineScope) {
@@ -90,10 +96,14 @@ class DuelTracker @Inject constructor(
                         if (duel.challengerUid == uid) notifyOnce("s:${duel.id}") {
                             FriendNotifications.showDuelStarted(context, duel.id, duel.opponentName)
                         }
+                        holdStakeOnce(duel, uid)
                         track(duel, totals, now)
                         if (duel.isOver(now)) endedNotice(duel, uid, now)
                     }
-                    DuelStatus.FINISHED -> endedNotice(duel, uid, now)
+                    DuelStatus.FINISHED -> {
+                        settleOnce(duel)
+                        endedNotice(duel, uid, now)
+                    }
                     else -> Unit
                 }
             }
@@ -123,6 +133,24 @@ class DuelTracker @Inject constructor(
         lastUploadAt[duel.id] = now
         val result = duels.uploadCount(duel.id, mine.mapKeys { it.key.name.lowercase() })
         if (result == DuelAction.OK) lastUploadedTotal[duel.id] = total
+    }
+
+    // ----- coins ------------------------------------------------------------------------------------------------------
+
+    /** Escrows my own stake once, the first time this duel is seen active. See [WalletRepository]. */
+    private suspend fun holdStakeOnce(duel: DuelInfo, me: String) {
+        if (duel.stakeCoins <= 0 || !held.add(duel.id)) return
+        wallet.holdStake(duel.id, me, duel.stakeCoins)
+    }
+
+    /** Pays out (or refunds) a finished duel's stake once its two final counts are both in. */
+    private suspend fun settleOnce(duel: DuelInfo) {
+        if (duel.stakeCoins <= 0 || !settled.add(duel.id)) return
+        val counts = duels.counts(duel.id).first()
+        val creatorReels = counts[duel.challengerUid] ?: return settled.remove(duel.id).let { Unit } // not both in yet, try again later
+        val opponentReels = counts[duel.opponentUid] ?: return settled.remove(duel.id).let { Unit }
+        wallet.settle(duel.id, duel.challengerUid, duel.opponentUid, creatorReels, opponentReels, duel.stakeCoins)
+        leaderboard.refreshMyScore()
     }
 
     // ----- start lines ----------------------------------------------------------------------------------------------

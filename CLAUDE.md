@@ -235,3 +235,51 @@ Cloud Functions cannot be deployed yet (Cloud Functions API answers 403: the pro
   back swipes do not, 8 feed swipes counted 0. Owner approved the extra signals (window class name, scroll distance), Oct 2026.
 - Direction (all apps): only a swipe to the NEXT reel counts. The first scroll event of a swipe that reports a distance sets the direction; negative
   = back to the previous reel = not counted. Phones that report no distance count as before.
+
+## Real coin wallet, leaderboard, scroll-tracking investigation, floating counter redesign, daily-limit sync fix (Oct 2026)
+First real device testing of the whole app (one Motorola phone, Android 15) happened this round. A lot of earlier "verified"
+claims needed correction once actually run on a phone, see below.
+
+- **Coins move for real now, without Cloud Functions** (still not on Blaze). `firebase/firestore.rules`: `wallets/{uid}/ops/{opId}`
+  is an append-only ledger (hold/release/transfer_credit/transfer_debit, `create`-only per fixed opId so a retry or both phones
+  racing cannot pay twice); `directory/{uid}` gained `weeklyCoins`/`weeklyPeriodKey`/`monthlyCoins`/`monthlyPeriodKey` (self-write
+  only, a period-key change is the only way the number may drop). 83 rules-emulator checks pass (`firebase/rules-test`, JDK 21),
+  deployed. `domain/coins/WalletRepository` + `data/coins/FirebaseWalletRepository` apply the existing pure `DuelSettlement`
+  hold/payout ops as these Firestore ops; wired from `DuelTracker` (hold on active, settle on finished) and `ResultRoute`
+  (defensive second settle attempt). Same trust tier the reel counts already had: a modified app can misreport its own side but
+  cannot invent coins. A forfeit still settles as a tie (the tracking gap that would prove one is never written to Firestore).
+- **Leaderboard** inside the Progress tab (`feature/progress/LeaderboardSection.kt`+`LeaderboardViewModel.kt`,
+  `domain/social/LeaderboardRepository`, `data/social/FirebaseLeaderboardRepository`): Dost (friends, resets weekly) and India
+  (everyone, resets monthly) boards, ranked by coins actually won (`transfer_credit` ops only). Top-3 medal styling, own row
+  highlighted, "find my rank" via a `count()` aggregate when off the visible list. Not live-updating; a re-entry refetches.
+  Progress tab reordered to Leaderboard, then the three stat cards, then the chart (owner request).
+- **Scroll tracking, corrected on real device (do not trust an old `verified` flag without re-checking)**: Instagram and
+  YouTube Shorts (`reel_recycler`) both genuinely work, but **YouTube Shorts fires its scroll accessibility event only
+  sometimes** — measured 7-47% of real swipes across several sessions, same device and app version, no code difference
+  between runs. A real, externally-caused limitation (under-counts, never zero-counts), not a bug here. A candidate second
+  signal was prototyped read-only and NOT wired to production counting: `TYPE_WINDOW_CONTENT_CHANGED` with `contentChangeTypes`
+  bit `0x40` (the literal value actually observed on device — it does not match `AccessibilityEvent.CONTENT_CHANGE_TYPE_PANE_APPEARED`'s
+  real constant, a bug caught mid-investigation; match the measured bit, not the name). `ReelEventPipeline.paneAppearedDiag`
+  logs "would-count" with an 800 ms correlation window, debugLog-gated only; needs explicit owner privacy approval plus more
+  multi-session validation before ever being promoted to real counting. Snapchat Spotlight's real view id is
+  `lenses_explorer_feed_recycler_view` (added to `surface_rules.json`, `verified: false`), confirmed different from the camera
+  screen's lens carousel, but just as session-inconsistent as YouTube (one session 29/29 swipes counted, another 0/8, service
+  confirmed alive both times). Facebook not re-tested (owner said it already works; out of scope unless a regression shows up).
+- **Floating reel counter redesigned** (`feature/counter/FloatingCounter.kt`, `tracking/service/ReelCounterBadge.kt`): warm
+  cream pill, brain mascot instead of a dot, bold dark-brown count, `statusBarsPadding()` + `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`
+  so it clears the status bar/cutout. New states: ACTIVE (just counted, full opacity) -> IDLE (no new count for ~2.5s, fades to
+  a faint but still-visible alpha, never fully hidden) -> back to ACTIVE on the next count; TARGET_REACHED (today's count >=
+  the real configured limit, never hardcoded) locks full opacity, no idle fade. The old "remove the whole overlay after 12s of
+  silence" behaviour is gone — the window now only comes down when the tracked app leaves the foreground or the counter is
+  off in Settings. Verified live on device against the reference design for ACTIVE/IDLE; TARGET_REACHED reasoned through code
+  review only (could not lower the live-configured limit fast enough on the test device to force it), not device-verified.
+- **Daily-limit dial bug, fixed**: `feature/settings/SettingsScreen.kt`'s `LimitCard` read the dial straight from
+  `settings.dailyLimit` (the raw field; a lower limit lands there at once but a RAISE waits in `pendingLimit` until its day
+  arrives and is only ever resolved at read time via `BlockingSettings.limitOn(today)`, never merged back into `dailyLimit`).
+  Once a pending raise's day had arrived, every other screen correctly showed the new number while the dial kept showing the
+  stale pre-raise one. Fixed by computing `activeLimit = settings.limitOn(today)` once and passing it to both the summary and
+  the dial; the pending-raise text under the dial now only shows while that raise's day has not arrived yet. Confirmed live on
+  device (610 vs 610, dial and summary moving together on a `-` tap). Not a new rule, a UI-wiring fix; `limitOn` itself already
+  had unit coverage.
+- All 480 unit tests pass throughout; nothing here changed the detection privacy contract. Real-device testing happened on one
+  phone/Android version only.

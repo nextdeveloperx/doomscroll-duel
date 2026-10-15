@@ -96,6 +96,8 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
+import com.doomscrollduel.core.common.DayKeys
 import kotlinx.coroutines.launch
 
 /** Everything the Settings screen can do, so the screen itself stays a plain function of its state. */
@@ -139,6 +141,12 @@ fun SettingsScreen(
     onBack: (() -> Unit)? = null,
 ) {
     val settings = ui.status.settings
+    // The one place "today's actual limit" is computed: the same rule the brain, the streak and the lock already
+    // use (BlockingSettings.limitOn). A raise waits for its day to arrive; a lower limit is already in dailyLimit
+    // the moment it is set (see BlockingSettings). Reading settings.dailyLimit directly here, instead of this,
+    // was the bug: it skipped straight past an already-arrived pending raise and kept showing the old number.
+    val today = DayKeys.dateOf(ui.status.nowMs, ZoneId.systemDefault())
+    val activeLimit = settings.limitOn(today)
     val lockRunning = ui.status.lockRunning
     val window = ui.status.window
     val bedtimeRunning = window?.kind == WindowKind.BEDTIME
@@ -162,7 +170,7 @@ fun SettingsScreen(
             )
             ui.message?.let { MessageBlock(it, actions) }
 
-            ProtectionCard(limit = settings.dailyLimit, lockRunning = lockRunning)
+            ProtectionCard(limit = activeLimit, lockRunning = lockRunning)
 
             // ----- REELS BLOCK -----
             SectionHeader(
@@ -171,7 +179,7 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.sn_reels_sub),
                 pill = stringResource(R.string.sn_reels_pill),
             )
-            LimitCard(settings, enabled = !lockRunning, onChange = actions.onChange)
+            LimitCard(settings, activeLimit = activeLimit, today = today, enabled = !lockRunning, onChange = actions.onChange)
             Gap()
             ToggleCard(
                 icon = NeonIcons.Bars,
@@ -470,15 +478,21 @@ private fun ProtectionCard(limit: Int, lockRunning: Boolean) {
 }
 
 @Composable
-private fun LimitCard(settings: BlockingSettings, enabled: Boolean, onChange: (SettingChange) -> Unit) {
-    // Steps start from the limit that is waiting for tomorrow (if any), so repeated taps keep adding up.
-    val shown = settings.pendingLimit?.cap ?: settings.dailyLimit
+private fun LimitCard(settings: BlockingSettings, activeLimit: Int, today: LocalDate, enabled: Boolean, onChange: (SettingChange) -> Unit) {
+    // A genuinely future pending raise (already-arrived ones are folded into activeLimit by the caller, same rule
+    // as BlockingSettings.limitOn). The +/- buttons start from that future target, not today's number, so repeated
+    // taps keep adding up to the limit the person is building toward instead of resetting from today's.
+    val pending = settings.pendingLimit?.takeIf { it.from.isAfter(today) }
+    val shown = pending?.cap ?: activeLimit
     val spoken = stringResource(R.string.sn_dial_cd, shown)
     NeonCard(glow = true, contentPadding = PaddingValues(start = 6.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(172.dp).height(124.dp).semantics(mergeDescendants = true) { contentDescription = spoken }) {
                 Box(Modifier.align(Alignment.Center)) {
-                    LimitDial(limit = settings.dailyLimit, unit = stringResource(R.string.sn_reels_per_day), min = StrictLockConfig.MIN_CAP, max = StrictLockConfig.MAX_CAP)
+                    // The dial's number is always today's real active limit, never a still-pending one — a future
+                    // raise shows only as the small "Kal se N" line below, so the big number never claims to be
+                    // active before its day arrives.
+                    LimitDial(limit = activeLimit, unit = stringResource(R.string.sn_reels_per_day), min = StrictLockConfig.MIN_CAP, max = StrictLockConfig.MAX_CAP)
                 }
                 Box(Modifier.align(Alignment.CenterStart)) {
                     RoundStep(
@@ -501,7 +515,7 @@ private fun LimitCard(settings: BlockingSettings, enabled: Boolean, onChange: (S
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 NText(stringResource(R.string.settings_limit_title), 16.sp, weight = FontWeight.ExtraBold, maxLines = 1)
                 NText(stringResource(R.string.settings_limit_sub), 12.5.sp, color = Neon.Muted, lineHeight = 17.sp)
-                settings.pendingLimit?.let {
+                pending?.let {
                     NText(stringResource(R.string.settings_limit_pending, it.cap), 12.5.sp, color = Neon.Orange, weight = FontWeight.ExtraBold, lineHeight = 17.sp)
                 }
                 Row(

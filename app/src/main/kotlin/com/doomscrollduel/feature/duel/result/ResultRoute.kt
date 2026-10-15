@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.doomscrollduel.core.common.shareText
 import com.doomscrollduel.data.social.DuelTracker
+import com.doomscrollduel.domain.coins.WalletRepository
 import com.doomscrollduel.domain.repository.AuthRepository
 import com.doomscrollduel.domain.social.DuelRepository
 import com.doomscrollduel.domain.social.DuelStatus
@@ -22,6 +23,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -36,9 +38,11 @@ class ResultViewModel @Inject constructor(
     handle: SavedStateHandle,
     duels: DuelRepository,
     private val tracker: DuelTracker,
+    private val wallet: WalletRepository,
     auth: AuthRepository,
 ) : ViewModel() {
     private val duelId: String = handle.get<String>(LiveDuelViewModel.ARG).orEmpty()
+    private var settleTried = false
 
     private val clock = flow {
         while (true) {
@@ -60,13 +64,26 @@ class ResultViewModel @Inject constructor(
                 val mine = if (duel.status == DuelStatus.ACTIVE) tracker.myCount(duelId) else flowOf(emptyMap())
                 combine(duels.counts(duelId), mine, clock) { counts, local, now ->
                     val live = LiveDuelViewModel.build(duel, me, counts, local.values.sum(), now)
+                    // Belt and braces: DuelTracker already tries this as soon as the duel is seen finished, from
+                    // wherever the app happens to be; this catches the case where this screen gets there first
+                    // (a fresh app open landing straight on a just-finished result). Safe to call every tick: see
+                    // WalletRepository.
+                    if (duel.status == DuelStatus.FINISHED && duel.stakeCoins > 0 && !settleTried) {
+                        val creatorReels = counts[duel.challengerUid]
+                        val opponentReels = counts[duel.opponentUid]
+                        if (creatorReels != null && opponentReels != null) {
+                            settleTried = true
+                            viewModelScope.launch { wallet.settle(duelId, duel.challengerUid, duel.opponentUid, creatorReels, opponentReels, duel.stakeCoins) }
+                        }
+                    }
                     ResultUiState(
                         me = ResultFighter("", live.me.reels),
                         opponent = ResultFighter(live.opponent.name, live.opponent.reels),
                         reelLimit = live.reelLimit,
                         stakeCoins = live.stakeCoins,
-                        // Wallets are written by the server only, so no coins move yet; the screen says so.
-                        coinsSettled = false,
+                        // Coins move for real now (wallets/{uid}/ops, see firestore.rules): either player's phone
+                        // settles a finished duel, idempotently, the moment it sees the final counts.
+                        coinsSettled = duel.status == DuelStatus.FINISHED,
                         inProgress = live.phase == LivePhase.ACTIVE || live.phase == LivePhase.WAITING,
                     )
                 }

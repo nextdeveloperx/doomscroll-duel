@@ -57,6 +57,12 @@ class ReelEventProcessor(
     /** True for apps that are recognised by distance, which need [flush] called shortly after the last scroll. */
     fun decidesByDistance(app: TrackedApp): Boolean = rules().isPagerByDistance(app)
 
+    /** Diagnostic only (debug builds): whether a scroll has armed this app's swipe, waiting for the content change
+     * that would complete it. Lets a tester tell "no scroll was ever recognised" apart from "a scroll was seen but
+     * no content change followed it". */
+    @Synchronized
+    fun swipeArmed(app: TrackedApp): Boolean = states[app.ordinal].swipeArmed
+
     /** Returns true when this signal completed a swipe, i.e. one more reel was watched. */
     @Synchronized
     fun process(signal: ReelSignal): Boolean {

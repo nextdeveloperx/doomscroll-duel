@@ -6,12 +6,24 @@ import android.content.ComponentName
 import android.net.Uri
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
 import android.provider.Settings
 import com.doomscrollduel.tracking.health.OemFamily
 
-/** Opens the system Accessibility page, where the user turns the reel counter on. */
-fun Context.openAccessibilitySettings() =
-    startSafely(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+/**
+ * Opens the system Accessibility page, where the user turns the reel counter on. Asks the Settings app (via the
+ * fragment-args extras most Android builds honour, AOSP included) to land straight on our service's own row instead
+ * of the general list, so turning it on is one tap once Settings opens. Ignored harmlessly where a maker's Settings
+ * does not support it: the general list still opens.
+ */
+fun Context.openAccessibilitySettings() {
+    val service = ComponentName(packageName, "com.doomscrollduel.tracking.service.ReelAccessibilityService").flattenToString()
+    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+        putExtra(":settings:fragment_args_key", service)
+        putExtra(":settings:show_fragment_args", Bundle().apply { putString(":settings:fragment_args_key", service) })
+    }
+    startSafely(intent)
+}
 
 /** Opens the system battery-optimization list. Falls back to general settings on OEMs without it. */
 fun Context.openBatterySettings() =
@@ -38,6 +50,9 @@ fun Context.openOemAutostartSettings(oem: OemFamily): Boolean {
         )
         OemFamily.SAMSUNG -> listOf(
             "com.samsung.android.lool" to "com.samsung.android.sm.battery.ui.BatteryActivity",
+        )
+        OemFamily.MOTOROLA -> listOf(
+            "com.motorola.batterycare" to "com.motorola.batterycare.smartbackground.activity.BackgroundSettingActivityAlias",
         )
         OemFamily.OTHER -> emptyList()
     }

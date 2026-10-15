@@ -29,6 +29,27 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)/friends/$(uid));
     }
 
+    // Wallet helpers, used by both the wallet rules and the leaderboard fields on `directory`.
+
+    function duelCount(duelId, uid) {
+      let p = /databases/$(database)/documents/duels/$(duelId)/counts/$(uid);
+      return exists(p) ? get(p).data.total : 0;
+    }
+
+    // The lower reel count wins (see DuelSettlement.settle). Forfeits are not recognised here: the tracking gaps
+    // that decide a forfeit are never written to Firestore, so a forfeited duel settles as a tie under these rules
+    // (both stakes refunded) until a Cloud Function can see the real gaps and pay the forfeit winner instead.
+    function duelWinner(duelId) {
+      let d = duel_(duelId);
+      let a = duelCount(duelId, d.players[0]);
+      let b = duelCount(duelId, d.players[1]);
+      return a < b ? d.players[0] : (b < a ? d.players[1] : null);
+    }
+
+    function duel_(duelId) {
+      return get(/databases/$(database)/documents/duels/$(duelId)).data;
+    }
+
     // Username -> uid lookup, so friends can be added by username.
     // `get` only: usernames cannot be listed or enumerated.
     //
@@ -153,11 +174,27 @@ service cloud.firestore {
         && request.resource.data.displayName.size() >= 1
         && request.resource.data.displayName.size() <= 30
         && request.resource.data.createdAt == request.time;
-      allow update: if isSelf(uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
-        && request.resource.data.displayName is string
-        && request.resource.data.displayName.size() >= 1
-        && request.resource.data.displayName.size() <= 30;
+      allow update: if isSelf(uid) && (
+          // display name
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
+            && request.resource.data.displayName is string
+            && request.resource.data.displayName.size() >= 1
+            && request.resource.data.displayName.size() <= 30)
+          // Leaderboard score for the two boards (Dost = friends, weekly; India = everyone, monthly). The person's own
+          // phone reports it (same trust level as duel reel counts: a modified app could lie about its own score here
+          // too, see /duels/{id}/counts). The value must come from that person's own wallet, so it cannot be invented,
+          // and a period key change is the only way the number may go DOWN (a fresh period starting at zero).
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['weeklyCoins', 'weeklyPeriodKey'])
+            && request.resource.data.weeklyPeriodKey is string
+            && request.resource.data.weeklyCoins is int && request.resource.data.weeklyCoins >= 0
+            && (request.resource.data.weeklyPeriodKey != resource.data.get('weeklyPeriodKey', '')
+                || request.resource.data.weeklyCoins >= resource.data.get('weeklyCoins', 0)))
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['monthlyCoins', 'monthlyPeriodKey'])
+            && request.resource.data.monthlyPeriodKey is string
+            && request.resource.data.monthlyCoins is int && request.resource.data.monthlyCoins >= 0
+            && (request.resource.data.monthlyPeriodKey != resource.data.get('monthlyPeriodKey', '')
+                || request.resource.data.monthlyCoins >= resource.data.get('monthlyCoins', 0)))
+        );
       allow delete: if false;
     }
 
@@ -383,11 +420,70 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Coin wallet: readable by its owner, written only by functions (check-in, settlement). Coins are virtual,
-    // there is no function that sells them and no field that can hold money.
+    // Coin wallet. Coins are virtual (HARD RULE: never money, never sold, never cashed out) and no field here can hold
+    // money. The balance is never a mutable counter a client could nudge by any amount: it is the SUM of these immutable,
+    // uniquely-id'd ops (append-only ledger, same idea as the pure CoinLedger/appliedOps in domain/challenge). The app
+    // reads `wallets/{uid}/ops` and adds them up to show a balance. While Cloud Functions are not deployed, duel stakes
+    // are escrowed and paid out by the two players' own phones creating these ops under the rules below (mirrors
+    // DuelSettlement.holdOps/payoutOps and CoinOp exactly) — same trust tier already accepted for duel reel counts: a
+    // modified app could misreport its own count, but it cannot invent coins (every op is checked against the real duel
+    // and the real counts, and every id can be created once only, so retries or both phones racing cannot pay twice).
+    // Forfeits are not recognised here (see duelWinner): a forfeited duel settles as a tie (both stakes refunded).
+    // Check-in, streaks and shop purchases stay app-local (CoinWallet) until a Cloud Function can write them for real.
     match /wallets/{uid} {
       allow read: if isSelf(uid);
       allow write: if false;
+
+      match /ops/{opId} {
+        allow read: if isSelf(uid);
+        allow update, delete: if false;
+
+        function op() { return request.resource.data; }
+        function amount(d) { return d.stakeCoins; }
+
+        // HOLD: I escrow my own stake when a duel I'm in becomes active. Exactly the duel's stakeCoins, exactly once.
+        function isHold() {
+          let d = duel_(op().duelId);
+          return isSelf(uid) && uid in d.players && d.status == 'active'
+            && opId == op().duelId + ':hold:' + uid
+            && op().kind == 'hold' && op().amount == amount(d);
+        }
+
+        // RELEASE: my own held stake comes back to me — either the duel tied (nobody owes anybody) or I won it and
+        // this reclaims my own stake (the loser's stake reaches me through the transfer ops below, not this one).
+        function isRelease() {
+          let d = duel_(op().duelId);
+          let winner = duelWinner(op().duelId);
+          return isSelf(uid) && uid in d.players && d.status == 'finished'
+            && opId == op().duelId + ':settle:release:' + uid
+            && op().kind == 'release' && op().amount == amount(d)
+            && (winner == null || winner == uid);
+        }
+
+        // TRANSFER DEBIT: the loser's held stake leaves their wallet. Written by the OTHER player (the winner), since
+        // a wallet only ever receives writes from its own owner or, here, from the one person allowed to prove they
+        // beat this uid in a finished duel. The winner's own matching credit is a separate op on their own wallet.
+        function isTransferDebit() {
+          let d = duel_(op().duelId);
+          return signedIn() && uid in d.players && request.auth.uid in d.players && request.auth.uid != uid
+            && d.status == 'finished' && duelWinner(op().duelId) == request.auth.uid
+            && opId == op().duelId + ':settle:transfer'
+            && op().kind == 'transfer_debit' && op().amount == amount(d);
+        }
+
+        // TRANSFER CREDIT: my own wallet receives the stake I won. Same id as the debit (one logical transfer,
+        // materialised as a matching pair of docs, one per wallet), so the two can be reconciled if ever audited.
+        function isTransferCredit() {
+          let d = duel_(op().duelId);
+          return isSelf(uid) && uid in d.players && d.status == 'finished' && duelWinner(op().duelId) == uid
+            && opId == op().duelId + ':settle:transfer'
+            && op().kind == 'transfer_credit' && op().amount == amount(d);
+        }
+
+        allow create: if op().keys().hasOnly(['kind', 'amount', 'duelId', 'at'])
+          && op().duelId is string && op().amount is int && op().amount > 0 && op().at == request.time
+          && (isHold() || isRelease() || isTransferDebit() || isTransferCredit());
+      }
     }
 
     // purchaseTokens/{hash} holds Play purchase tokens for the server's own use: no client access at all

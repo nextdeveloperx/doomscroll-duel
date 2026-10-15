@@ -166,6 +166,7 @@ private fun OemFamily.nameRes(): Int = when (this) {
     OemFamily.REALME_OPPO -> R.string.oem_realme_oppo
     OemFamily.VIVO -> R.string.oem_vivo
     OemFamily.SAMSUNG -> R.string.oem_samsung
+    OemFamily.MOTOROLA -> R.string.oem_motorola
     OemFamily.OTHER -> R.string.oem_other
 }
 
@@ -181,6 +182,7 @@ private fun BatteryStep.textRes(): Int = when (this) {
     BatteryStep.SAMSUNG_UNRESTRICTED -> R.string.step_samsung_unrestricted
     BatteryStep.SAMSUNG_SLEEPING_APPS -> R.string.step_samsung_sleeping_apps
     BatteryStep.SAMSUNG_UNUSED_APPS -> R.string.step_samsung_unused_apps
+    BatteryStep.MOTOROLA_BACKGROUND_USE -> R.string.step_motorola_background_use
     BatteryStep.LOCK_IN_RECENTS -> R.string.step_lock_in_recents
 }
 
