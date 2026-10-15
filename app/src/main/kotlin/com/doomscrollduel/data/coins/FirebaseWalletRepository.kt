@@ -11,6 +11,7 @@ import com.doomscrollduel.domain.challenge.duel.DuelDuration
 import com.doomscrollduel.domain.challenge.duel.DuelSettlement
 import com.doomscrollduel.domain.challenge.duel.DuelState
 import com.doomscrollduel.domain.challenge.duel.PlayerScore
+import com.doomscrollduel.domain.coins.MilestoneCreditResult
 import com.doomscrollduel.domain.coins.WalletRepository
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -68,6 +69,28 @@ class FirebaseWalletRepository @Inject constructor() : WalletRepository {
             // Expected most of the time: this op is not mine to write, or it was already applied by the other
             // player's phone (or an earlier try of my own). Anything else is worth a log line.
             if (e.code != FirebaseFirestoreException.Code.PERMISSION_DENIED) Log.w(TAG, "wallet op $opId failed: ${e.code}")
+        }
+    }
+
+    override suspend fun creditReelMilestone(me: String, milestoneIndex: Int): MilestoneCreditResult {
+        require(milestoneIndex > 0) { "milestoneIndex must be positive, was $milestoneIndex" }
+        val opId = "reel_milestone:$milestoneIndex"
+        return try {
+            db.collection("wallets").document(me).collection("ops").document(opId).set(
+                mapOf("kind" to "reel_milestone", "amount" to 1, "milestone" to milestoneIndex, "at" to FieldValue.serverTimestamp()),
+            ).await()
+            MilestoneCreditResult.CREDITED
+        } catch (e: FirebaseFirestoreException) {
+            // A create-only op under rules that forbid update: PERMISSION_DENIED on a retry overwhelmingly means
+            // this exact milestone already exists (the common "already applied" case writeOp's comment describes
+            // above). Anything else (offline, a transient server error, ...) is a real failure to retry later —
+            // never silently treated as success, per the "no false success state" requirement.
+            if (e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                MilestoneCreditResult.ALREADY_CREDITED
+            } else {
+                Log.w(TAG, "reel milestone op $opId failed: ${e.code}")
+                MilestoneCreditResult.FAILED
+            }
         }
     }
 

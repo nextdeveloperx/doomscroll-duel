@@ -287,6 +287,42 @@ await check("monthly coins work the same way, independently of weekly", () =>
 await check("the directory leaderboard can be queried sorted by score", () =>
   assertSucceeds(getDocs(query(collection(bob, "directory"), orderBy("monthlyCoins", "desc"), limit(50)))));
 
+// --- reel milestone rewards (1 coin per 10 valid reels, separate op kind, separate id namespace from duel ops)
+await check("alice credits her own milestone 1", () =>
+  assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:1"), { kind: "reel_milestone", amount: 1, milestone: 1, at: serverTimestamp() })));
+await check("the same milestone cannot be credited twice", () =>
+  assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:1"), { kind: "reel_milestone", amount: 1, milestone: 1, at: serverTimestamp() })));
+await check("alice cannot credit bob a milestone", () =>
+  assertFails(setDoc(doc(alice, "wallets", "bob", "ops", "reel_milestone:1"), { kind: "reel_milestone", amount: 1, milestone: 1, at: serverTimestamp() })));
+await check("a milestone cannot pay more than 1 coin", () =>
+  assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:2"), { kind: "reel_milestone", amount: 2, milestone: 2, at: serverTimestamp() })));
+await check("a milestone cannot be skipped: 3 is refused while 2 has never been credited", () =>
+  assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:3"), { kind: "reel_milestone", amount: 1, milestone: 3, at: serverTimestamp() })));
+await check("the opId must match the milestone field", () =>
+  assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:2"), { kind: "reel_milestone", amount: 1, milestone: 5, at: serverTimestamp() })));
+await check("milestone 2 succeeds once 1 already exists", () =>
+  assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:2"), { kind: "reel_milestone", amount: 1, milestone: 2, at: serverTimestamp() })));
+await check("milestone ops cannot be edited or deleted", async () => {
+  await assertFails(updateDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:2"), { amount: 99 }));
+  await assertFails(deleteDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:2")));
+});
+await check("a milestone op cannot carry a duelId (keeps the two op shapes separate)", () =>
+  assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:3"), { kind: "reel_milestone", amount: 1, milestone: 3, duelId: "x", at: serverTimestamp() })));
+await check("a duel op cannot carry a milestone field either", () =>
+  assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "sneaky:hold:alice"), { kind: "hold", amount: 50, duelId: holdDuelId, milestone: 1, at: serverTimestamp() })));
+await check("nobody else reads alice's milestone ops", () => assertFails(getDocs(collection(bob, "wallets", "alice", "ops"))));
+
+// --- reel milestones contribute to the leaderboard the same way duel winnings do (wonOps now includes both kinds)
+await check("a reel-milestone credit is visible alongside duel winnings in alice's own ops", async () => {
+  const ops = await getDocs(query(collection(alice, "wallets", "alice", "ops"), where("kind", "in", ["transfer_credit", "reel_milestone"])));
+  const kinds = ops.docs.map((d) => d.data().kind).sort();
+  assertEquals(kinds, ["reel_milestone", "reel_milestone", "transfer_credit"]);
+});
+
+function assertEquals(actual, expected) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error(`expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 await env.cleanup();
 process.exit(fail ? 1 : 0);

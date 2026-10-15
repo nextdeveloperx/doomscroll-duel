@@ -356,3 +356,49 @@ claims needed correction once actually run on a phone, see below.
   together, unchanged. Compile, 480 unit tests, and `assembleDebug` all pass; only `FloatingCounter.kt`'s layout
   (new optional Spacer, extracted padding/icon-size constants) and `ReelCounterBadge.kt`'s horizontal-anchor math
   changed — detection, counting, coin and leaderboard logic untouched.
+
+## Reel milestone rewards: 1 coin per 10 valid reels, lifetime, no daily cap (Oct 2026) - built, rules DEPLOYED
+- New never-pruned counter: `reel_lifetime` table (`ReelLifetimeEntity`/`ReelLifetimeDao`, AppDatabase v2->v3,
+  `MIGRATION_2_3` seeds it from `SUM(reel_counts.count)` so an existing user's next reward lands on their true next
+  multiple of ten rather than restarting at zero). Deliberately separate from `reel_counts`/`ReelTotalsDao`, which
+  `pruneOld()` trims after `RoomReelRepository.RETENTION_DAYS` (400 days) — milestone progress must never regress
+  just because old daily history aged out. Incremented in `RoomReelRepository.recordReel()`, the same single
+  call site every already-validated reel passes through (`ReelEventPipeline` -> `record` callback) — reel
+  detection, the daily limit, and the floating counter are completely untouched.
+- Pure arithmetic in `domain/coins/ReelMilestoneRules.kt` (`milestoneFor`, `remainderFor`, `newlyEligible`) and the
+  actual credit-and-notify loop in `domain/coins/ReelMilestoneCreditor.kt` (no Android/Hilt dependency at all, so
+  it's directly unit-tested with fakes) — `data/coins/ReelMilestoneRewarder.kt` is the thin `@Inject` Hilt
+  singleton wrapper (started from `DuelApp.onCreate`, same pattern as `DuelTracker`) that feeds it the live
+  `ReelRepository.observeLifetimeTotal()` and turns a credited milestone into a system Toast (reaches the person
+  inside Instagram/YouTube/etc., where this fires most of the time; never a dialog, never interrupts reel viewing).
+  A 20s retry tick catches up anything that failed while offline.
+- Wallet: new `WalletRepository.creditReelMilestone()` / `wallets/{uid}/ops/reel_milestone:{N}` op kind, completely
+  separate id namespace and op shape from duel ops (own `kind`, own `milestone` field, no `duelId`) so it can never
+  collide with or alter a duel's escrow/settlement. Idempotency is NOT a local check: it is Firestore's own
+  create-only semantics on a deterministic id, mirrored for the caller as `MilestoneCreditResult`
+  (CREDITED/ALREADY_CREDITED/FAILED) so a genuine failure (offline) never advances local progress or shows a
+  success Toast, while an "already exists" (PERMISSION_DENIED on retry, same signal `writeOp` already relied on
+  for duel ops) safely stops a retry loop without one. `MilestoneProgressStore` (SharedPreferences-backed) is only
+  a local optimisation to avoid re-attempting the whole history every tick — losing it is harmless, just slower.
+- Firestore rules (`isReelMilestone`): enforces self-only, exactly 1 coin, create-once-per-id, AND ascending order
+  (milestone N requires milestone N-1's doc to already exist) — the strongest thing enforceable without a Cloud
+  Function. Explicitly documented limitation, not glossed over: with no server-side reel-count ledger (reel counts
+  are only ever uploaded during an active duel), the rules cannot verify a claimed milestone was genuinely earned —
+  a modified client could in principle script many individually-valid sequential claims. Reel-milestone coins are
+  therefore a strictly WEAKER trust tier than duel coins, which are cross-checked against both players' counts.
+  83 -> 95 rules-emulator checks pass (12 new), deployed live to brainpal-b3119.
+- Leaderboard: `FirebaseLeaderboardRepository.wonOps()` now sums `transfer_credit` OR `reel_milestone` ops (was
+  `transfer_credit` only) for both the weekly (Dost) and monthly (India) periods — same existing period-key/reset
+  logic, untouched; held/released/debited stakes remain excluded. A 2-line query change (`whereEqualTo` ->
+  `whereIn`), not unit-tested directly (this repository talks to live Firestore, same as before this feature) but
+  covered by a new rules-test check that a milestone op is visible alongside a transfer_credit op under that query.
+- Tests: `ReelMilestoneRulesTest` (the full spec table: 9->0, 10->1, 19->1, 20->2, 27->2 rem 7, 30->3, 100->10,
+  1000->100) + `ReelMilestoneCreditorTest` (16 cases: idempotent reprocessing, restart-with-lost-local-progress,
+  multi-milestone catch-up from a jump, a failure stopping the batch with no false success and no progress loss, a
+  later retry resuming exactly where it stopped, a stale/older total never reversing progress, two uids never
+  sharing progress, a simulated two-device race never double-paying, leaderboard refreshed only on a real credit,
+  no feedback on a no-op run) + 3 new `RoomReelRepositoryTest` cases (lifetime total survives a new day and
+  `pruneOld()`, defaults to 0 with no lifetime dao configured). 480 -> 508 unit tests pass; `assembleDebug` passes.
+- NOT verified on a real device this round (no phone reconnected): the reward has not been watched fire live while
+  actually scrolling reels, and the Toast has not been seen on screen. Everything above is build+test+rules-emulator
+  verified only.

@@ -5,6 +5,7 @@ import com.doomscrollduel.core.common.DayKeys
 import com.doomscrollduel.data.local.ReelCountDao
 import com.doomscrollduel.data.local.ReelCountEntity
 import com.doomscrollduel.data.local.ReelHourDao
+import com.doomscrollduel.data.local.ReelLifetimeDao
 import com.doomscrollduel.domain.model.DailyReelStats
 import com.doomscrollduel.domain.repository.ReelRepository
 import com.doomscrollduel.domain.usecase.StreakCalculator
@@ -30,12 +31,15 @@ class RoomReelRepository(
     private val hourDao: ReelHourDao? = null,
     /** Per-app totals over all days, for duels. Optional so older callers and tests need not provide it. */
     private val totalsDao: com.doomscrollduel.data.local.ReelTotalsDao? = null,
+    /** Never-pruned lifetime total, for reel-milestone coin rewards. Optional so older callers and tests need not provide it. */
+    private val lifetimeDao: ReelLifetimeDao? = null,
 ) : ReelRepository {
 
     override suspend fun recordReel(app: TrackedApp, atMillis: Long) {
         val date = DayKeys.key(DayKeys.dateOf(atMillis, zone()))
         dao.increment(date, app.packageName, atMillis)
         hourDao?.increment(date, Instant.ofEpochMilli(atMillis).atZone(zone()).hour)
+        lifetimeDao?.increment()
     }
 
     override suspend fun ensureToday() {
@@ -66,6 +70,11 @@ class RoomReelRepository(
             rows.forEach { row -> TrackedApp.fromPackage(row.packageName)?.let { totals[it] = row.total } }
             totals
         }
+    }
+
+    override fun observeLifetimeTotal(): Flow<Int> {
+        val source = lifetimeDao ?: return flowOf(0)
+        return source.observeTotal().map { it ?: 0 }
     }
 
     override suspend fun todayTotal(): Int =

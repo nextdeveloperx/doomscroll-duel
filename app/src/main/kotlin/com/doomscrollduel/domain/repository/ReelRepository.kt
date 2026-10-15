@@ -17,6 +17,14 @@ interface ReelRepository {
     /** Reels counted so far in each app over every day kept on the phone. A duel's count is this minus what it was at the start. */
     fun observeAllTimeByApp(): Flow<Map<TrackedApp, Int>> = kotlinx.coroutines.flow.flowOf(emptyMap())
 
+    /**
+     * Every valid reel ever counted, across every app and day, NEVER pruned (unlike [observeAllTimeByApp], which is
+     * bounded by how many days of history are kept on the phone). This is the number reel-milestone coin rewards
+     * are counted from — see [com.doomscrollduel.domain.coins.ReelMilestoneRules] — so it must never go down and
+     * must never lose history to retention cleanup.
+     */
+    fun observeLifetimeTotal(): Flow<Int> = kotlinx.coroutines.flow.flowOf(0)
+
     /** Today's total right now, for the timer-lock to compare with the limit. */
     suspend fun todayTotal(): Int
 

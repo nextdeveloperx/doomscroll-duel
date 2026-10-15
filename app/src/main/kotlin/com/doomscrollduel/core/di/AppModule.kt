@@ -10,6 +10,7 @@ import com.doomscrollduel.core.common.DayClock
 import com.doomscrollduel.data.local.AppDatabase
 import com.doomscrollduel.data.local.ReelCountDao
 import com.doomscrollduel.data.local.ReelHourDao
+import com.doomscrollduel.data.local.ReelLifetimeDao
 import com.doomscrollduel.account.AccountDeletionRepository
 import com.doomscrollduel.analytics.FirebaseAnalyticsSink
 import com.doomscrollduel.data.prefs.DataStoreUsageDataChoice
@@ -73,7 +74,7 @@ object AppModule {
     @Singleton
     fun database(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             .build()
 
     @Provides
@@ -84,6 +85,9 @@ object AppModule {
 
     @Provides
     fun reelTotalsDao(db: AppDatabase): com.doomscrollduel.data.local.ReelTotalsDao = db.reelTotalsDao()
+
+    @Provides
+    fun reelLifetimeDao(db: AppDatabase): ReelLifetimeDao = db.reelLifetimeDao()
 
     /** Fires when the user changes the clock or time zone, or the date rolls over. */
     @Provides
@@ -112,12 +116,19 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun reelRepository(dao: ReelCountDao, hourDao: ReelHourDao, totalsDao: com.doomscrollduel.data.local.ReelTotalsDao, dayClock: DayClock): ReelRepository =
+    fun reelRepository(
+        dao: ReelCountDao,
+        hourDao: ReelHourDao,
+        totalsDao: com.doomscrollduel.data.local.ReelTotalsDao,
+        lifetimeDao: ReelLifetimeDao,
+        dayClock: DayClock,
+    ): ReelRepository =
         RoomReelRepository(
             dao = dao,
             dayClock = dayClock,
             hourDao = hourDao,
             totalsDao = totalsDao,
+            lifetimeDao = lifetimeDao,
             zone = { ZoneId.systemDefault() },
             nowMillis = System::currentTimeMillis,
         )
@@ -216,6 +227,9 @@ abstract class BindingsModule {
 
     @Binds
     abstract fun walletRepository(impl: com.doomscrollduel.data.coins.FirebaseWalletRepository): com.doomscrollduel.domain.coins.WalletRepository
+
+    @Binds
+    abstract fun milestoneProgressStore(impl: com.doomscrollduel.data.coins.SharedPrefsMilestoneProgressStore): com.doomscrollduel.domain.coins.MilestoneProgressStore
 
     @Binds
     abstract fun leaderboardRepository(impl: com.doomscrollduel.data.social.FirebaseLeaderboardRepository): com.doomscrollduel.domain.social.LeaderboardRepository

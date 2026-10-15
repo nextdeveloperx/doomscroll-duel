@@ -5,6 +5,8 @@ import com.doomscrollduel.core.common.DayKeys
 import com.doomscrollduel.data.local.DayTotal
 import com.doomscrollduel.data.local.ReelCountDao
 import com.doomscrollduel.data.local.ReelCountEntity
+import com.doomscrollduel.data.local.ReelLifetimeDao
+import com.doomscrollduel.data.local.ReelLifetimeEntity
 import com.doomscrollduel.tracking.model.TrackedApp
 import java.time.LocalDate
 import java.time.ZoneId
@@ -62,6 +64,25 @@ private class FakeDao : ReelCountDao() {
     }
 }
 
+/** In-memory stand-in for the lifetime-total DAO. Inherits the real [increment] transaction logic. */
+private class FakeLifetimeDao : ReelLifetimeDao() {
+    val state = MutableStateFlow<ReelLifetimeEntity?>(null)
+
+    override fun observeTotal(): Flow<Int?> = state.map { it?.totalReels }
+
+    override suspend fun bump(): Int {
+        val current = state.value ?: return 0
+        state.value = current.copy(totalReels = current.totalReels + 1)
+        return 1
+    }
+
+    override suspend fun insertIfAbsent(entity: ReelLifetimeEntity): Long {
+        if (state.value != null) return -1L
+        state.value = entity
+        return 1L
+    }
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class RoomReelRepositoryTest {
     private val ist = ZoneId.of("Asia/Kolkata")
@@ -71,6 +92,11 @@ class RoomReelRepositoryTest {
     private fun repo(dao: FakeDao, now: () -> Long): RoomReelRepository {
         val clock = DayClock(nowMillis = now, zone = { ist })
         return RoomReelRepository(dao, clock, zone = { ist }, nowMillis = now)
+    }
+
+    private fun repoWithLifetime(dao: FakeDao, lifetimeDao: FakeLifetimeDao, now: () -> Long): RoomReelRepository {
+        val clock = DayClock(nowMillis = now, zone = { ist })
+        return RoomReelRepository(dao, clock, zone = { ist }, nowMillis = now, lifetimeDao = lifetimeDao)
     }
 
     @Test
@@ -167,6 +193,39 @@ class RoomReelRepositoryTest {
         val row = dao.rows.value.getValue("2026-10-01" to "p")
         assertEquals(2, row.count)
         assertEquals(20L, row.updatedAtMillis)
+    }
+
+    @Test
+    fun `the lifetime total grows with every recorded reel, never resetting per day`() = runTest {
+        val dao = FakeDao()
+        val lifetimeDao = FakeLifetimeDao()
+        val day1 = millis(2026, 10, 1, 12)
+        val day2 = millis(2026, 10, 2, 12)
+        val repository = repoWithLifetime(dao, lifetimeDao) { day1 }
+        repeat(7) { repository.recordReel(TrackedApp.INSTAGRAM, day1) }
+        assertEquals(7, repository.observeLifetimeTotal().first())
+
+        // A new day resets observeToday() to zero, but the lifetime total keeps growing from where it was.
+        repeat(5) { repository.recordReel(TrackedApp.YOUTUBE, day2) }
+        assertEquals(12, repository.observeLifetimeTotal().first())
+    }
+
+    @Test
+    fun `observeLifetimeTotal is zero with no lifetime dao configured`() = runTest {
+        val dao = FakeDao()
+        val repository = repo(dao) { millis(2026, 10, 1, 12) }
+        assertEquals(0, repository.observeLifetimeTotal().first())
+    }
+
+    @Test
+    fun `pruning old daily rows does not touch the lifetime total`() = runTest {
+        val dao = FakeDao()
+        val lifetimeDao = FakeLifetimeDao()
+        val now = millis(2026, 10, 1, 10)
+        val repository = repoWithLifetime(dao, lifetimeDao) { now }
+        repeat(4) { repository.recordReel(TrackedApp.INSTAGRAM, now) }
+        repository.pruneOld()
+        assertEquals(4, repository.observeLifetimeTotal().first()) // unaffected by day-row retention
     }
 
     @Test

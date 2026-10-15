@@ -121,11 +121,17 @@ class FirebaseLeaderboardRepository @Inject constructor(
         }
     }
 
-    /** Every coin-win (transfer_credit op) I've ever had, each with when it happened. A wallet's op history is
-     * bounded by how many duels it has played, so fetching all of them and filtering by date in Kotlin (rather
-     * than a composite Firestore index on kind + at) is the simpler, cheap-enough choice here. */
+    /** Every coin "earned" op I've ever had — duel winnings (`transfer_credit`) and reel-milestone rewards
+     * (`reel_milestone`, +1 coin per 10 valid reels) — each with when it happened. Deliberately excludes `hold`,
+     * `release` and `transfer_debit`: a held or returned stake was never won, so it must never inflate the score.
+     * A wallet's op history is bounded by how many duels played and milestones reached, so fetching all of them
+     * and filtering/summing by date in Kotlin (rather than a composite Firestore index on kind + at) is the
+     * simpler, cheap-enough choice here — and since this recomputes the sum fresh from the ledger every call
+     * rather than accumulating, there is no risk of double-counting an op that shows up in both the ledger and a
+     * previous score. */
     private suspend fun wonOps(me: String): List<Pair<Int, java.time.Instant>> {
-        val ops = db.collection("wallets").document(me).collection("ops").whereEqualTo("kind", "transfer_credit").get().await()
+        val ops = db.collection("wallets").document(me).collection("ops")
+            .whereIn("kind", listOf("transfer_credit", "reel_milestone")).get().await()
         return ops.documents.map { (it.getLong("amount") ?: 0L).toInt() to (it.getTimestamp("at")?.toInstant() ?: java.time.Instant.EPOCH) }
     }
 

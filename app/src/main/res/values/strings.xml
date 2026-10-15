@@ -723,6 +723,10 @@
     <string name="settings_counter_badge">Screen par counter</string>
     <string name="settings_counter_badge_sub">Instagram, YouTube jaise apps me upar chhota reel count dikhao.</string>
 
+    <!-- Reel milestone rewards: +1 coin per 10 valid reels, lifetime, no daily cap -->
+    <string name="reel_milestone_toast_single">+1 coin mila — %1$d reels poore!</string>
+    <string name="reel_milestone_toast_multi">+%1$d coins mile — %2$d reels poore!</string>
+
     <!-- Battle screen (neon design) -->
     <string name="tab_profile">Profile</string>
     <string name="bn_default_name">Tum</string>

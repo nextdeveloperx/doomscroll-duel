@@ -430,6 +430,9 @@ service cloud.firestore {
     // and the real counts, and every id can be created once only, so retries or both phones racing cannot pay twice).
     // Forfeits are not recognised here (see duelWinner): a forfeited duel settles as a tie (both stakes refunded).
     // Check-in, streaks and shop purchases stay app-local (CoinWallet) until a Cloud Function can write them for real.
+    // Reel-milestone ops (kind 'reel_milestone', +1 coin per 10 valid reels) live in this same ledger under their own
+    // id namespace — see the isReelMilestone() function below for exactly what is, and is not, enforced without a
+    // server-side reel-count ledger.
     match /wallets/{uid} {
       allow read: if isSelf(uid);
       allow write: if false;
@@ -480,9 +483,35 @@ service cloud.firestore {
             && op().kind == 'transfer_credit' && op().amount == amount(d);
         }
 
-        allow create: if op().keys().hasOnly(['kind', 'amount', 'duelId', 'at'])
-          && op().duelId is string && op().amount is int && op().amount > 0 && op().at == request.time
-          && (isHold() || isRelease() || isTransferDebit() || isTransferCredit());
+        // REEL MILESTONE: +1 coin for every 10 valid reels ever counted (see domain/coins/ReelMilestoneRules), self-
+        // reported like the rest of this ledger. A completely separate kind of op from duel ops: its own id
+        // namespace (reel_milestone:{N}, never a duel id), so it can never collide with or alter a duel's escrow
+        // or settlement. What these rules CAN enforce without a Cloud Function: each milestone can be created once
+        // only (so the same milestone is never paid twice), only by its own owner, always exactly 1 coin, and only
+        // in ascending order — milestone N requires milestone N-1 to already exist, so nobody can skip straight to
+        // an arbitrarily large number in one write. What they CANNOT enforce without a server-side reel-count
+        // ledger: that the milestone claimed was genuinely earned by real reel counts — a modified app could, in
+        // principle, script many individually-valid sequential claims it never actually reached. This is a real,
+        // accepted limitation of running without Cloud Functions (reel counts are not uploaded anywhere outside an
+        // active duel), not something this rule can close on its own; reel-milestone coins are therefore a
+        // strictly WEAKER trust tier than duel coins, which are cross-checked against both players' counts. A
+        // future Cloud Function with its own authoritative reel-count upload would be needed to close this gap.
+        function isReelMilestone() {
+          return isSelf(uid)
+            && op().kind == 'reel_milestone'
+            && op().amount == 1
+            && op().milestone is int && op().milestone > 0
+            && opId == 'reel_milestone:' + string(op().milestone)
+            && (op().milestone == 1
+                || exists(/databases/$(database)/documents/wallets/$(uid)/ops/$('reel_milestone:' + string(op().milestone - 1))));
+        }
+
+        allow create: if op().amount is int && op().amount > 0 && op().at == request.time && (
+            (op().keys().hasOnly(['kind', 'amount', 'duelId', 'at'])
+              && op().duelId is string
+              && (isHold() || isRelease() || isTransferDebit() || isTransferCredit()))
+            || (op().keys().hasOnly(['kind', 'amount', 'milestone', 'at']) && isReelMilestone())
+          );
       }
     }
 
