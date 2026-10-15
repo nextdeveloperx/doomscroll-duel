@@ -283,3 +283,26 @@ claims needed correction once actually run on a phone, see below.
   had unit coverage.
 - All 480 unit tests pass throughout; nothing here changed the detection privacy contract. Real-device testing happened on one
   phone/Android version only.
+
+## Floating counter repositioned twice: below the cutout, then Dynamic-Island-style hugging it (Oct 2026)
+- First pass: the pill sat right against the status bar/punch-hole (only an 8dp fixed `y`, and `Modifier.statusBarsPadding()`
+  on a window added straight via `WindowManager` does nothing — it isn't part of an Activity's decor view, so Compose never
+  gets a real inset there). Fixed in `ReelCounterBadge.kt` by computing the real status-bar+cutout inset in code
+  (`WindowManager.currentWindowMetrics.windowInsets`, API 30+; the `status_bar_height` resource below that) and using that as
+  the window's own `y`, once. Confirmed live on Instagram and YouTube Shorts on the Motorola.
+- Second pass (owner wanted an iPhone-Dynamic-Island look, not a badge floating well below the cutout): `FloatingCounter.kt`
+  slimmed to a 34dp pill (24dp icon, 16sp semibold count, 3dp shadow, `defaultMinSize` so "610"/"1,000" never clip).
+  `ReelCounterBadge.kt` now also centers the pill on the PHYSICAL cutout's own x-position, not just the screen's middle:
+  `cutoutCenterXPx()` reads `displayCutout.boundingRectTop` (API 30+ via `currentWindowMetrics`; the deprecated
+  `Display.getCutout()` on 28-29); the window is full-width with the pill placed via `Box(fillMaxWidth) { align(TopCenter)
+  .offset(x = ...) }`, so an off-center punch-hole still gets hugged and a cutout-less device falls back to true
+  screen-center. The clearance margin below the cutout dropped from 40dp to 6dp to close the gap the owner flagged.
+- NOT verified live this round: the Motorola was not reconnected, and setting up an emulator here hit a real environment
+  limit — the background-task runner's own low-memory guard killed both a system-image download (at 1GB RAM free) and the
+  emulator boot itself (at 4.6GB free afterward), so it is not simply a RAM-headroom problem this environment can work
+  around. An AVD (`reel_test`, Pixel 6 profile, API 35 google_apis x86_64) and its system image ARE installed at
+  `F:\AppData\Local\Android` for whoever opens it directly from Android Studio's own AVD Manager instead of through this
+  background-task path. Owner chose to skip live verification for now rather than keep burning time on it; compile,
+  480 unit tests and `assembleDebug` all still pass — this is a design/positioning change only, no detection or counting
+  logic touched, but the on-device look has only been reasoned through code + the first pass's real screenshots, not
+  re-confirmed after the second (slimmer, cutout-centered) pass.
