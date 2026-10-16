@@ -54,6 +54,10 @@ class ReelEventProcessor(
      */
     @Volatile var pageHintPx: Int = 0
 
+    fun countsOnPaneAppeared(app: TrackedApp): Boolean = rules().countsOnPaneAppeared(app)
+
+    fun paneChangeMask(app: TrackedApp): Int = rules().paneChangeMaskOf(app)
+
     /** True for apps that are recognised by distance, which need [flush] called shortly after the last scroll. */
     fun decidesByDistance(app: TrackedApp): Boolean = rules().isPagerByDistance(app)
 
@@ -81,10 +85,10 @@ class ReelEventProcessor(
                 }
             }
             is ReelSignal.ContentChanged -> {
-                if (!state.swipeArmed) return false
+                if (!state.swipeArmed) return paneAppeared(state, signal)
                 if (at - state.lastScrollAt > swipeWindowMillis) {
                     state.swipeArmed = false
-                    return false
+                    return paneAppeared(state, signal)
                 }
                 state.swipeArmed = false
                 // A swipe back to the previous reel is not a new reel.
@@ -95,6 +99,20 @@ class ReelEventProcessor(
                 true
             }
         }
+    }
+
+    /**
+     * Backup for apps whose scroll events are unreliable: a "new pane appeared" change while the reel screen is open is one swipe.
+     * It shares [minGapMillis] with the scroll path, so a swipe that was already counted by its scroll (or by the twin event that
+     * arrives a few milliseconds later) is not counted twice. A swipe back is skipped when its scroll said so.
+     */
+    private fun paneAppeared(state: AppState, signal: ReelSignal.ContentChanged): Boolean {
+        if (!signal.paneAppeared || !rules().countsOnPaneAppeared(signal.app)) return false
+        val at = signal.atMillis
+        if (at - state.lastScrollAt < swipeWindowMillis && state.backward) return false
+        if (at - state.lastCountedAt < minGapMillis) return false
+        state.lastCountedAt = at
+        return true
     }
 
     private fun surfaceScroll(state: AppState, signal: ReelSignal.Scroll) {

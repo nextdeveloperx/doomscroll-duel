@@ -1,7 +1,7 @@
 // Pure rules for usernames, invites and contact matching. No Firebase here, so they are unit-tested with plain node.
 // The username rules mirror the app's `Username.kt` and the invite alphabet mirrors `InviteCode.kt`: if one changes, change the other.
 
-import { createHash } from "node:crypto";
+import { createHash, randomInt } from "node:crypto";
 
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
@@ -33,7 +33,8 @@ export const INVITE_MAX_USES = 20;
 /** Do not push the same person about the same inviter more than once in this time. */
 export const RESEND_COOLDOWN_MS = 60 * 60 * 1000;
 
-export function makeInviteCode(random: () => number = Math.random): string {
+/** An invite code is a key to a friendship, so by default it comes from a cryptographic generator, not Math.random. */
+export function makeInviteCode(random: () => number = () => randomInt(INVITE_ALPHABET.length) / INVITE_ALPHABET.length): string {
   let code = "";
   for (let i = 0; i < INVITE_LENGTH; i++) code += INVITE_ALPHABET[Math.floor(random() * INVITE_ALPHABET.length) % INVITE_ALPHABET.length];
   return code;

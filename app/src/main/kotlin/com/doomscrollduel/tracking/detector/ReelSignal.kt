@@ -32,6 +32,8 @@ sealed interface ReelSignal {
     class ContentChanged(
         override val app: TrackedApp,
         override val atMillis: Long,
+        /** The change was "a new pane appeared" while the app's reel screen was open (only ever set for apps that opt in). */
+        val paneAppeared: Boolean = false,
     ) : ReelSignal {
         override fun toString() = "ContentChanged(app=$app, atMillis=$atMillis)"
     }

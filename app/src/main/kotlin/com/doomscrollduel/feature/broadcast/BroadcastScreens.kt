@@ -33,6 +33,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import com.doomscrollduel.data.broadcast.BubblePermission
+import com.doomscrollduel.data.broadcast.RoomScreenVisibility
 import com.doomscrollduel.domain.social.RoomInviteResult
 import com.doomscrollduel.domain.social.Person
 import com.doomscrollduel.domain.social.PeopleRepository
@@ -337,9 +339,43 @@ fun BroadcastRoomRoute(
     val notice by viewModel.notice.collectAsStateWithLifecycle()
     // Left the room (or was removed): back to the list.
     LaunchedEffect(state.status) { if (state.status == BroadcastStatus.IDLE) onClose() }
+    // While this page is in front the floating circle stays away; it appears when the page is closed or the app goes to the background.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> RoomScreenVisibility.set(true)
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> RoomScreenVisibility.set(false)
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            RoomScreenVisibility.set(false)
+        }
+    }
+    // Closing the page keeps the room running. The first time, the person is sent to the "display over other apps" switch for the circle.
+    val context = LocalContext.current
+    val closePage = {
+        if (state.status == BroadcastStatus.LIVE && BubblePermission.shouldAsk(context)) {
+            BubblePermission.markAsked(context)
+            android.widget.Toast.makeText(context, R.string.bc_bubble_permission, android.widget.Toast.LENGTH_LONG).show()
+            runCatching {
+                context.startActivity(
+                    android.content.Intent(
+                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:${context.packageName}"),
+                    ),
+                )
+            }
+        }
+        onClose()
+    }
+    androidx.activity.compose.BackHandler(onBack = closePage)
     BroadcastRoomScreen(
         state = state,
-        onBack = onClose,
+        onBack = closePage,
         onLeave = viewModel::leave,
         onMuted = viewModel::setMuted,
         onSpeaker = viewModel::setSpeaker,

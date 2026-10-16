@@ -357,7 +357,11 @@ fun DuelNavGraph(
                         onOpenRoom = { navController.navigate(Routes.BROADCAST_ROOM) { launchSingleTop = true } },
                     )
                 }
-                composable(Routes.BROADCAST_ROOM) {
+                composable(
+                    route = Routes.BROADCAST_ROOM,
+                    // The floating circle opens the room it belongs to.
+                    deepLinks = listOf(navDeepLink { uriPattern = "doomscrollduel://broadcast/room" }),
+                ) {
                     BroadcastRoomRoute(onClose = { navController.popBackStack() })
                 }
                 composable(Routes.NEW_DUEL) {

@@ -50,6 +50,7 @@ fun SettingsRoute(
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var counterBadge by remember { mutableStateOf(CounterBadgePrefs.isEnabled(context)) }
+    var broadcastAlert by remember { mutableStateOf(com.doomscrollduel.data.social.BroadcastAlertPrefs.isEnabled(context)) }
     val session: SessionViewModel = hiltViewModel()
     val profileState by session.profile.collectAsStateWithLifecycle()
     val signedInProfile = (profileState as? ProfileState.Ready)?.profile
@@ -77,6 +78,7 @@ fun SettingsRoute(
             onOpenPrivacy = onOpenPrivacy,
             onOpenTerms = onOpenTerms,
             onCounterBadge = { counterBadge = it; CounterBadgePrefs.setEnabled(context, it) },
+            onBroadcastAlert = { broadcastAlert = it; com.doomscrollduel.data.social.BroadcastAlertPrefs.setEnabled(context, it) },
             onOpenFriends = onOpenFriends,
             onSignIn = onSignIn,
             onSetUsername = onChooseUsername,
@@ -90,6 +92,7 @@ fun SettingsRoute(
         ui = ui,
         actions = actions,
         counterBadge = counterBadge,
+        broadcastAlert = broadcastAlert,
         accountUsername = signedInProfile?.username,
         needsUsername = profileState == ProfileState.NeedsUsername,
         signedIn = signedIn,

@@ -12,6 +12,7 @@ import com.doomscrollduel.domain.challenge.duel.DuelSettlement
 import com.doomscrollduel.domain.challenge.duel.DuelState
 import com.doomscrollduel.domain.challenge.duel.PlayerScore
 import com.doomscrollduel.domain.coins.MilestoneCreditResult
+import com.doomscrollduel.domain.coins.ReelMilestoneRules
 import com.doomscrollduel.domain.coins.WalletRepository
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -77,7 +78,7 @@ class FirebaseWalletRepository @Inject constructor() : WalletRepository {
         val opId = "reel_milestone:$milestoneIndex"
         return try {
             db.collection("wallets").document(me).collection("ops").document(opId).set(
-                mapOf("kind" to "reel_milestone", "amount" to 1, "milestone" to milestoneIndex, "at" to FieldValue.serverTimestamp()),
+                mapOf("kind" to "reel_milestone", "amount" to ReelMilestoneRules.coinsFor(milestoneIndex), "milestone" to milestoneIndex, "at" to FieldValue.serverTimestamp()),
             ).await()
             MilestoneCreditResult.CREDITED
         } catch (e: FirebaseFirestoreException) {

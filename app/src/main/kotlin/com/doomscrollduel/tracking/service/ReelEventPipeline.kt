@@ -28,6 +28,8 @@ class ReelEventPipeline(
     private val processor: ReelEventProcessor,
     private val consent: () -> Boolean,
     private val viewIdOf: (AccessibilityEvent) -> String? = ::readViewId,
+    /** Whether the app's reel screen is open right now (the service answers with [ReelScreenProbe]); only asked for apps that count on "pane appeared". */
+    private val reelScreenOpen: (TrackedApp) -> Boolean = { false },
     private val record: suspend (TrackedApp, Long) -> Int,
     private val onCounted: (TrackedApp, Int) -> Unit,
     private val scope: CoroutineScope,
@@ -38,8 +40,8 @@ class ReelEventPipeline(
     private val frontScreen = arrayOfNulls<String>(TrackedApp.entries.size)
 
     /**
-     * READ-ONLY DIAGNOSTIC PROTOTYPE — not wired to [processor] or to counting in any way, and never affects what is
-     * recorded. Purpose: measure, across real swipes, whether `contentChangeTypes=PANE_APPEARED` (bit 64 on a
+     * DIAGNOSTIC LOG (debug builds only; it only logs). The "pane appeared" bit itself now counts reels for apps whose rule sets
+     * `countOnPaneAppeared` (see [onEvent]). Original purpose of this log: measure, across real swipes, whether `contentChangeTypes=PANE_APPEARED` (bit 64 on a
      * TYPE_WINDOW_CONTENT_CHANGED event) could ever be a usable "a new feed item appeared" signal for an app whose
      * scroll events are rare (YouTube Shorts). It only decides "would this have been one count or a duplicate of the
      * previous one", using a short correlation window, and logs that decision. It is not a production detector, has
@@ -75,7 +77,9 @@ class ReelEventPipeline(
                 // never the content itself. Diagnostic only, for now: not used to decide anything yet.
                 if (debugLog) Log.d(DIAG_TAG, "contentChanged pkg=${app.packageName} swipeArmed=${processor.swipeArmed(app)} changeTypes=${e.contentChangeTypes}")
                 paneAppearedDiag(app, e.contentChangeTypes, e.eventTime)
-                ReelSignal.ContentChanged(app, e.eventTime)
+                val pane = e.contentChangeTypes and processor.paneChangeMask(app) != 0 &&
+                    processor.countsOnPaneAppeared(app) && reelScreenOpen(app)
+                ReelSignal.ContentChanged(app, e.eventTime, pane)
             }
             // A window change tells the blocker that the app came to the front, and which screen of it is now in front. Small
             // pop-ups and system widgets (android.* / androidx.*) do not count as a new screen.

@@ -402,3 +402,30 @@ claims needed correction once actually run on a phone, see below.
 - NOT verified on a real device this round (no phone reconnected): the reward has not been watched fire live while
   actually scrolling reels, and the Toast has not been seen on screen. Everything above is build+test+rules-emulator
   verified only.
+
+## YouTube / Snapchat counting fix: "pane appeared" backup signal (Oct 2026)
+YouTube Shorts fired a scroll event for only ~1 in 8 swipes, but EVERY swipe fires a content change with `contentChangeTypes` bit 0x40 (twin events ~2 ms apart).
+`surface_rules.json` rules with `countOnPaneAppeared: true` (YouTube, Snapchat Spotlight) now count one reel per such change, only while the reel
+screen is open (`ReelScreenProbe.isOpen`, asked only for those apps), sharing the 600 ms minimum gap with the scroll path (no double count). Owner asked for
+the fix and so approved this extra signal (a bitmask of the KIND of change, no content). Measured on RMX3842: 10 swipes counted 9; opening the comments did not count.
+Snapchat Spotlight: no scroll and no 0x40 event at all; every swipe gives one pair of changes with bit 0x1000 (4101 then 4097, 50-200 ms apart), so its rule has `paneChangeMask: 4096`. Its real reel view id is `spotlight_container` (the old `lenses_explorer_feed_recycler_view` is not on the Spotlight screen). Measured: 8 swipes counted 8, Chat/Map/Camera tabs counted 0. Known limit: a swipe BACK counts when no scroll event reports its direction.
+
+## Profile, live-broadcast alert, 1.5 coins per 10 reels, leaderboard + settings + broadcast fixes (Oct 2026)
+- **Profile** (`domain/social/ProfileExtras.kt`, `feature/profile/ProfileCard.kt`): stylish name (`NameStyle`: bold/script/gothic/double/circled/wide/small caps, plain text
+  stored, 30 UTF-16 units max), bio (150), Instagram/YouTube/Snapchat/Facebook HANDLES on `directory/{uid}` (only the handle is stored, the link is built by `SocialApp.url`).
+  Tap a person in the Dost or Log list to see their card. Rules branch for bio+handles DEPLOYED; its tests are written but NOT run (JDK 17 here, emulator needs 21).
+  Not verified: whether the rules count the 30-char name limit in code points or UTF-16 units for styled (surrogate) names.
+- **Live-broadcast alert**: `InboxNotifier.watchLiveBroadcasts` raises a notification for every NEW room started by somebody else while the app process runs; Settings
+  toggle "Broadcast alert" (`BroadcastAlertPrefs`, default on). `functions/src/broadcastPush.ts` (`onBroadcastCreated`, FCM topic `broadcasts`) covers a closed app but is
+  NOT deployed (no Blaze plan) and untested. End-to-end never seen (needs a second account).
+- **Reel milestone coins**: 1.5 coins per 10 reels = 1 coin on odd milestones, 2 on even (`ReelMilestoneRules.coinsFor`; 10 reels 1, 20 reels 3, 30 reels 4...). Rules accept 1 for
+  any milestone and 2 only on even ones (so an older app keeps working), DEPLOYED. Careful: `FirebaseWalletRepository` maps PERMISSION_DENIED to "already credited", so rules
+  must be deployed BEFORE an app that pays 2.
+- **Leaderboard**: India board lists everybody (documents without `monthlyCoins` were skipped by `orderBy`), scores from an earlier week/month show 0, cancelled loads are no longer errors,
+  Dost board reads friends in chunks of 30.
+- **Settings**: `BuddyDirectory` is now the real friends list (`FriendsBuddyDirectory`); a refused change scrolls the page to its message; Friend unlock opens the picker.
+- **New battle**: search box for all users; a friend is picked, anybody else gets a friend request (`PeopleRepository.invite`). Request sending NOT tried on a real person.
+- **Broadcast**: speaker/earpiece now uses `setCommunicationDevice` (API 31+) and `keepAudioRoute` re-applies it every 2 s (Android drops it for an inactive client); rejoining after a kill
+  deletes my old member document first (a `set` on an existing member doc is an UPDATE and the rules refuse it, which showed "Host ne hata diya"). Floating circle (`BroadcastBubble`) works.
+  Known, not fixed: room list and head-counts judge freshness with the phone clock; `DuelTracker` retries settlement ops of old finished duels on every start (PERMISSION_DENIED noise).
+- Git on this PC had no user.name/user.email; commits of this round use the owner's email with `git -c`.

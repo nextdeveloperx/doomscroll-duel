@@ -38,6 +38,12 @@ interface ProfileRepository {
     /** Changes the name friends see (1 to 30 letters). The username itself never changes. Returns false when it could not be saved. */
     suspend fun updateDisplayName(name: String): Boolean
 
+    /** The public bio and social handles of [uid] (empty when they added none), or null when they could not be read. */
+    suspend fun extrasOf(uid: String): ProfileExtras?
+
+    /** Saves my own bio and social handles. Returns false when they could not be saved. */
+    suspend fun saveExtras(extras: ProfileExtras): Boolean
+
     /** Claims the username on the server (one person per name) and creates the profile. */
     suspend fun claimUsername(name: Username, displayName: String): ClaimResult
 }

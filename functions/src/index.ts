@@ -84,3 +84,4 @@ export { deleteAccount } from "./deleteAccount";
 export { checkUsername, completeProfile, createInvite, acceptInvite, addFriendByUsername, matchContacts, inviteUser, registerEmailHash } from "./social";
 
 export { onInviteInboxCreated } from "./inboxPush";
+export { onBroadcastCreated } from "./broadcastPush";

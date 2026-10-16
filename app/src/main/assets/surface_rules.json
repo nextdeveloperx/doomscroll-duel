@@ -2,8 +2,8 @@
   "version": 1,
   "rules": [
     { "package": "com.instagram.android", "viewIds": ["clips_viewer_view_pager"], "classNames": [], "verified": true },
-    { "package": "com.google.android.youtube", "viewIds": ["reel_recycler"], "classNames": [], "verified": false },
+    { "package": "com.google.android.youtube", "viewIds": ["reel_recycler"], "classNames": [], "countOnPaneAppeared": true, "verified": true },
     { "package": "com.facebook.katana", "viewIds": [], "classNames": [], "windowClassNames": ["com.facebook.katana.immersiveactivity.ImmersiveActivity"], "pagerByDistance": true, "verified": false },
-    { "package": "com.snapchat.android", "viewIds": ["lenses_explorer_feed_recycler_view"], "classNames": [], "verified": false }
+    { "package": "com.snapchat.android", "viewIds": ["spotlight_container", "lenses_explorer_feed_recycler_view"], "classNames": [], "countOnPaneAppeared": true, "paneChangeMask": 4096, "verified": false }
   ]
 }

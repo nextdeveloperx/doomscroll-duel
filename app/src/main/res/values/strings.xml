@@ -61,6 +61,12 @@
     <string name="nd_explain">Agar tum %1$d reels tak pahunchte ho, to %2$d coins %3$s ko jayenge. Dono limit tak pahunche to kam reels wala jeetega.</string>
     <string name="nd_virtual_note">Coins sirf game ke hain. Asli paisa nahi, cash-out nahi.</string>
     <string name="nd_sending">Bhej raha hai…</string>
+    <string name="nd_search_label">Dost dhoondho</string>
+    <string name="nd_search_hint">naam ya username likho</string>
+    <string name="nd_request_button">REQUEST BHEJO</string>
+    <string name="nd_request_sent">Request bhej di. Dost accept kare to battle bhej sakoge.</string>
+    <string name="nd_pick_friend">CHUNO</string>
+    <string name="nd_picked">CHUNA</string>
     <string name="nd_no_friends_title">Pehle dost jodo</string>
     <string name="nd_no_friends_body">Battle ke liye ek dost chahiye. Dost page ke Log tab se kisi ko invite bhejo; accept hote hi yahan dikhega.</string>
     <string name="nd_no_friends_button">Dost page kholo</string>
@@ -579,6 +585,8 @@
     <string name="bc_invite_cd">Kisi ko bulao</string>
     <string name="bc_kick_cd">%1$s ko room se hatao</string>
     <string name="friends_bc_invite_title">%1$s ne broadcast me bulaya</string>
+    <string name="notif_live_title">%1$s live aaya hai</string>
+    <string name="notif_live_body">"%1$s" broadcast chal raha hai. Judo aur baat karo.</string>
     <string name="notif_bc_title">%1$s ne broadcast me bulaya</string>
     <string name="notif_bc_body">"%1$s" me judo aur baat karo.</string>
     <string name="bc_speaking">bol raha hai</string>
@@ -597,6 +605,8 @@
     <string name="bc_chat_hint">Message likho</string>
     <string name="bc_send">Bhejo</string>
     <string name="bc_chat_empty">Abhi koi message nahi. Chat sirf is phone me rehti hai, server me save nahi hoti.</string>
+    <string name="bc_bubble_cd">Broadcast chal raha hai. Kholne ke liye tap karo, hilane ke liye kheencho.</string>
+    <string name="bc_bubble_permission">Floating avatar ke liye "Display over other apps" chalu karo.</string>
     <string name="broadcast_channel">Broadcast</string>
     <string name="broadcast_channel_desc">Jab tum voice broadcast me ho.</string>
     <string name="broadcast_notif_title">Broadcast chal raha hai</string>
@@ -621,7 +631,7 @@
     <string name="profile_loading">Load ho raha hai…</string>
     <string name="profile_unavailable">Profile abhi load nahi ho paya. Server ya internet check karo.</string>
     <string name="profile_name_label">TUMHARA NAAM</string>
-    <string name="profile_edit_name">NAAM BADLO</string>
+    <string name="profile_edit_name">PROFILE BADLO</string>
     <string name="profile_save">SAVE KARO</string>
     <string name="profile_save_failed">Save nahi ho paya. Dobara try karo.</string>
     <string name="profile_cancel">RAHNE DO</string>
@@ -634,6 +644,22 @@
     <string name="profile_logging_out">Ho raha hai…</string>
     <string name="profile_guest_title">Tum guest ho</string>
     <string name="profile_guest_sub">Login karo to dost, invite aur duel milenge.</string>
+    <string name="profile_style_label">NAAM KA STYLE</string>
+    <string name="profile_bio_label">BIO (chhota sa)</string>
+    <string name="profile_bio_hint">apne baare me kuch likho</string>
+    <string name="profile_links_title">SOCIAL LINKS (username ya link)</string>
+    <string name="profile_link_hint">username ya link paste karo</string>
+    <string name="profile_link_instagram">INSTAGRAM</string>
+    <string name="profile_link_youtube">YOUTUBE</string>
+    <string name="profile_link_snapchat">SNAPCHAT</string>
+    <string name="profile_link_facebook">FACEBOOK</string>
+    <string name="social_instagram">Instagram</string>
+    <string name="social_youtube">YouTube</string>
+    <string name="social_snapchat">Snapchat</string>
+    <string name="social_facebook">Facebook</string>
+    <string name="person_no_info">Is dost ne abhi bio ya link nahi dala.</string>
+    <string name="person_load_failed">Profile load nahi ho payi. Internet check karo.</string>
+    <string name="person_close">BAND KARO</string>
     <string name="profile_login">GOOGLE SE LOGIN</string>
     <string name="home_open_profile">Meri profile</string>
 
@@ -720,10 +746,12 @@
     <!-- On-screen counter -->
     <string name="counter_badge_description">Aaj ke %1$d reels, limit %2$d</string>
     <string name="counter_badge_limit">/ %1$d</string>
+    <string name="settings_broadcast_alert">Broadcast alert</string>
+    <string name="settings_broadcast_alert_sub">Koi bhi broadcast shuru kare to notification aaye.</string>
     <string name="settings_counter_badge">Screen par counter</string>
     <string name="settings_counter_badge_sub">Instagram, YouTube jaise apps me upar chhota reel count dikhao.</string>
 
-    <!-- Reel milestone rewards: +1 coin per 10 valid reels, lifetime, no daily cap -->
+    <!-- Reel milestone rewards: +1 or +2 coins per 10 valid reels (1.5 on average), lifetime, no daily cap -->
     <string name="reel_milestone_toast_single">+1 coin mila — %1$d reels poore!</string>
     <string name="reel_milestone_toast_multi">+%1$d coins mile — %2$d reels poore!</string>
 
@@ -784,6 +812,8 @@
     <string name="onb_perm_notif_sub">Dost ka challenge aur battle ka result batane ke liye.</string>
     <string name="onb_perm_battery">Background me chalna</string>
     <string name="onb_perm_battery_sub">Phone ko counter band karne se rokne ke liye.</string>
+    <string name="onb_perm_overlay">Floating avatar</string>
+    <string name="onb_perm_overlay_sub">Broadcast chalte hue app band karne par chhota avatar screen par dikhane ke liye (optional).</string>
     <string name="onb_perm_allow">Chalu karo</string>
     <string name="onb_perm_on">Chalu hai</string>
     <string name="onb_welcome_title">Welcome, %1$s!</string>

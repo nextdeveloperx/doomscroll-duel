@@ -1,19 +1,20 @@
 package com.doomscrollduel.blocking
 
 import com.doomscrollduel.domain.blocking.Buddy
+import com.doomscrollduel.domain.challenge.PlayerId
+import com.doomscrollduel.domain.repository.FriendsRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 /** The friends one can pick as the unlock buddy. */
 interface BuddyDirectory {
     val friends: Flow<List<Buddy>>
 }
 
-/**
- * Until friends exist (sign-in and friend adding are not built yet) there is nobody to pick, and the Settings
- * screen says so. This is the honest answer, not sample data.
- */
-class EmptyBuddyDirectory @Inject constructor() : BuddyDirectory {
-    override val friends: Flow<List<Buddy>> = flowOf(emptyList())
+/** The person's real friends (the same list the Dost screen shows). Empty while signed out, which Settings says honestly. */
+class FriendsBuddyDirectory @Inject constructor(friendsRepository: FriendsRepository) : BuddyDirectory {
+    override val friends: Flow<List<Buddy>> = friendsRepository.friends.map { list ->
+        list.filter { it.uid.isNotBlank() }.map { Buddy(PlayerId(it.uid), it.displayName.ifBlank { it.username }) }
+    }
 }

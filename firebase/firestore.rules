@@ -180,6 +180,14 @@ service cloud.firestore {
             && request.resource.data.displayName is string
             && request.resource.data.displayName.size() >= 1
             && request.resource.data.displayName.size() <= 30)
+          // Public profile: a short bio and four social handles (plain handles, never links; the app builds the link), all optional,
+          // each a short string. The person's own phone writes them; nothing else in the document may change in the same write.
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bio', 'instagram', 'youtube', 'snapchat', 'facebook'])
+            && request.resource.data.get('bio', '') is string && request.resource.data.get('bio', '').size() <= 150
+            && request.resource.data.get('instagram', '') is string && request.resource.data.get('instagram', '').size() <= 40
+            && request.resource.data.get('youtube', '') is string && request.resource.data.get('youtube', '').size() <= 40
+            && request.resource.data.get('snapchat', '') is string && request.resource.data.get('snapchat', '').size() <= 40
+            && request.resource.data.get('facebook', '') is string && request.resource.data.get('facebook', '').size() <= 40)
           // Leaderboard score for the two boards (Dost = friends, weekly; India = everyone, monthly). The person's own
           // phone reports it (same trust level as duel reel counts: a modified app could lie about its own score here
           // too, see /duels/{id}/counts). The value must come from that person's own wallet, so it cannot be invented,
@@ -430,7 +438,7 @@ service cloud.firestore {
     // and the real counts, and every id can be created once only, so retries or both phones racing cannot pay twice).
     // Forfeits are not recognised here (see duelWinner): a forfeited duel settles as a tie (both stakes refunded).
     // Check-in, streaks and shop purchases stay app-local (CoinWallet) until a Cloud Function can write them for real.
-    // Reel-milestone ops (kind 'reel_milestone', +1 coin per 10 valid reels) live in this same ledger under their own
+    // Reel-milestone ops (kind 'reel_milestone', +1 or 2 coins per 10 valid reels, 1.5 on average) live in this same ledger under their own
     // id namespace — see the isReelMilestone() function below for exactly what is, and is not, enforced without a
     // server-side reel-count ledger.
     match /wallets/{uid} {
@@ -487,7 +495,7 @@ service cloud.firestore {
         // reported like the rest of this ledger. A completely separate kind of op from duel ops: its own id
         // namespace (reel_milestone:{N}, never a duel id), so it can never collide with or alter a duel's escrow
         // or settlement. What these rules CAN enforce without a Cloud Function: each milestone can be created once
-        // only (so the same milestone is never paid twice), only by its own owner, always exactly 1 coin, and only
+        // only (so the same milestone is never paid twice), only by its own owner, always 1 coin (2 on even milestones), and only
         // in ascending order — milestone N requires milestone N-1 to already exist, so nobody can skip straight to
         // an arbitrarily large number in one write. What they CANNOT enforce without a server-side reel-count
         // ledger: that the milestone claimed was genuinely earned by real reel counts — a modified app could, in
@@ -499,8 +507,10 @@ service cloud.firestore {
         function isReelMilestone() {
           return isSelf(uid)
             && op().kind == 'reel_milestone'
-            && op().amount == 1
             && op().milestone is int && op().milestone > 0
+            // 10 reels pay 1.5 coins on average, in whole coins: 1 for odd milestones, 2 for even ones. 1 is accepted for every
+            // milestone too, so a phone that still has the older version (always 1) keeps being paid.
+            && (op().amount == 1 || (op().amount == 2 && op().milestone % 2 == 0))
             && opId == 'reel_milestone:' + string(op().milestone)
             && (op().milestone == 1
                 || exists(/databases/$(database)/documents/wallets/$(uid)/ops/$('reel_milestone:' + string(op().milestone - 1))));

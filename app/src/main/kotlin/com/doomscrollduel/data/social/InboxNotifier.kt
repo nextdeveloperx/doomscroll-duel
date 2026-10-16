@@ -69,6 +69,9 @@ class InboxNotifier @Inject constructor(
                     val uid = session.uid
                     launch { watchInbox(uid) }
                     launch { watchBroadcastInvites(uid) }
+                    launch { watchLiveBroadcasts(uid) }
+                    // Joins the push topic that tells a closed app when somebody goes live (needs the server function).
+                    BroadcastAlertPrefs.syncTopic(BroadcastAlertPrefs.isEnabled(context))
                     // Once the username exists, put this person in the People list and the contacts index.
                     launch {
                         profiles.state.first { it is com.doomscrollduel.domain.social.ProfileState.Ready }
@@ -97,7 +100,8 @@ class InboxNotifier @Inject constructor(
     /** A phone notification for each new "come to my broadcast"; once per invitation. */
     private suspend fun watchBroadcastInvites(uid: String) {
         listen(FirebaseFirestore.getInstance().collection("users").document(uid).collection("broadcastInvites")).collect { docs ->
-            val done = prefs.getStringSet(KEY, emptySet()).orEmpty().toMutableSet()
+            // Its own key: this runs beside [watchInbox], and two read-modify-write loops on one set lose each other's entries.
+            val done = prefs.getStringSet(ROOM_KEY, emptySet()).orEmpty().toMutableSet()
             val now = System.currentTimeMillis()
             docs.forEach { doc ->
                 val at = doc.getTimestamp("createdAt")?.toDate()?.time ?: return@forEach
@@ -107,8 +111,49 @@ class InboxNotifier @Inject constructor(
                 done += key
                 FriendNotifications.showBroadcastInvite(context, roomId, doc.getString("fromName").orEmpty(), doc.getString("title").orEmpty())
             }
-            prefs.edit().putStringSet(KEY, done.toList().takeLast(MAX_REMEMBERED).toSet()).apply()
+            prefs.edit().putStringSet(ROOM_KEY, done.toList().takeLast(MAX_REMEMBERED).toSet()).apply()
         }
+    }
+
+    /**
+     * A phone notification to everybody when somebody else goes live. The first answer only tells which rooms already exist (no
+     * notification for those); after that each NEW room that is still open, was not started by me and has its server time
+     * written gets one notification. Needs the app process, which the reel counter's service keeps alive; the push topic covers
+     * the rest.
+     */
+    private suspend fun watchLiveBroadcasts(uid: String) {
+        val query = FirebaseFirestore.getInstance().collection("broadcasts")
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(LIVE_WATCH)
+        callbackFlow {
+            val registration = query.addSnapshotListener { snapshot, error ->
+                if (error != null) { Log.w(TAG, "live rooms listener: ${error.code}"); return@addSnapshotListener }
+                if (snapshot != null) trySend(snapshot)
+            }
+            awaitClose { registration.remove() }
+        }.collect(object : kotlinx.coroutines.flow.FlowCollector<com.google.firebase.firestore.QuerySnapshot> {
+            var primed = false
+            override suspend fun emit(value: com.google.firebase.firestore.QuerySnapshot) {
+                if (!primed) {
+                    primed = true // the rooms that were already there are not news
+                    return
+                }
+                if (!BroadcastAlertPrefs.isEnabled(context)) return
+                val done = prefs.getStringSet(LIVE_KEY, emptySet()).orEmpty().toMutableSet()
+                value.documentChanges
+                    .filter { it.type == com.google.firebase.firestore.DocumentChange.Type.ADDED }
+                    .forEach { change ->
+                        val doc = change.document
+                        val host = doc.getString("hostUid") ?: return@forEach
+                        if (host == uid || doc.getBoolean("closed") == true) return@forEach
+                        if (doc.metadata.hasPendingWrites() || doc.getTimestamp("createdAt") == null) return@forEach
+                        if (doc.id in done) return@forEach
+                        done += doc.id
+                        FriendNotifications.showBroadcastLive(context, doc.id, doc.getString("hostName").orEmpty(), doc.getString("title").orEmpty())
+                    }
+                prefs.edit().putStringSet(LIVE_KEY, done.toList().takeLast(MAX_REMEMBERED).toSet()).apply()
+            }
+        })
     }
 
     private suspend fun watchFriends(uid: String) {
@@ -135,6 +180,9 @@ class InboxNotifier @Inject constructor(
     private companion object {
         const val TAG = "InboxNotifier"
         const val KEY = "keys"
+        const val ROOM_KEY = "room_keys"
+        const val LIVE_KEY = "live_keys"
+        const val LIVE_WATCH = 20L
         const val MAX_REMEMBERED = 200
     }
 }

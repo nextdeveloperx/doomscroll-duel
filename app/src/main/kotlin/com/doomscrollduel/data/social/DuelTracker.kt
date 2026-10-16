@@ -174,7 +174,8 @@ class DuelTracker @Inject constructor(
     }
 
     private companion object {
-        const val TICK_MS = 15_000L
+        // Short, because a count that changed inside the upload gap is only sent on the next tick, and nothing can be sent after the end.
+        const val TICK_MS = 5_000L
         const val UPLOAD_GAP_MS = 4_000L
         const val NOTIFIED = "notified"
         const val SEEN = "seen_results"

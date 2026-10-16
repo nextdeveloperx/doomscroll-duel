@@ -77,11 +77,14 @@ class ReelAccessibilityService : AccessibilityService() {
         TrackingKeepAlive.start(this)
     }
 
+    private val badgeProbe by lazy { ReelScreenProbe { surfaceRules.current } }
+
     private val pipeline by lazy {
         ReelEventPipeline(
             processor = processor,
             // The person must have agreed to the in-app disclosure first. Switching the service on in Android's own
             // Accessibility list is not enough: without that agreement every event is dropped before it is looked at.
+            reelScreenOpen = { app -> badgeProbe.isOpen(this, app) },
             consent = { AccessibilityConsent.mayProcessEvents(consent.current()) },
             record = { app, at ->
                 repository.recordReel(app, at)

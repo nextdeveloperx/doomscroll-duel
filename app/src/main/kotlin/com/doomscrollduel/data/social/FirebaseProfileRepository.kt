@@ -5,7 +5,9 @@ import com.doomscrollduel.domain.model.Username
 import com.doomscrollduel.domain.repository.AuthRepository
 import com.doomscrollduel.domain.social.ClaimResult
 import com.doomscrollduel.domain.social.Profile
+import com.doomscrollduel.domain.social.ProfileExtras
 import com.doomscrollduel.domain.social.ProfileRepository
+import com.doomscrollduel.domain.social.SocialHandles
 import com.doomscrollduel.domain.social.ProfileState
 import com.doomscrollduel.domain.social.UsernameAvailability
 import com.google.firebase.auth.FirebaseAuth
@@ -108,6 +110,49 @@ class FirebaseProfileRepository @Inject constructor(auth: AuthRepository) : Prof
             true
         } catch (e: FirebaseFirestoreException) {
             Log.w(TAG, "display name update failed: ${e.code}", e)
+            false
+        } catch (e: IOException) {
+            false
+        }
+    }
+
+    override suspend fun extrasOf(uid: String): ProfileExtras? = try {
+        val doc = FirebaseFirestore.getInstance().collection("directory").document(uid).get().await()
+        if (!doc.exists()) {
+            ProfileExtras()
+        } else {
+            ProfileExtras(
+                bio = doc.getString("bio").orEmpty().take(ProfileExtras.MAX_BIO),
+                // Clean what was read too: whatever is in the document, only a plain handle ever becomes a link.
+                instagram = SocialHandles.clean(doc.getString("instagram").orEmpty()),
+                youtube = SocialHandles.clean(doc.getString("youtube").orEmpty()),
+                snapchat = SocialHandles.clean(doc.getString("snapchat").orEmpty()),
+                facebook = SocialHandles.clean(doc.getString("facebook").orEmpty()),
+            )
+        }
+    } catch (e: FirebaseFirestoreException) {
+        Log.w(TAG, "profile extras read failed: ${e.code}", e)
+        null
+    } catch (e: IOException) {
+        null
+    }
+
+    override suspend fun saveExtras(extras: ProfileExtras): Boolean {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return false
+        val clean = extras.cleaned()
+        return try {
+            FirebaseFirestore.getInstance().collection("directory").document(uid).update(
+                mapOf(
+                    "bio" to clean.bio,
+                    "instagram" to clean.instagram,
+                    "youtube" to clean.youtube,
+                    "snapchat" to clean.snapchat,
+                    "facebook" to clean.facebook,
+                ),
+            ).await()
+            true
+        } catch (e: FirebaseFirestoreException) {
+            Log.w(TAG, "profile extras save failed: ${e.code}", e)
             false
         } catch (e: IOException) {
             false

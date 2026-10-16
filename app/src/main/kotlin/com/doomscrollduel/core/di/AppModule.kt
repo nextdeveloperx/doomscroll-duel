@@ -29,7 +29,7 @@ import com.doomscrollduel.billing.PurchaseVerifier
 import com.doomscrollduel.data.prefs.DataStoreEntitlementCache
 import com.doomscrollduel.blocking.AndroidClockSource
 import com.doomscrollduel.blocking.BuddyDirectory
-import com.doomscrollduel.blocking.EmptyBuddyDirectory
+import com.doomscrollduel.blocking.FriendsBuddyDirectory
 import com.doomscrollduel.blocking.SystemZoneSource
 import com.doomscrollduel.blocking.unlock.FirebaseUnlockRepository
 import com.doomscrollduel.blocking.unlock.UnlockRepository
@@ -178,7 +178,7 @@ abstract class BindingsModule {
     abstract fun unlockRepository(impl: FirebaseUnlockRepository): UnlockRepository
 
     @Binds
-    abstract fun buddyDirectory(impl: EmptyBuddyDirectory): BuddyDirectory
+    abstract fun buddyDirectory(impl: FriendsBuddyDirectory): BuddyDirectory
 
     @Binds
     abstract fun purchaseVerifier(impl: FirebaseFunctionsPurchaseVerifier): PurchaseVerifier

@@ -40,6 +40,15 @@ class UnlockMessagingService : FirebaseMessagingService() {
                 FriendNotifications.showInviteFromPerson(this, data["fromUid"].orEmpty(), data["fromName"].orEmpty())
                 return
             }
+            "broadcast_live" -> {
+                // Sent to everybody on the topic, the host included: the host and anybody who turned it off get nothing.
+                val host = data["hostUid"].orEmpty()
+                val me = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                if (me != null && me != host && com.doomscrollduel.data.social.BroadcastAlertPrefs.isEnabled(this)) {
+                    FriendNotifications.showBroadcastLive(this, data["roomId"] ?: return, data["hostName"].orEmpty(), data["title"].orEmpty())
+                }
+                return
+            }
             "friend_joined" -> {
                 FriendNotifications.showJoined(this, data["fromName"].orEmpty())
                 return

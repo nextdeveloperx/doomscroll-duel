@@ -29,6 +29,13 @@ data class SurfaceRule(
      * recognised by distance instead: a pager moves one whole page per swipe. See ReelEventProcessor.
      */
     val pagerByDistance: Boolean = false,
+    /**
+     * The app's scroll events are unreliable (YouTube Shorts, Snapchat Spotlight fire them for only some swipes), but every swipe
+     * makes a "new pane appeared" content change while the reel screen is open. Such a change then counts a reel on its own.
+     */
+    val countOnPaneAppeared: Boolean = false,
+    /** Which bit of `contentChangeTypes` marks that swipe (YouTube 0x40; Snapchat Spotlight 0x1000, measured). Only a kind-of-change number. */
+    val paneChangeMask: Int = 0x40,
 )
 
 class SurfaceRules(rules: List<SurfaceRule>) {
@@ -38,6 +45,10 @@ class SurfaceRules(rules: List<SurfaceRule>) {
         byApp[app]?.let { it.viewIds.isNotEmpty() || it.windowClassNames.isNotEmpty() || it.pagerByDistance } == true
 
     fun isPagerByDistance(app: TrackedApp): Boolean = byApp[app]?.pagerByDistance == true
+
+    fun countsOnPaneAppeared(app: TrackedApp): Boolean = byApp[app]?.countOnPaneAppeared == true
+
+    fun paneChangeMaskOf(app: TrackedApp): Int = byApp[app]?.paneChangeMask ?: 0
 
     /** The pager view ids of [app], used to tell whether its reel screen is open. Empty when unknown. */
     fun viewIdsOf(app: TrackedApp): Set<String> = byApp[app]?.viewIds.orEmpty()
@@ -76,6 +87,8 @@ private data class RuleDto(
     val verified: Boolean = false,
     val windowClassNames: List<String> = emptyList(),
     val pagerByDistance: Boolean = false,
+    val countOnPaneAppeared: Boolean = false,
+    val paneChangeMask: Int = 0x40,
 )
 
 @Serializable
@@ -89,7 +102,7 @@ object SurfaceRulesParser {
         val file = json.decodeFromString<RulesFileDto>(text)
         val rules = file.rules.mapNotNull { dto ->
             TrackedApp.fromPackage(dto.packageName)?.let { app ->
-                SurfaceRule(app, dto.viewIds.toSet(), dto.classNames.toSet(), dto.verified, dto.windowClassNames.toSet(), dto.pagerByDistance)
+                SurfaceRule(app, dto.viewIds.toSet(), dto.classNames.toSet(), dto.verified, dto.windowClassNames.toSet(), dto.pagerByDistance, dto.countOnPaneAppeared, dto.paneChangeMask)
             }
         }
         return SurfaceRules(rules)

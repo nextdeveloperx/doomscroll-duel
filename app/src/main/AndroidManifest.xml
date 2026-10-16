@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- The small floating profile circle of a running voice room (pulses while somebody talks). Asked once, from system settings. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Android 13+: lets the quiet "counter is on" notification be shown. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- A small tick of the vibration motor for each letter the first-run pages type. -->

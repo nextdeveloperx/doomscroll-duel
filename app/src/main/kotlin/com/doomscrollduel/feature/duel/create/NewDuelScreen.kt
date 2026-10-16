@@ -54,7 +54,12 @@ import androidx.compose.ui.text.font.FontWeight
 import com.doomscrollduel.core.designsystem.components.ScreenPreview
 import com.doomscrollduel.feature.common.Kit
 import com.doomscrollduel.feature.common.KitBottomButton
+import com.doomscrollduel.feature.common.KitAvatar
 import com.doomscrollduel.feature.common.KitCard
+import com.doomscrollduel.feature.common.KitDivider
+import com.doomscrollduel.feature.common.KitField
+import com.doomscrollduel.feature.common.KitPill
+import androidx.compose.foundation.layout.heightIn
 import com.doomscrollduel.feature.common.KitChoice
 import com.doomscrollduel.feature.common.KitFighter
 import com.doomscrollduel.feature.common.KitPage
@@ -91,7 +96,17 @@ data class NewDuelUiState(
 class NewDuelViewModel @javax.inject.Inject constructor(
     friendsRepo: com.doomscrollduel.domain.repository.FriendsRepository,
     private val duels: com.doomscrollduel.domain.social.DuelRepository,
+    private val peopleRepo: com.doomscrollduel.domain.social.PeopleRepository,
 ) : androidx.lifecycle.ViewModel() {
+    /** Everybody who signed in (for the search box), with who is already a friend or already asked. */
+    val people: kotlinx.coroutines.flow.StateFlow<List<com.doomscrollduel.domain.social.Person>> = peopleRepo.people.stateIn(
+        viewModelScope,
+        kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+        emptyList(),
+    )
+
+    suspend fun sendRequest(uid: String) = peopleRepo.invite(uid)
+
     val friends: kotlinx.coroutines.flow.StateFlow<List<com.doomscrollduel.domain.repository.Friend>> = friendsRepo.friends.stateIn(
         viewModelScope,
         kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
@@ -113,6 +128,10 @@ fun NewDuelRoute(
     viewModel: NewDuelViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val friends by viewModel.friends.collectAsStateWithLifecycle()
+    val people by viewModel.people.collectAsStateWithLifecycle()
+    var query by rememberSaveable { mutableStateOf("") }
+    var requestingUid by remember { mutableStateOf<String?>(null) }
+    var requestNote by remember { mutableStateOf<Int?>(null) }
     var friendIndex by rememberSaveable { mutableIntStateOf(0) }
     var limit by rememberSaveable { mutableIntStateOf(100) }
     var durationOrdinal by rememberSaveable { mutableIntStateOf(DurationOption.ONE_DAY.ordinal) }
@@ -131,6 +150,31 @@ fun NewDuelRoute(
     NewDuelScreen(
         state = state,
         onFriendSelected = { friendIndex = it },
+        query = query,
+        onQueryChange = { query = it.take(30); requestNote = null },
+        results = query.trim().lowercase().let { q ->
+            if (q.isEmpty()) emptyList()
+            else people.filter { q in it.username.lowercase() || q in it.displayName.lowercase() }.take(SEARCH_RESULTS)
+        },
+        requestingUid = requestingUid,
+        requestNote = requestNote?.let { stringResource(it) },
+        onPickPerson = { person -> friends.indexOfFirst { it.uid == person.uid }.takeIf { it >= 0 }?.let { friendIndex = it } },
+        onRequest = { person ->
+            if (requestingUid == null) {
+                requestingUid = person.uid
+                scope.launch {
+                    val result = viewModel.sendRequest(person.uid)
+                    requestingUid = null
+                    requestNote = when (result) {
+                        com.doomscrollduel.domain.social.PersonInviteResult.SENT,
+                        com.doomscrollduel.domain.social.PersonInviteResult.ALREADY_SENT -> R.string.nd_request_sent
+                        com.doomscrollduel.domain.social.PersonInviteResult.NO_NETWORK -> R.string.friends_network
+                        com.doomscrollduel.domain.social.PersonInviteResult.NOT_SIGNED_IN -> R.string.friends_need_login
+                        else -> R.string.friends_failed
+                    }
+                }
+            }
+        },
         onLimitChange = { limit = it.coerceIn(MinReelLimit, MaxReelLimit) },
         onDurationSelected = { durationOrdinal = it.ordinal },
         onStakeSelected = { stake = it },
@@ -173,6 +217,13 @@ fun NewDuelScreen(
     onBack: () -> Unit,
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
+    results: List<com.doomscrollduel.domain.social.Person> = emptyList(),
+    requestingUid: String? = null,
+    requestNote: String? = null,
+    onPickPerson: (com.doomscrollduel.domain.social.Person) -> Unit = {},
+    onRequest: (com.doomscrollduel.domain.social.Person) -> Unit = {},
     sending: Boolean = false,
     errorText: String? = null,
     onOpenFriends: () -> Unit = {},
@@ -208,6 +259,8 @@ fun NewDuelScreen(
             )
             Spacer(Modifier.height(14.dp))
         }
+        SearchSection(query, onQueryChange, results, state.friendName.takeIf { !noFriends }, requestingUid, requestNote, onPickPerson, onRequest)
+        Spacer(Modifier.height(14.dp))
         KitCard(radius = 26.dp, padding = PaddingValues(vertical = 18.dp, horizontal = 12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 KitFighter(stringResource(R.string.label_you), 0, state.reelLimit, BrainOwner.YOU, Modifier.weight(1f), brainWidth = 96.dp)
@@ -250,6 +303,74 @@ fun NewDuelScreen(
         }
     }
 }
+
+/** Search everybody by name or username: a friend can be picked for the battle, anybody else gets a friend request. */
+@Composable
+private fun SearchSection(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    results: List<com.doomscrollduel.domain.social.Person>,
+    pickedName: String?,
+    requestingUid: String?,
+    note: String?,
+    onPick: (com.doomscrollduel.domain.social.Person) -> Unit,
+    onRequest: (com.doomscrollduel.domain.social.Person) -> Unit,
+) {
+    SectionLabel(R.string.nd_search_label)
+    KitField(
+        value = query,
+        onValueChange = onQueryChange,
+        label = stringResource(R.string.people_search_label),
+        hint = stringResource(R.string.nd_search_hint),
+    )
+    if (note != null) {
+        NText(note, 13.sp, weight = FontWeight.Bold, color = Neon.VioletLight, lineHeight = 18.sp, modifier = Modifier.padding(top = 8.dp).semantics { liveRegion = LiveRegionMode.Polite })
+    }
+    if (query.isBlank()) return
+    Spacer(Modifier.height(10.dp))
+    if (results.isEmpty()) {
+        NText(stringResource(R.string.people_none_found), 14.sp, color = Neon.Muted, modifier = Modifier.padding(vertical = 8.dp))
+        return
+    }
+    KitCard(padding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
+        results.forEachIndexed { i, person ->
+            if (i > 0) KitDivider()
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                KitAvatar(person.displayName)
+                Column(Modifier.weight(1f)) {
+                    NText(person.displayName, 15.sp, weight = FontWeight.ExtraBold, maxLines = 1)
+                    NText("@" + person.username, 12.sp, color = Neon.Muted, maxLines = 1)
+                }
+                when {
+                    person.isFriend && person.displayName == pickedName ->
+                        KitPill(stringResource(R.string.nd_picked), tone = Kit.Green, filled = true)
+                    person.isFriend -> SearchAction(stringResource(R.string.nd_pick_friend), true) { onPick(person) }
+                    person.invited -> KitPill(stringResource(R.string.people_invited), tone = Kit.Violet)
+                    else -> SearchAction(stringResource(R.string.nd_request_button), requestingUid == null) { onRequest(person) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchAction(text: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .heightIn(min = 44.dp)
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+            .background(if (enabled) Kit.Violet else Kit.Track.copy(alpha = 0.4f))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) { NText(text, 12.sp, weight = FontWeight.ExtraBold, color = Color.White) }
+}
+
+private const val SEARCH_RESULTS = 8
 
 private fun DurationOption.labelRes(): Int = when (this) {
     DurationOption.SIX_HOURS -> R.string.nd_duration_6h

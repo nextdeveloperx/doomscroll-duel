@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.doomscrollduel.feature.profile.PersonProfileDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -142,6 +146,9 @@ fun FriendsScreen(
     onJoinBroadcast: (BroadcastInvite) -> Unit = {},
     onDismissBroadcast: (BroadcastInvite) -> Unit = {},
 ) {
+    // Tapping a person opens their card (bio and social links): uid, name, username.
+    var viewing by remember { mutableStateOf<Triple<String, String, String>?>(null) }
+    viewing?.let { (uid, name, username) -> PersonProfileDialog(uid, name, username, onDismiss = { viewing = null }) }
     KitPage(modifier = modifier, title = stringResource(R.string.friends_title), onBack = onBack) {
         ui.notice?.let { notice ->
             LaunchedEffect(notice) {
@@ -191,7 +198,7 @@ fun FriendsScreen(
         Spacer(Modifier.height(14.dp))
         when (ui.tab) {
             FriendsTab.INVITES -> InvitesTab(ui, onAccept, onDecline, onAcceptChallenge, onDeclineChallenge, onJoinBroadcast, onDismissBroadcast)
-            FriendsTab.PEOPLE -> PeopleTab(ui, onSearch, onInvitePerson)
+            FriendsTab.PEOPLE -> PeopleTab(ui, onSearch, onInvitePerson) { p -> viewing = Triple(p.uid, p.displayName, p.username) }
             FriendsTab.FRIENDS -> {
             MyInviteCard(ui, onShareLink)
             Section(R.string.friends_add_title)
@@ -220,7 +227,12 @@ fun FriendsScreen(
                 KitCard(padding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) {
                     ui.friends.forEachIndexed { i, friend ->
                         if (i > 0) KitDivider()
-                        PersonRow(name = friend.displayName, username = friend.username, trailing = null)
+                        PersonRow(
+                            name = friend.displayName,
+                            username = friend.username,
+                            trailing = null,
+                            onClick = { viewing = Triple(friend.uid, friend.displayName, friend.username) },
+                        )
                     }
                 }
             }
@@ -326,9 +338,13 @@ private fun InviteChip(text: String, enabled: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PersonRow(name: String, username: String, trailing: (@Composable () -> Unit)?) {
+private fun PersonRow(name: String, username: String, trailing: (@Composable () -> Unit)?, onClick: (() -> Unit)? = null) {
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp).padding(vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 68.dp)
+            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -465,7 +481,7 @@ private fun InvitesTab(
 
 /** Everybody who signed in, with a search box. Each row has an INVITE button, or says why not. */
 @Composable
-private fun PeopleTab(ui: FriendsUi, onSearch: (String) -> Unit, onInvite: (String) -> Unit) {
+private fun PeopleTab(ui: FriendsUi, onSearch: (String) -> Unit, onInvite: (String) -> Unit, onOpen: (com.doomscrollduel.domain.social.Person) -> Unit) {
     KitField(
         value = ui.search,
         onValueChange = onSearch,
@@ -482,6 +498,7 @@ private fun PeopleTab(ui: FriendsUi, onSearch: (String) -> Unit, onInvite: (Stri
                 PersonRow(
                     name = person.displayName,
                     username = person.username,
+                    onClick = { onOpen(person) },
                     trailing = {
                         when {
                             person.isFriend -> KitPill(stringResource(R.string.friends_is_friend), tone = Kit.Green)

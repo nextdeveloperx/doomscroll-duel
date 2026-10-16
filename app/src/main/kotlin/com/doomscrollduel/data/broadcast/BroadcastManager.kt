@@ -309,6 +309,10 @@ class BroadcastManager @Inject constructor(
                 hostUid = room.getString("hostUid").orEmpty()
                 myName = profile.first
                 cleanJob.await()
+                // A member document left by an earlier visit (the app was closed, killed or lost its network without leaving) would turn
+                // the write below into an UPDATE, which the rules refuse (only `seenAt` may change): the person could never get back in
+                // and was told the host had removed them. Delete my own old document first, then create it fresh.
+                runCatching { withTimeout(NETWORK_MS) { roomRef.collection("members").document(me).delete().await() } }
                 withTimeout(NETWORK_MS) {
                     roomRef.collection("members").document(me).set(
                         mapOf(
@@ -336,11 +340,17 @@ class BroadcastManager @Inject constructor(
             launch { collectSignals(roomId, me).collect { list -> list.forEach { handleSignal(mesh, it) } } }
             launch { collectRoom(roomId).collect { room -> onRoomChanged(roomId, hostUid, me, room, roomSeen) } }
             launch { heartbeat(roomId, me) }
+            launch { keepAudioRoute() }
             launch { follow(members, peerStates, speaking, flows, roomSeen, me, hostUid, roomId, mesh) }
         }
         session = Session(roomId, hostUid, me, myName, mesh, job, members)
         BroadcastService.start(context, title)
         Log.i(TAG, "joined the room in ${System.currentTimeMillis() - startedAt} ms")
+        // The voice engine opens its audio output a moment after joining and some phones reset the route then: choose it again.
+        scope.launch {
+            delay(1_500L)
+            if (session?.roomId == roomId) routeToSpeaker(_state.value.speaker)
+        }
         _state.value = BroadcastState(
             status = BroadcastStatus.LIVE,
             roomId = roomId,
@@ -421,7 +431,8 @@ class BroadcastManager @Inject constructor(
         combine(members, peerStates, speaking, flows, ticker(10_000L)) { raw, peers, talking, flow, now -> Five(raw, peers, talking, flow, now) }.collect { (raw, peers, talking, flow, now) ->
             // The host's phone died without closing the room: its sign of life stopped. Nobody should sit in an empty room.
             val hostSeen = roomSeen.value
-            if (hostUid != me && hostSeen > 0 && now - hostSeen > HOST_GONE_MS) {
+            val newestMember = raw.maxOfOrNull { it.seenAtMs } ?: 0L
+            if (hostUid != me && hostSeen > 0 && newestMember > 0 && newestMember - hostSeen > HOST_GONE_MS) {
                 scope.launch { lock.withLock { if (session?.roomId == roomId) leaveLocked(BroadcastProblem.ROOM_CLOSED) } }
                 return@collect
             }
@@ -429,10 +440,14 @@ class BroadcastManager @Inject constructor(
                 seenMyself = true
             } else if (seenMyself) {
                 // My member document is gone: the host removed me.
-                scope.launch { lock.withLock { leaveLocked(BroadcastProblem.REMOVED) } }
+                // Only if this room is still the current one: a late tick must not pull the person out of a room they joined since.
+                scope.launch { lock.withLock { if (session?.roomId == roomId) leaveLocked(BroadcastProblem.REMOVED) } }
                 return@collect
             }
-            val fresh = raw.filter { it.uid == me || now - it.seenAtMs < FRESH_MS }.sortedBy { it.joinedAtMs }
+            // Freshness is judged against the newest server stamp in the room (my own heartbeat keeps it moving), never against this
+            // phone's clock: a phone whose clock is a minute off would otherwise hide everybody else. 0 = my own write is still on its way.
+            val newest = raw.maxOfOrNull { it.seenAtMs } ?: 0L
+            val fresh = raw.filter { it.uid == me || it.seenAtMs == 0L || newest - it.seenAtMs < FRESH_MS }.sortedBy { it.joinedAtMs }
             _state.update { current ->
                 if (current.status == BroadcastStatus.IDLE) current else current.copy(
                     members = fresh.map { m ->
@@ -462,7 +477,7 @@ class BroadcastManager @Inject constructor(
                         name = doc.getString("name") ?: return@mapNotNull null,
                         username = doc.getString("username").orEmpty(),
                         joinedAtMs = doc.getTimestamp("joinedAt")?.toDate()?.time ?: System.currentTimeMillis(),
-                        seenAtMs = doc.getTimestamp("seenAt")?.toDate()?.time ?: System.currentTimeMillis(),
+                        seenAtMs = doc.getTimestamp("seenAt")?.toDate()?.time ?: 0L,
                     )
                 },
             )
@@ -524,14 +539,50 @@ class BroadcastManager @Inject constructor(
 
     // ----- switches and chat ----------------------------------------------------------------------------------------------
 
+    /**
+     * Keeps the speaker / earpiece choice true for as long as the room runs. Android drops a call-output request from an app that is
+     * not playing or recording at that moment (alone in a room, or between two voices) and some phones reset it on their own, so the
+     * person pressed "speaker" and kept hearing the earpiece. Looking again every two seconds puts it back at once.
+     */
+    private suspend fun keepAudioRoute() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) return
+        val audio = context.getSystemService(AudioManager::class.java)
+        while (true) {
+            delay(2_000L)
+            val wantSpeaker = _state.value.speaker
+            val onSpeaker = audio.communicationDevice?.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+            if (wantSpeaker != onSpeaker) routeToSpeaker(wantSpeaker)
+        }
+    }
+
     override fun setMuted(muted: Boolean) {
         session?.mesh?.setMuted(muted)
         _state.update { it.copy(muted = muted) }
     }
 
     override fun setSpeaker(on: Boolean) {
-        context.getSystemService(AudioManager::class.java).isSpeakerphoneOn = on
+        routeToSpeaker(on)
         _state.update { it.copy(speaker = on) }
+    }
+
+    /**
+     * Loudspeaker or earpiece for the call. From Android 12 `isSpeakerphoneOn` is ignored by many phones while the call mode is
+     * on (the voice kept coming out of the earpiece), so the output is chosen with `setCommunicationDevice` there. Off hands the
+     * choice back to the system (earpiece, or a wired / Bluetooth headset if one is connected).
+     */
+    private fun routeToSpeaker(on: Boolean) {
+        val audio = context.getSystemService(AudioManager::class.java)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            if (on) {
+                val speaker = audio.availableCommunicationDevices.firstOrNull { it.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                if (speaker != null && audio.setCommunicationDevice(speaker)) return
+            } else {
+                audio.clearCommunicationDevice()
+                return
+            }
+        }
+        @Suppress("DEPRECATION")
+        audio.isSpeakerphoneOn = on
     }
 
     override fun sendChat(text: String) {
@@ -599,7 +650,13 @@ class BroadcastManager @Inject constructor(
     private fun setAudioMode(inCall: Boolean) {
         val audio = context.getSystemService(AudioManager::class.java)
         audio.mode = if (inCall) AudioManager.MODE_IN_COMMUNICATION else AudioManager.MODE_NORMAL
-        audio.isSpeakerphoneOn = inCall
+        if (inCall) {
+            routeToSpeaker(true)
+        } else {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) audio.clearCommunicationDevice()
+            @Suppress("DEPRECATION")
+            audio.isSpeakerphoneOn = false
+        }
     }
 
     private suspend fun <T> Task<T>.awaitOrNull(): T? = try { await() } catch (e: Exception) { null }

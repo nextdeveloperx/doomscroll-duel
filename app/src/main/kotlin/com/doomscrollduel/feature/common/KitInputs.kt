@@ -81,7 +81,11 @@ fun KitAvatar(name: String, modifier: Modifier = Modifier, size: Dp = 44.dp, ton
             .clip(CircleShape)
             .background(Brush.linearGradient(listOf(tone, Kit.VioletDeep))),
         contentAlignment = Alignment.Center,
-    ) { NText(name.trim().firstOrNull()?.uppercase() ?: "?", (size.value * 0.42f).sp, weight = FontWeight.ExtraBold) }
+    ) {
+        // The first whole letter: a fancy styled letter is two characters, and half of it would show as a broken box.
+        val initial = name.trim().let { if (it.isEmpty()) "?" else String(Character.toChars(it.codePointAt(0))).uppercase() }
+        NText(initial, (size.value * 0.42f).sp, weight = FontWeight.ExtraBold)
+    }
 }
 
 /** A hairline between rows inside one card. */

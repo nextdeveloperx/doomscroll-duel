@@ -103,6 +103,25 @@ object FriendNotifications {
         )
     }
 
+    /** Somebody went live in Broadcast (sent to everybody). Tapping opens the Broadcast page and joins that room. */
+    fun showBroadcastLive(context: Context, roomId: String, hostName: String, title: String) {
+        val open = PendingIntent.getActivity(
+            context,
+            ("live:$roomId").hashCode(),
+            Intent(Intent.ACTION_VIEW, Uri.parse("doomscrollduel://broadcast/join/$roomId"), context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        // The same id for the app's own notice and the push, so a person who gets both sees one.
+        show(
+            context,
+            id = ("live:$roomId").hashCode(),
+            title = context.getString(R.string.notif_live_title, hostName),
+            body = context.getString(R.string.notif_live_body, title),
+            open = open,
+        )
+    }
+
     /** The battle is over. Tapping opens its result. */
     fun showDuelEnded(context: Context, duelId: String, opponentName: String) {
         val open = PendingIntent.getActivity(

@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -115,6 +116,7 @@ class SettingsActions(
     val onOpenDeleteAccount: () -> Unit = {},
     val onUsageData: (Boolean) -> Unit = {},
     val onCounterBadge: (Boolean) -> Unit = {},
+    val onBroadcastAlert: (Boolean) -> Unit = {},
     val onOpenFriends: () -> Unit = {},
     val onSignIn: () -> Unit = {},
     val onSignOut: () -> Unit = {},
@@ -132,6 +134,7 @@ fun SettingsScreen(
     actions: SettingsActions,
     modifier: Modifier = Modifier,
     counterBadge: Boolean = true,
+    broadcastAlert: Boolean = true,
     /** The signed-in person's username, or null when signed out. */
     accountUsername: String? = null,
     signedIn: Boolean = false,
@@ -155,6 +158,11 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     var permissionsY by remember { mutableIntStateOf(0) }
     var buddyOpen by remember { mutableStateOf(false) }
+
+    // A refused change explains itself in a block at the top: bring it into view, or a tap further down looks like it did nothing.
+    LaunchedEffect(ui.message) {
+        if (ui.message != null) scroll.animateScrollTo(0)
+    }
 
     Box(modifier.fillMaxSize().neonBackground()) {
         Column(
@@ -190,6 +198,14 @@ fun SettingsScreen(
             )
             Gap()
             ToggleCard(
+                icon = NeonIcons.People,
+                title = stringResource(R.string.settings_broadcast_alert),
+                subtitle = stringResource(R.string.settings_broadcast_alert_sub),
+                checked = broadcastAlert,
+                onChecked = actions.onBroadcastAlert,
+            )
+            Gap()
+            ToggleCard(
                 icon = NeonIcons.Lock,
                 title = stringResource(R.string.settings_strict_lock),
                 titleChip = if (ui.isPro) null else stringResource(R.string.settings_pro_tag),
@@ -210,7 +226,11 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_friend_unlock),
                 subtitle = stringResource(R.string.settings_friend_unlock_sub),
                 checked = settings.friendUnlockEnabled,
-                onChecked = { actions.onChange(SettingChange.FriendUnlockEnabled(it)) },
+                onChecked = {
+                    // Switching it on needs a chosen friend: show the list right away instead of only refusing.
+                    if (it && settings.buddy == null && ui.friends.isNotEmpty()) buddyOpen = true
+                    actions.onChange(SettingChange.FriendUnlockEnabled(it))
+                },
                 glow = true,
             ) {
                 NText(

@@ -49,7 +49,7 @@ class ReelMilestoneRewarder @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private val creditor = ReelMilestoneCreditor(wallet, progress, leaderboard) { milestones ->
-        val coins = milestones.size
+        val coins = milestones.sumOf { ReelMilestoneRules.coinsFor(it) }
         val reelsNow = milestones.last() * ReelMilestoneRules.REELS_PER_COIN
         val message = if (coins == 1) {
             context.getString(R.string.reel_milestone_toast_single, reelsNow)

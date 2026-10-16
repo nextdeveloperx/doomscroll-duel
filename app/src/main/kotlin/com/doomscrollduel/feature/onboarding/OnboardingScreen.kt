@@ -89,6 +89,7 @@ import com.doomscrollduel.core.designsystem.components.DuelIcon
 import com.doomscrollduel.core.designsystem.theme.DuelTheme
 import com.doomscrollduel.core.designsystem.theme.LilitaOne
 import com.doomscrollduel.core.designsystem.theme.Nunito
+import com.doomscrollduel.data.broadcast.BubblePermission
 import com.doomscrollduel.domain.onboarding.AgeRule
 import com.doomscrollduel.domain.onboarding.Typing
 import com.doomscrollduel.domain.social.ProfileState
@@ -125,11 +126,17 @@ fun OnboardingRoute(
     var savingName by rememberSaveable { mutableStateOf(false) }
     var askedNotifications by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
+    var overlayOn by remember { mutableStateOf(BubblePermission.granted(context)) }
 
-    // Coming back from a system screen (Accessibility, battery, notifications): look again at what is on.
+    // Coming back from a system screen (Accessibility, battery, notifications, display over other apps): look again at what is on.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshPermissions() }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshPermissions()
+                overlayOn = BubblePermission.granted(context)
+            }
+        }
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
@@ -172,6 +179,17 @@ fun OnboardingRoute(
             }
         },
         onAllowBattery = onOpenBatteryGuide,
+        overlayOn = overlayOn,
+        onAllowOverlay = {
+            runCatching {
+                context.startActivity(
+                    android.content.Intent(
+                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:${context.packageName}"),
+                    ),
+                )
+            }
+        },
         onNext = { step += 1 },
         onFinish = {
             viewModel.finish(skipped)
@@ -200,6 +218,8 @@ fun OnboardingScreen(
     onNext: () -> Unit,
     onFinish: () -> Unit,
     modifier: Modifier = Modifier,
+    overlayOn: Boolean = false,
+    onAllowOverlay: () -> Unit = {},
 ) {
     val calm = DuelTheme.motion.reduced
     val buzzer = rememberBuzzer()
@@ -241,7 +261,7 @@ fun OnboardingScreen(
                     when (step) {
                         0 -> PageUsername(usernameUi, alreadyNamed?.profile?.username, noServer, calm, buzzer, onUsernameText)
                         1 -> PageAge(age, calm, buzzer, onAgeChange)
-                        2 -> PagePermissions(permissions, accessibilityOn, calm, buzzer, onAllowAccessibility, onAllowNotifications, onAllowBattery)
+                        2 -> PagePermissions(permissions, accessibilityOn, calm, buzzer, onAllowAccessibility, onAllowNotifications, onAllowBattery, overlayOn, onAllowOverlay)
                         else -> PageWelcome(firstName, calm, buzzer)
                     }
                     Spacer(Modifier.height(16.dp))
@@ -366,6 +386,8 @@ private fun PagePermissions(
     onAccessibility: () -> Unit,
     onNotifications: () -> Unit,
     onBattery: () -> Unit,
+    overlayOn: Boolean,
+    onOverlay: () -> Unit,
 ) {
     var typed by remember { mutableStateOf(calm) }
     PageHead(
@@ -379,6 +401,7 @@ private fun PagePermissions(
             PermissionRow(NeonIcons.Reels, stringResource(R.string.onb_perm_a11y), stringResource(R.string.onb_perm_a11y_sub), accessibilityOn, onAccessibility)
             PermissionRow(NeonIcons.Bell, stringResource(R.string.onb_perm_notif), stringResource(R.string.onb_perm_notif_sub), health.notificationsEnabled, onNotifications)
             PermissionRow(NeonIcons.Bolt, stringResource(R.string.onb_perm_battery), stringResource(R.string.onb_perm_battery_sub), health.batteryUnrestricted, onBattery)
+            PermissionRow(NeonIcons.Bolt, stringResource(R.string.onb_perm_overlay), stringResource(R.string.onb_perm_overlay_sub), overlayOn, onOverlay)
         }
     }
 }

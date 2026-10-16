@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -43,7 +46,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.doomscrollduel.R
 import com.doomscrollduel.core.designsystem.components.DuelIcon
 import com.doomscrollduel.core.designsystem.theme.Nunito
+import com.doomscrollduel.domain.social.NameStyle
 import com.doomscrollduel.domain.social.Profile
+import com.doomscrollduel.domain.social.SocialApp
+import com.doomscrollduel.feature.common.KitChoice
 import com.doomscrollduel.domain.social.ProfileState
 import com.doomscrollduel.feature.common.Kit
 import com.doomscrollduel.feature.common.KitButton
@@ -72,6 +78,8 @@ fun ProfileRoute(
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val uid = (ui.state as? ProfileState.Ready)?.profile?.uid
+    LaunchedEffect(uid) { if (uid != null) viewModel.loadExtras(uid) }
     ProfileScreen(
         ui = ui,
         onBack = onBack,
@@ -80,6 +88,9 @@ fun ProfileRoute(
         onOpenSettings = onOpenSettings,
         onEdit = viewModel::startEdit,
         onDraft = viewModel::onDraft,
+        onStyle = viewModel::onStyle,
+        onBio = viewModel::onBio,
+        onHandle = viewModel::onHandle,
         onSaveName = viewModel::saveName,
         onCancelEdit = viewModel::cancelEdit,
         onAskLogout = viewModel::askLogout,
@@ -107,6 +118,9 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
     onChooseUsername: () -> Unit = {},
+    onStyle: (NameStyle) -> Unit = {},
+    onBio: (String) -> Unit = {},
+    onHandle: (SocialApp, String) -> Unit = { _, _ -> },
 ) {
     val profile = (ui.state as? ProfileState.Ready)?.profile
     val signedIn = ui.state != ProfileState.SignedOut
@@ -125,7 +139,7 @@ fun ProfileScreen(
                     .clip(CircleShape)
                     .background(Brush.linearGradient(listOf(PinkHot, Kit.VioletDeep))),
                 contentAlignment = Alignment.Center,
-            ) { NText(name.trim().firstOrNull()?.uppercase() ?: "?", 40.sp, weight = FontWeight.ExtraBold) }
+            ) { NText(firstLetter(name), 40.sp, weight = FontWeight.ExtraBold) }
             Spacer(Modifier.height(12.dp))
             NText(
                 profile?.displayName ?: stringResource(R.string.profile_loading), 22.sp,
@@ -137,6 +151,10 @@ fun ProfileScreen(
                 NText(stringResource(R.string.profile_unavailable), 13.sp, color = Neon.Orange, align = TextAlign.Center)
             }
             ui.email?.let { NText(it, 12.sp, color = Neon.Muted, maxLines = 1) }
+            if (profile != null && !ui.editing) {
+                Spacer(Modifier.height(12.dp))
+                ProfileExtrasBlock(ui.extras)
+            }
         }
 
         if (ui.state == ProfileState.NeedsUsername) {
@@ -154,6 +172,31 @@ fun ProfileScreen(
             Spacer(Modifier.height(18.dp))
             if (ui.editing) {
                 NeonField(ui.draftName, onDraft, stringResource(R.string.profile_name_label), enabled = !ui.saving)
+                Spacer(Modifier.height(10.dp))
+                NText(stringResource(R.string.profile_style_label), 12.sp, color = Neon.VioletLight, weight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NameStyle.entries.forEach { style -> KitChoice(style.sample, ui.nameStyle == style, { onStyle(style) }) }
+                }
+                Spacer(Modifier.height(10.dp))
+                NText(
+                    ui.nameStyle.apply(ui.draftName.ifBlank { "…" }), 22.sp,
+                    weight = FontWeight.ExtraBold, align = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(14.dp))
+                NeonField(
+                    ui.draftExtras.bio, onBio, stringResource(R.string.profile_bio_label), enabled = !ui.saving,
+                    singleLine = false, minHeight = 92.dp, hint = stringResource(R.string.profile_bio_hint),
+                )
+                Spacer(Modifier.height(14.dp))
+                NText(stringResource(R.string.profile_links_title), 12.sp, color = Neon.VioletLight, weight = FontWeight.Bold)
+                SocialApp.entries.forEach { app ->
+                    Spacer(Modifier.height(8.dp))
+                    NeonField(
+                        ui.draftExtras.handle(app), { onHandle(app, it) }, stringResource(app.fieldLabel()), enabled = !ui.saving,
+                        hint = stringResource(R.string.profile_link_hint), capitalization = KeyboardCapitalization.None,
+                    )
+                }
                 ui.message?.let {
                     Spacer(Modifier.height(8.dp))
                     NText(stringResource(it), 13.sp, color = Neon.Red, weight = FontWeight.Bold)
@@ -195,6 +238,20 @@ fun ProfileScreen(
         }
         Spacer(Modifier.height(12.dp))
     }
+}
+
+/** The first letter of a name for the round avatar. A fancy letter takes two characters, so the first whole letter is taken, not half of it. */
+private fun firstLetter(name: String): String {
+    val text = name.trim()
+    if (text.isEmpty()) return "?"
+    return String(Character.toChars(text.codePointAt(0))).uppercase()
+}
+
+private fun SocialApp.fieldLabel(): Int = when (this) {
+    SocialApp.INSTAGRAM -> R.string.profile_link_instagram
+    SocialApp.YOUTUBE -> R.string.profile_link_youtube
+    SocialApp.SNAPCHAT -> R.string.profile_link_snapchat
+    SocialApp.FACEBOOK -> R.string.profile_link_facebook
 }
 
 @Composable
@@ -244,7 +301,16 @@ private fun PillButton(
 }
 
 @Composable
-private fun NeonField(value: String, onChange: (String) -> Unit, label: String, enabled: Boolean) {
+private fun NeonField(
+    value: String,
+    onChange: (String) -> Unit,
+    label: String,
+    enabled: Boolean,
+    singleLine: Boolean = true,
+    minHeight: androidx.compose.ui.unit.Dp = 52.dp,
+    hint: String? = null,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.Words,
+) {
     val shape = RoundedCornerShape(14.dp)
     Column(Modifier.fillMaxWidth()) {
         NText(label, 12.sp, color = Neon.VioletLight, weight = FontWeight.Bold)
@@ -253,13 +319,19 @@ private fun NeonField(value: String, onChange: (String) -> Unit, label: String, 
             value = value,
             onValueChange = onChange,
             enabled = enabled,
-            singleLine = true,
+            singleLine = singleLine,
             textStyle = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White),
             cursorBrush = SolidColor(Color.White),
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+            keyboardOptions = KeyboardOptions(capitalization = capitalization),
+            decorationBox = { inner ->
+                Box {
+                    if (value.isEmpty() && hint != null) NText(hint, 15.sp, color = Neon.Muted.copy(alpha = 0.7f))
+                    inner()
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 52.dp)
+                .heightIn(min = minHeight)
                 .clip(shape)
                 .background(Kit.Surface)
                 .border(1.dp, Kit.Violet.copy(alpha = 0.6f), shape)

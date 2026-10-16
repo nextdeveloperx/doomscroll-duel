@@ -287,6 +287,24 @@ await check("monthly coins work the same way, independently of weekly", () =>
 await check("the directory leaderboard can be queried sorted by score", () =>
   assertSucceeds(getDocs(query(collection(bob, "directory"), orderBy("monthlyCoins", "desc"), limit(50)))));
 
+// --- public profile: bio and social handles on the directory
+await check("alice saves her bio and handles", () =>
+  assertSucceeds(updateDoc(doc(alice, "directory", "alice"), { bio: "Reels kam, life zyada", instagram: "alice_a", youtube: "alice", snapchat: "", facebook: "" })));
+await check("alice cannot write bob's bio", () =>
+  assertFails(updateDoc(doc(alice, "directory", "bob"), { bio: "hacked" })));
+await check("a bio longer than 150 characters is refused", () =>
+  assertFails(updateDoc(doc(alice, "directory", "alice"), { bio: "x".repeat(151) })));
+await check("a handle longer than 40 characters is refused", () =>
+  assertFails(updateDoc(doc(alice, "directory", "alice"), { instagram: "x".repeat(41) })));
+await check("a bio write cannot carry the username along", () =>
+  assertFails(updateDoc(doc(alice, "directory", "alice"), { bio: "hi", username: "someone_else" })));
+await check("a bio write cannot carry a score along", () =>
+  assertFails(updateDoc(doc(alice, "directory", "alice"), { bio: "hi", monthlyCoins: 999999, monthlyPeriodKey: "2026-10" })));
+await check("a bio must be a string", () =>
+  assertFails(updateDoc(doc(alice, "directory", "alice"), { bio: 123 })));
+await check("anybody signed in can read bob's profile entry", () =>
+  assertSucceeds(getDoc(doc(alice, "directory", "bob"))));
+
 // --- reel milestone rewards (1 coin per 10 valid reels, separate op kind, separate id namespace from duel ops)
 await check("alice credits her own milestone 1", () =>
   assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:1"), { kind: "reel_milestone", amount: 1, milestone: 1, at: serverTimestamp() })));
@@ -294,14 +312,26 @@ await check("the same milestone cannot be credited twice", () =>
   assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:1"), { kind: "reel_milestone", amount: 1, milestone: 1, at: serverTimestamp() })));
 await check("alice cannot credit bob a milestone", () =>
   assertFails(setDoc(doc(alice, "wallets", "bob", "ops", "reel_milestone:1"), { kind: "reel_milestone", amount: 1, milestone: 1, at: serverTimestamp() })));
-await check("a milestone cannot pay more than 1 coin", () =>
-  assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:2"), { kind: "reel_milestone", amount: 2, milestone: 2, at: serverTimestamp() })));
+await check("a milestone cannot pay 3 coins", () =>
+  assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:2"), { kind: "reel_milestone", amount: 3, milestone: 2, at: serverTimestamp() })));
+await check("an odd milestone cannot pay 2 coins", () =>
+  assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:1"), { kind: "reel_milestone", amount: 2, milestone: 1, at: serverTimestamp() })));
 await check("a milestone cannot be skipped: 3 is refused while 2 has never been credited", () =>
   assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:3"), { kind: "reel_milestone", amount: 1, milestone: 3, at: serverTimestamp() })));
 await check("the opId must match the milestone field", () =>
   assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:2"), { kind: "reel_milestone", amount: 1, milestone: 5, at: serverTimestamp() })));
 await check("milestone 2 succeeds once 1 already exists", () =>
   assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:2"), { kind: "reel_milestone", amount: 1, milestone: 2, at: serverTimestamp() })));
+await check("milestone 3 pays 1 coin and milestone 4 pays 2 (1.5 coins per 10 reels on average)", async () => {
+  await assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:3"), { kind: "reel_milestone", amount: 1, milestone: 3, at: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:4"), { kind: "reel_milestone", amount: 2, milestone: 4, at: serverTimestamp() }));
+});
+await check("milestone 5 (odd) cannot pay 2 coins", () =>
+  assertFails(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:5"), { kind: "reel_milestone", amount: 2, milestone: 5, at: serverTimestamp() })));
+await check("an older phone may still pay 1 coin on an even milestone", async () => {
+  await assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:5"), { kind: "reel_milestone", amount: 1, milestone: 5, at: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:6"), { kind: "reel_milestone", amount: 1, milestone: 6, at: serverTimestamp() }));
+});
 await check("milestone ops cannot be edited or deleted", async () => {
   await assertFails(updateDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:2"), { amount: 99 }));
   await assertFails(deleteDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:2")));

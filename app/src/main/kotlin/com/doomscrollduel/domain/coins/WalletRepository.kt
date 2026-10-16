@@ -39,7 +39,7 @@ interface WalletRepository {
      * are cross-checked against both players' counts — a reel milestone is self-reported with nothing on the
      * server to verify the claimed reel count against, since this deployment has no Cloud Functions and reel
      * counts are not otherwise uploaded outside of an active duel. firestore.rules can still guarantee each
-     * milestone pays out once only, exactly 1 coin, to its rightful owner, and only in ascending order (see
+     * milestone pays out once only, exactly [ReelMilestoneRules.coinsFor] coins (1 or 2), to its rightful owner, and only in ascending order (see
      * `isReelMilestone`) — it cannot guarantee the claimed reel count was genuinely reached.
      */
     suspend fun creditReelMilestone(me: String, milestoneIndex: Int): MilestoneCreditResult
