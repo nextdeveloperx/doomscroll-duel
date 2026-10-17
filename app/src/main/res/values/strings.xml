@@ -694,6 +694,7 @@
 
     <!-- Progress -->
     <string name="progress_title">Progress</string>
+    <string name="progress_subtitle">Track. Compete. Be a Better You.</string>
     <string name="progress_daily">Din</string>
     <string name="progress_weekly">Hafta</string>
     <string name="progress_today">Aaj</string>
@@ -709,7 +710,15 @@
     <string name="progress_of_limit">Limit use</string>
     <string name="progress_avg_day">Roz ka avg</string>
     <string name="progress_peak_day">Top din</string>
+    <string name="progress_limit_over">Zyada ho gaya!</string>
+    <string name="progress_insight_title">Tumhare liye tip</string>
+    <string name="progress_insight_calm_day">Aaj koi reel nahi — dimaag bilkul fresh hai!</string>
+    <string name="progress_insight_calm_week">Is hafte koi reel nahi — zabardast hafta raha!</string>
+    <string name="progress_insight_daily">Aaj %1$d%% limit use hui. Sabse zyada scroll %2$s ke aaspaas hota hai — udhar dhyaan rakhna.</string>
+    <string name="progress_insight_daily_over">Aaj limit %1$d%% paar ho gayi! Sabse zyada scroll %2$s ke aaspaas hota hai — wahi waqt Focus Mode try karo.</string>
+    <string name="progress_insight_weekly">Is hafte roz average %1$d reels dekhi, sabse zyada %2$s ko. Us din thoda savdhaan rehna.</string>
     <string name="progress_pro_title">Pro lo, reels block karo</string>
+    <string name="progress_pro_subtitle">Focus Mode, Strict Lock, aur zyada control.</string>
     <string name="progress_pro_action">Pro plans dekho</string>
 
     <!-- Leaderboard (inside Progress) -->
@@ -721,6 +730,7 @@
     <string name="leaderboard_empty_friends">Abhi koi dost ka score nahi hai. Dost banao aur jeeto!</string>
     <string name="leaderboard_empty_india">Is mahine abhi koi score nahi hai.</string>
     <string name="leaderboard_row_description">Rank %1$d, %2$s, %3$d coins</string>
+    <string name="leaderboard_your_rank">Tumhara Rank</string>
     <string name="progress_chart_none">Is dauraan koi reel nahi.</string>
     <string name="progress_chart_day">Total %1$d reels. Sabse zyada %2$s ke aaspaas.</string>
     <string name="progress_chart_week">Total %1$d reels. Sabse zyada %2$s ko.</string>

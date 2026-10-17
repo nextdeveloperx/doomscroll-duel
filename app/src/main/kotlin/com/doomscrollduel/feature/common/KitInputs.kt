@@ -1,5 +1,6 @@
 package com.doomscrollduel.feature.common
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -21,12 +22,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.doomscrollduel.core.designsystem.theme.Nunito
 import com.doomscrollduel.feature.settings.neon.NText
 import com.doomscrollduel.feature.settings.neon.Neon
@@ -85,6 +91,28 @@ fun KitAvatar(name: String, modifier: Modifier = Modifier, size: Dp = 44.dp, ton
         // The first whole letter: a fancy styled letter is two characters, and half of it would show as a broken box.
         val initial = name.trim().let { if (it.isEmpty()) "?" else String(Character.toChars(it.codePointAt(0))).uppercase() }
         NText(initial, (size.value * 0.42f).sp, weight = FontWeight.ExtraBold)
+    }
+}
+
+/**
+ * A person's real photo when they have one (their Google account picture, synced to `directory/{uid}.photoUrl` by
+ * [com.doomscrollduel.data.social.ProfilePhotoSync]), cropped to a circle — otherwise the same initials fallback as
+ * [KitAvatar]. The initials are drawn underneath regardless, so there is never a blank circle while the photo loads
+ * and a failed load (bad URL, offline, expired link) falls back to them cleanly instead of showing a broken image
+ * or, worse, somebody else's picture.
+ */
+@Composable
+fun KitAvatarPhoto(name: String, photoUrl: String?, modifier: Modifier = Modifier, size: Dp = 44.dp, tone: Color = Kit.Blue) {
+    if (photoUrl.isNullOrBlank()) {
+        KitAvatar(name, modifier, size, tone)
+        return
+    }
+    val painter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(LocalContext.current).data(photoUrl).crossfade(true).build(),
+    )
+    Box(modifier.size(size).clip(CircleShape)) {
+        if (painter.state !is AsyncImagePainter.State.Success) KitAvatar(name, Modifier, size, tone)
+        Image(painter = painter, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
     }
 }
 

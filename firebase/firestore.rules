@@ -167,19 +167,25 @@ service cloud.firestore {
     match /directory/{uid} {
       allow read: if signedIn();
       allow create: if isSelf(uid)
-        && request.resource.data.keys().hasOnly(['username', 'displayName', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['username', 'displayName', 'createdAt', 'photoUrl'])
         && request.resource.data.username is string
         && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == uid
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() >= 1
         && request.resource.data.displayName.size() <= 30
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.get('photoUrl', '') is string
+        && request.resource.data.get('photoUrl', '').size() <= 300;
       allow update: if isSelf(uid) && (
           // display name
           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName'])
             && request.resource.data.displayName is string
             && request.resource.data.displayName.size() >= 1
             && request.resource.data.displayName.size() <= 30)
+          // The Google account photo (see ProfilePhotoSync) — a plain https URL, nothing else about the account.
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoUrl'])
+            && request.resource.data.photoUrl is string
+            && request.resource.data.photoUrl.size() <= 300)
           // Public profile: a short bio and four social handles (plain handles, never links; the app builds the link), all optional,
           // each a short string. The person's own phone writes them; nothing else in the document may change in the same write.
           || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bio', 'instagram', 'youtube', 'snapchat', 'facebook'])

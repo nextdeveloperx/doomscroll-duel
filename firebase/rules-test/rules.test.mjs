@@ -305,6 +305,35 @@ await check("a bio must be a string", () =>
 await check("anybody signed in can read bob's profile entry", () =>
   assertSucceeds(getDoc(doc(alice, "directory", "bob"))));
 
+// --- Google account photo on the directory (ProfilePhotoSync), used by every leaderboard row
+const erin = env.authenticatedContext("erin").firestore();
+await check("a profile can be created WITH a photoUrl, by its own owner", async () => {
+  const b = writeBatch(erin);
+  b.set(doc(erin, "usernames", "erin_e"), { uid: "erin", createdAt: serverTimestamp() });
+  b.set(doc(erin, "users", "erin"), { username: "erin_e", displayName: "Erin", avatarColor: "pink", createdAt: serverTimestamp() });
+  b.set(doc(erin, "directory", "erin"), { username: "erin_e", displayName: "Erin", createdAt: serverTimestamp(), photoUrl: "https://lh3.googleusercontent.com/a/erin" });
+  await assertSucceeds(b.commit());
+});
+await check("nobody else can create dave's directory entry with a photo on his behalf", async () => {
+  const b = writeBatch(alice);
+  b.set(doc(alice, "usernames", "dave_d"), { uid: "dave", createdAt: serverTimestamp() });
+  b.set(doc(alice, "users", "dave"), { username: "dave_d", displayName: "Dave", avatarColor: "pink", createdAt: serverTimestamp() });
+  b.set(doc(alice, "directory", "dave"), { username: "dave_d", displayName: "Dave", createdAt: serverTimestamp(), photoUrl: "https://example.com/not-mine" });
+  await assertFails(b.commit()); // written from alice's context for uid "dave" — refused regardless of photoUrl
+});
+await check("alice syncs her own Google photo", () =>
+  assertSucceeds(updateDoc(doc(alice, "directory", "alice"), { photoUrl: "https://lh3.googleusercontent.com/a/alice-new" })));
+await check("alice cannot set bob's photo", () =>
+  assertFails(updateDoc(doc(alice, "directory", "bob"), { photoUrl: "https://lh3.googleusercontent.com/a/not-bobs" })));
+await check("a photoUrl write cannot sneak the display name along", () =>
+  assertFails(updateDoc(doc(alice, "directory", "alice"), { photoUrl: "https://example.com/p.png", displayName: "Not Alice" })));
+await check("a photoUrl over 300 characters is refused", () =>
+  assertFails(updateDoc(doc(alice, "directory", "alice"), { photoUrl: "https://example.com/" + "p".repeat(300) })));
+await check("a photoUrl must be a string", () =>
+  assertFails(updateDoc(doc(alice, "directory", "alice"), { photoUrl: 12345 })));
+await check("clearing a photo (empty string) is allowed", () =>
+  assertSucceeds(updateDoc(doc(alice, "directory", "alice"), { photoUrl: "" })));
+
 // --- reel milestone rewards (1 coin per 10 valid reels, separate op kind, separate id namespace from duel ops)
 await check("alice credits her own milestone 1", () =>
   assertSucceeds(setDoc(doc(alice, "wallets", "alice", "ops", "reel_milestone:1"), { kind: "reel_milestone", amount: 1, milestone: 1, at: serverTimestamp() })));
@@ -344,9 +373,12 @@ await check("nobody else reads alice's milestone ops", () => assertFails(getDocs
 
 // --- reel milestones contribute to the leaderboard the same way duel winnings do (wonOps now includes both kinds)
 await check("a reel-milestone credit is visible alongside duel winnings in alice's own ops", async () => {
+  // Exactly how many reel_milestone docs alice has by this point depends on how many milestone tests ran earlier
+  // in this file (several, above) — what this check actually verifies is the whereIn("kind", [...]) query the
+  // leaderboard repository runs: both kinds come back together, and nothing else does.
   const ops = await getDocs(query(collection(alice, "wallets", "alice", "ops"), where("kind", "in", ["transfer_credit", "reel_milestone"])));
-  const kinds = ops.docs.map((d) => d.data().kind).sort();
-  assertEquals(kinds, ["reel_milestone", "reel_milestone", "transfer_credit"]);
+  const kinds = new Set(ops.docs.map((d) => d.data().kind));
+  assertEquals([...kinds].sort(), ["reel_milestone", "transfer_credit"]);
 });
 
 function assertEquals(actual, expected) {

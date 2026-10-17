@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -54,16 +55,21 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.doomscrollduel.R
+import com.doomscrollduel.core.designsystem.brain.BrainState
+import com.doomscrollduel.core.designsystem.brain.BrainView
+import com.doomscrollduel.core.designsystem.brain.ReelUsage
+import com.doomscrollduel.core.designsystem.components.DuelIcon
 import com.doomscrollduel.core.designsystem.theme.DuelTheme
 import com.doomscrollduel.feature.common.Kit
 import com.doomscrollduel.feature.common.KitCard
 import com.doomscrollduel.feature.common.KitPage
-import com.doomscrollduel.feature.common.KitPill
 import com.doomscrollduel.feature.modes.BlueHot
 import com.doomscrollduel.feature.modes.GoldHot
 import com.doomscrollduel.feature.modes.PinkHot
 import com.doomscrollduel.feature.settings.neon.NText
 import com.doomscrollduel.feature.settings.neon.Neon
+import com.doomscrollduel.feature.settings.neon.NeonIcons
+import com.doomscrollduel.feature.settings.neon.ProChip
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -102,7 +108,9 @@ fun ProgressScreen(
     onSeePro: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    KitPage(modifier = modifier, title = stringResource(R.string.progress_title)) {
+    KitPage(modifier = modifier, title = null) {
+        ProgressHeader(ui)
+        Spacer(Modifier.height(18.dp))
         LeaderboardRoute()
         Spacer(Modifier.height(20.dp))
         Stats(ui)
@@ -122,7 +130,32 @@ fun ProgressScreen(
             }
         }
         Spacer(Modifier.height(14.dp))
+        InsightCard(ui)
+        Spacer(Modifier.height(14.dp))
         ProPanel(onSeePro)
+    }
+}
+
+// ----- header -------------------------------------------------------------------------------------------------------
+
+@Composable
+private fun ProgressHeader(ui: ProgressUi) {
+    val percent = if (ui.limit > 0) ReelUsage.percentUsed(ui.total, ui.limit) else 0
+    val state = BrainState.fromPercentUsed(percent)
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            NText(
+                stringResource(R.string.progress_title), 26.sp, weight = FontWeight.ExtraBold, maxLines = 1,
+                modifier = Modifier.semantics { heading() },
+            )
+            Spacer(Modifier.height(2.dp))
+            NText(stringResource(R.string.progress_subtitle), 13.sp, color = Neon.Muted, maxLines = 2, lineHeight = 17.sp)
+        }
+        BrainView(state = state, modifier = Modifier.width(44.dp))
     }
 }
 
@@ -321,47 +354,111 @@ private fun Stats(ui: ProgressUi) {
     val peak = ui.peakIndex
     val second = if (weekly) (ui.total / 7).toString() else (peak?.let { hourLabel(it) } ?: "-")
     val secondLabel = if (weekly) R.string.progress_avg_day else R.string.progress_peak_hour
+    val limitPercent = if (ui.limit > 0) (ui.total * 100L / ui.limit).coerceAtMost(999L).toInt() else 0
     val third = if (weekly) (peak?.let { ui.start.plusDays(it.toLong()).dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()).take(3) } ?: "-")
-    else (if (ui.limit > 0) "${(ui.total * 100L / ui.limit).coerceAtMost(999)}%" else "-")
+    else (if (ui.limit > 0) "$limitPercent%" else "-")
     val thirdLabel = if (weekly) R.string.progress_peak_day else R.string.progress_of_limit
+    val overLimit = !weekly && ui.limit > 0 && limitPercent > 100
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatTile(ui.total.toString(), R.string.progress_total, PinkHot, Modifier.weight(1f))
-        StatTile(second, secondLabel, BlueHot, Modifier.weight(1f))
-        StatTile(third, thirdLabel, Color(0xFFA56BFF), Modifier.weight(1f))
+        StatTile(ui.total.toString(), R.string.progress_total, PinkHot, NeonIcons.Reels, Modifier.weight(1f))
+        StatTile(second, secondLabel, BlueHot, NeonIcons.Clock, Modifier.weight(1f))
+        StatTile(
+            third, thirdLabel, if (overLimit) Kit.Red else Color(0xFFA56BFF), NeonIcons.Target, Modifier.weight(1f),
+            warning = overLimit,
+        )
     }
 }
 
 @Composable
-private fun StatTile(value: String, @androidx.annotation.StringRes label: Int, tone: Color, modifier: Modifier = Modifier) {
+private fun StatTile(
+    value: String,
+    @androidx.annotation.StringRes label: Int,
+    tone: Color,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    warning: Boolean = false,
+) {
     val labelText = stringResource(label)
-    Box(modifier.semantics(mergeDescendants = true) { contentDescription = "$labelText: $value" }) {
-        KitCard(radius = 20.dp, padding = PaddingValues(horizontal = 12.dp, vertical = 14.dp)) {
-            Box(Modifier.size(width = 22.dp, height = 4.dp).clip(RoundedCornerShape(50)).background(tone))
+    val warningText = stringResource(R.string.progress_limit_over)
+    val spoken = if (warning) "$labelText: $value, $warningText" else "$labelText: $value"
+    Box(modifier.semantics(mergeDescendants = true) { contentDescription = spoken }) {
+        KitCard(
+            radius = 20.dp,
+            padding = PaddingValues(horizontal = 12.dp, vertical = 14.dp),
+            edge = if (warning) Kit.Red.copy(alpha = 0.45f) else Kit.Edge,
+        ) {
+            Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(tone.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+                DuelIcon(icon, tint = tone, contentDescription = null, modifier = Modifier.size(17.dp))
+            }
             Spacer(Modifier.height(10.dp))
-            NText(value, 24.sp, weight = FontWeight.ExtraBold, maxLines = 1)
+            NText(value, 22.sp, weight = FontWeight.ExtraBold, maxLines = 1)
             Spacer(Modifier.height(2.dp))
-            NText(labelText, 12.sp, color = Neon.Muted, maxLines = 2, lineHeight = 15.sp)
+            if (warning) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    DuelIcon(NeonIcons.Flame, tint = Kit.Red, contentDescription = null, modifier = Modifier.size(11.dp))
+                    NText(warningText, 11.sp, color = Kit.Red, weight = FontWeight.ExtraBold, maxLines = 1)
+                }
+            } else {
+                NText(labelText, 12.sp, color = Neon.Muted, maxLines = 2, lineHeight = 15.sp)
+            }
         }
     }
 }
 
+// ----- personalized insight ----------------------------------------------------------------------------------------
+
+@Composable
+private fun InsightCard(ui: ProgressUi) {
+    val weekly = ui.mode == ProgressMode.WEEKLY
+    val peak = ui.peakIndex
+    val percent = if (ui.limit > 0) ReelUsage.percentUsed(ui.total, ui.limit) else 0
+    val text = when {
+        ui.total == 0 -> stringResource(if (weekly) R.string.progress_insight_calm_week else R.string.progress_insight_calm_day)
+        weekly -> stringResource(
+            R.string.progress_insight_weekly, ui.total / 7,
+            peak?.let { dayName(ui.start.plusDays(it.toLong())) } ?: "-",
+        )
+        percent > 100 -> stringResource(R.string.progress_insight_daily_over, percent, hourLabel(peak ?: 0))
+        else -> stringResource(R.string.progress_insight_daily, percent, hourLabel(peak ?: 0))
+    }
+    KitCard(radius = 20.dp, padding = PaddingValues(14.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            BrainView(state = BrainState.HAPPY, modifier = Modifier.width(34.dp))
+            Column(Modifier.weight(1f)) {
+                NText(stringResource(R.string.progress_insight_title), 13.sp, color = Neon.VioletLight, weight = FontWeight.ExtraBold)
+                Spacer(Modifier.height(4.dp))
+                NText(text, 13.sp, color = Color.White, lineHeight = 18.sp)
+            }
+        }
+    }
+}
+
+// ----- PRO banner ---------------------------------------------------------------------------------------------------
+
 @Composable
 private fun ProPanel(onSeePro: () -> Unit) {
-    KitCard(
-        radius = 22.dp,
-        fill = Brush.horizontalGradient(listOf(GoldHot.copy(alpha = 0.22f), Kit.Surface)),
-        edge = GoldHot.copy(alpha = 0.35f),
-        onClick = onSeePro,
-        onClickLabel = stringResource(R.string.progress_pro_action),
+    val shape = RoundedCornerShape(22.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Brush.horizontalGradient(listOf(Color(0xFF0A0710), Color(0xFF1C1033))))
+            .border(1.dp, GoldHot.copy(alpha = 0.4f), shape)
+            .clickable(role = Role.Button, onClickLabel = stringResource(R.string.progress_pro_action), onClick = onSeePro)
+            .padding(16.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            KitPill(stringResource(R.string.ds_tag_pro), tone = GoldHot, filled = true)
-            NText(stringResource(R.string.progress_pro_title), 14.sp, weight = FontWeight.ExtraBold, modifier = Modifier.weight(1f), lineHeight = 18.sp)
+            ProChip(stringResource(R.string.ds_tag_pro))
+            Spacer(Modifier.weight(1f))
             Canvas(Modifier.size(width = 9.dp, height = 15.dp)) {
                 val p = Path().apply { moveTo(0f, 0f); lineTo(size.width, size.height / 2f); lineTo(0f, size.height) }
                 drawPath(p, GoldHot, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
             }
         }
+        Spacer(Modifier.height(10.dp))
+        NText(stringResource(R.string.progress_pro_title), 16.sp, weight = FontWeight.ExtraBold, lineHeight = 20.sp)
+        Spacer(Modifier.height(3.dp))
+        NText(stringResource(R.string.progress_pro_subtitle), 13.sp, color = Neon.Muted, lineHeight = 18.sp)
     }
 }
 

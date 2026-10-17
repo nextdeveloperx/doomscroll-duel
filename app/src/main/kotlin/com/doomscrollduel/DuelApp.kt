@@ -17,6 +17,7 @@ class DuelApp : Application() {
     @Inject lateinit var inboxNotifier: com.doomscrollduel.data.social.InboxNotifier
     @Inject lateinit var duelTracker: com.doomscrollduel.data.social.DuelTracker
     @Inject lateinit var reelMilestoneRewarder: com.doomscrollduel.data.coins.ReelMilestoneRewarder
+    @Inject lateinit var profilePhotoSync: com.doomscrollduel.data.social.ProfilePhotoSync
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -29,6 +30,7 @@ class DuelApp : Application() {
         inboxNotifier.start(scope)
         duelTracker.start(scope)
         reelMilestoneRewarder.start(scope)
+        profilePhotoSync.start(scope)
         android.os.Handler(android.os.Looper.getMainLooper()).post { com.doomscrollduel.core.designsystem.brain.prewarmBrain3D(this) }
     }
 }

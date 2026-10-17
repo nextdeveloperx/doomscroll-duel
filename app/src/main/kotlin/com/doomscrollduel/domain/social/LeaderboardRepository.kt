@@ -16,6 +16,10 @@ data class LeaderboardEntry(
     val displayName: String,
     val coins: Int,
     val isMe: Boolean,
+    /** The Google account photo URL synced to `directory/{uid}.photoUrl` (see [com.doomscrollduel.data.social.ProfilePhotoSync]),
+     * or null when the person has none, it failed to sync, or their profile predates this field. The row must fall
+     * back to the initials avatar in that case — never a random or another person's picture. */
+    val photoUrl: String? = null,
 )
 
 sealed interface LeaderboardUi {

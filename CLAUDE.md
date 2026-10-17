@@ -429,3 +429,47 @@ Snapchat Spotlight: no scroll and no 0x40 event at all; every swipe gives one pa
   deletes my old member document first (a `set` on an existing member doc is an UPDATE and the rules refuse it, which showed "Host ne hata diya"). Floating circle (`BroadcastBubble`) works.
   Known, not fixed: room list and head-counts judge freshness with the phone clock; `DuelTracker` retries settlement ops of old finished duels on every start (PERMISSION_DENIED noise).
 - Git on this PC had no user.name/user.email; commits of this round use the owner's email with `git -c`.
+
+## Leaderboard UI compacted, scoring audited (correct, unchanged), profile photos (Oct 2026) - rules NOT yet deployed
+Owner reported the Progress-tab leaderboard as "not acceptable": a huge podium and generous row spacing pushed the stat
+cards, chart and PRO banner far down the page. Before touching anything, traced the actual score end to end
+(`DuelSettlement` -> Firestore rules' `wallets/{uid}/ops` create-once checks, cross-validated against the real duel
+winner from both players' server-side counts -> `FirebaseLeaderboardRepository.wonOps()`, which already correctly sums
+only `transfer_credit` + `reel_milestone` and excludes `hold`/`release`/`transfer_debit`) and found the scoring was
+already correct and matched the documented product rules; **nothing about scoring, settlement or coin logic changed**.
+- **Compact leaderboard** (`feature/progress/LeaderboardSection.kt`): podium avatars 56/46dp -> 42/36dp, crown/medal
+  badges and fonts shrunk to match, row padding 8dp -> 5dp, outer spacing tightened. Added a labelled "Tumhara Rank"
+  row (string `leaderboard_your_rank`) shown only when the backend actually returned a rank for me and I am not
+  already visible in the list — never fabricated. Verified live on the Motorola: the whole card is visibly shorter,
+  stats/chart/PRO now reachable with far less scrolling. Still a single scroll container (`KitPage`'s own
+  `verticalScroll`) — no nested independently-scrolling list was introduced.
+- **`domain/social/LeaderboardPeriod.kt`** (new): pulled the period-key/score/rank math out of
+  `FirebaseLeaderboardRepository` into pure, unit-tested functions (`weekKey`, `monthKey`, `scoreFor`, `sumSince`,
+  `rankOf`) with ZERO behaviour change — the key formats are byte-for-byte what was already live on `directory/{uid}`
+  documents (no zero-padding added), because reformatting them would make every real person's current score look
+  stale and silently reset to zero on next read. `LeaderboardPeriodTest.kt`: 15 new tests (ISO week/month boundaries
+  including the Dec 31/Jan 1 year-rollover case, stale-period reads as zero, never negative, rank never invented when
+  absent). 508 -> genuinely more pure tests pass; full suite green.
+- **Google profile pictures** (`data/social/ProfilePhotoSync.kt`, new; `feature/common/KitInputs.kt`'s `KitAvatarPhoto`
+  using Coil, newly added dependency `io.coil-kt:coil-compose`): `directory/{uid}` gained an optional `photoUrl` field,
+  synced from `FirebaseAuth.currentUser.photoUrl` (the Google account photo) once per sign-in, started from `DuelApp`
+  the same pattern as `ReelMilestoneRewarder`; also written at profile-creation time in `FirebaseProfileRepository`.
+  Every leaderboard row (Dost, India, the podium, and "Your Rank" — they all read the same `directory` doc) shows the
+  real photo via `KitAvatarPhoto`, circular-cropped, with the existing initials avatar drawn underneath as the
+  permanent fallback (never blank, never another person's picture, never a broken image on a failed/slow load).
+  Firestore rules: `photoUrl` allowed on create (optional) and as its own self-only update branch (<=300 chars);
+  `firebase/rules-test/rules.test.mjs` gained 8 checks (create with photo, self-only update, cannot ride along with
+  another field, length/type validation, clearing). Also fixed one unrelated PRE-EXISTING stale test (a hardcoded
+  reel-milestone op count that had drifted as more milestone tests were added over past rounds) found while running
+  the suite — confirmed via `git diff` it was untouched by this round's own changes before fixing it. 115/115
+  rules-emulator checks pass locally (JDK 24 here, not 21; worked fine).
+- **NOT verified**: `firebase/firestore.rules` changes are written and emulator-tested but **NOT deployed** to
+  brainpal-b3119 (blocked by this environment's auto-mode "production deploy" guard; owner must run
+  `cd firebase && firebase deploy --only firestore:rules` or explicitly approve it). Until that deploys, `photoUrl`
+  writes are silently refused by the LIVE rules (caught, retried a few times, then give up quietly — no crash, no
+  leftover bad state) and every leaderboard row keeps showing the initials fallback. The actual Google photo has
+  **never been seen rendering on a real leaderboard row** — the signed-in test account's `FirebaseAuth` photo URL
+  could not be confirmed present either way from this device. Once rules are deployed, re-verify: sign in with an
+  account that has a Google photo, confirm it appears identically in Dost, India and "Your Rank", confirm a second
+  account's photo never appears on the first account's row, and confirm scrolling stays smooth (Coil's default
+  memory+disk cache, no extra config added).

@@ -1,6 +1,7 @@
 package com.doomscrollduel.feature.progress
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -36,17 +38,19 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.doomscrollduel.R
+import com.doomscrollduel.core.designsystem.components.DuelIcon
 import com.doomscrollduel.core.designsystem.components.ScreenPreview
 import com.doomscrollduel.domain.social.LeaderboardBoard
 import com.doomscrollduel.domain.social.LeaderboardEntry
 import com.doomscrollduel.domain.social.LeaderboardUi
 import com.doomscrollduel.feature.common.Kit
-import com.doomscrollduel.feature.common.KitAvatar
+import com.doomscrollduel.feature.common.KitAvatarPhoto
 import com.doomscrollduel.feature.common.KitButton
 import com.doomscrollduel.feature.common.KitButtonKind
 import com.doomscrollduel.feature.common.KitCard
 import com.doomscrollduel.feature.settings.neon.NText
 import com.doomscrollduel.feature.settings.neon.Neon
+import com.doomscrollduel.feature.settings.neon.NeonIcons
 
 @Composable
 fun LeaderboardRoute(modifier: Modifier = Modifier, viewModel: LeaderboardViewModel = hiltViewModel()) {
@@ -70,10 +74,10 @@ fun LeaderboardSection(
 ) {
     Column(modifier) {
         NText(stringResource(R.string.leaderboard_title), 18.sp, weight = FontWeight.ExtraBold)
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         BoardSwitch(board, onBoard)
-        Spacer(Modifier.height(10.dp))
-        KitCard(padding = PaddingValues(14.dp)) {
+        Spacer(Modifier.height(8.dp))
+        KitCard(padding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)) {
             when (ui) {
                 LeaderboardUi.Loading -> LoadingRows()
                 is LeaderboardUi.Error -> ErrorState(onRetry)
@@ -138,52 +142,127 @@ private fun EmptyState(board: LeaderboardBoard) {
 
 @Composable
 private fun LoadedBoard(ui: LeaderboardUi.Loaded) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ui.entries.forEachIndexed { index, entry -> LeaderboardRow(rank = index + 1, entry = entry) }
+    val podium = ui.entries.take(3)
+    val rest = ui.entries.drop(3)
+    Column {
+        if (podium.isNotEmpty()) Podium(podium)
+        if (rest.isNotEmpty()) {
+            Column(
+                modifier = Modifier.padding(top = if (podium.isNotEmpty()) 6.dp else 0.dp),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+            ) {
+                rest.forEachIndexed { index, entry -> LeaderboardRow(rank = index + 4, entry = entry) }
+            }
+        }
         // "Find my position": I have a rank but I'm not in the visible list above (e.g. outside India's top 50).
+        // Never fabricated — only shown when the backend actually returned both a rank and an entry for me.
         if (ui.myEntry != null && ui.myRank != null && ui.entries.none { it.isMe }) {
-            Spacer(Modifier.height(2.dp))
-            NText("· · ·", 16.sp, color = Neon.Muted, align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(8.dp))
+            NText(stringResource(R.string.leaderboard_your_rank), 11.sp, color = Neon.VioletLight, weight = FontWeight.ExtraBold)
+            Spacer(Modifier.height(3.dp))
             LeaderboardRow(rank = ui.myRank, entry = ui.myEntry)
         }
     }
 }
 
+private data class MedalTone(val light: Color, val deep: Color, val label: Color)
+
+private fun medalTone(rank: Int): MedalTone = when (rank) {
+    1 -> MedalTone(Color(0xFFFFE9A8), Kit.Gold, Color(0xFF3A2400))
+    2 -> MedalTone(Color(0xFFE4EAF7), Color(0xFF9FB4E0), Color(0xFF16213A))
+    else -> MedalTone(Color(0xFFF0B98B), Color(0xFFD08A5A), Color(0xFF3A1E0A))
+}
+
+/** The top three as a compact, balanced podium: rank 1 in the middle with slightly more presence, 2 and 3 either
+ * side — small enough that even on a 320dp phone the rest of the list is a swipe away, not several screens down. */
+@Composable
+private fun Podium(entries: List<LeaderboardEntry>) {
+    val first = entries.getOrNull(0)
+    val second = entries.getOrNull(1)
+    val third = entries.getOrNull(2)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        second?.let { PodiumPlace(rank = 2, entry = it, modifier = Modifier.weight(1f).padding(top = 10.dp)) } ?: Spacer(Modifier.weight(1f))
+        first?.let { PodiumPlace(rank = 1, entry = it, modifier = Modifier.weight(1.05f)) } ?: Spacer(Modifier.weight(1.05f))
+        third?.let { PodiumPlace(rank = 3, entry = it, modifier = Modifier.weight(1f).padding(top = 10.dp)) } ?: Spacer(Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun PodiumPlace(rank: Int, entry: LeaderboardEntry, modifier: Modifier = Modifier) {
+    val tone = medalTone(rank)
+    val avatarSize = if (rank == 1) 42.dp else 36.dp
+    val spoken = stringResource(R.string.leaderboard_row_description, rank, entry.displayName, entry.coins)
+    Column(
+        modifier = modifier.semantics(mergeDescendants = true) { contentDescription = spoken },
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        if (rank == 1) {
+            DuelIcon(NeonIcons.Crown, tint = Kit.Gold, contentDescription = null, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.height(1.dp))
+        }
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .size(avatarSize + 4.dp)
+                    .clip(CircleShape)
+                    .background(Brush.linearGradient(listOf(tone.light, tone.deep)))
+                    .then(if (entry.isMe) Modifier.border(2.dp, Kit.Pink, CircleShape) else Modifier),
+            )
+            KitAvatarPhoto(entry.displayName, entry.photoUrl, size = avatarSize, tone = if (entry.isMe) Kit.Pink else Kit.Blue)
+            Box(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(tone.deep)
+                    .border(1.dp, Color(0xFF0B0E26), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                NText(rank.toString(), 9.sp, color = tone.label, weight = FontWeight.Black)
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        NText(entry.displayName, 11.sp, weight = FontWeight.ExtraBold, maxLines = 1, align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        NText("@${entry.username}", 9.sp, color = Neon.Muted, maxLines = 1, align = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(2.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            DuelIcon(NeonIcons.Coin, tint = Kit.Gold, contentDescription = null, modifier = Modifier.size(10.dp))
+            NText(entry.coins.toString(), 12.sp, weight = FontWeight.Black, color = Kit.Gold)
+        }
+    }
+}
+
+/** One compact row: rank, avatar, display name + username, score — a fixed, consistent height no matter the rank,
+ * so many rows are scannable at once instead of each one eating the whole card. */
 @Composable
 private fun LeaderboardRow(rank: Int, entry: LeaderboardEntry) {
-    val medal = when (rank) {
-        1 -> Kit.Gold
-        2 -> Color(0xFFC7CEDB)
-        3 -> Color(0xFFD08A5A)
-        else -> null
-    }
     val spoken = stringResource(R.string.leaderboard_row_description, rank, entry.displayName, entry.coins)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .then(if (entry.isMe) Modifier.background(Color(0x33FF4D8D)) else Modifier)
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .then(if (entry.isMe) Modifier.background(Brush.horizontalGradient(listOf(Color(0x40FF4D8D), Color(0x1AFF4D8D)))) else Modifier)
+            .padding(horizontal = 8.dp, vertical = 5.dp)
             .semantics(mergeDescendants = true) { contentDescription = spoken },
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Box(Modifier.width(28.dp), contentAlignment = Alignment.Center) {
-            if (medal != null) {
-                Box(Modifier.size(26.dp).clip(CircleShape).background(medal), contentAlignment = Alignment.Center) {
-                    NText(rank.toString(), 13.sp, color = Color(0xFF1A1430), weight = FontWeight.Black)
-                }
-            } else {
-                NText(rank.toString(), 15.sp, color = Neon.Muted, weight = FontWeight.ExtraBold)
-            }
+        Box(Modifier.width(20.dp), contentAlignment = Alignment.Center) {
+            NText(rank.toString(), 13.sp, color = Neon.Muted, weight = FontWeight.ExtraBold)
         }
-        KitAvatar(entry.displayName, size = 38.dp, tone = if (entry.isMe) Kit.Pink else Kit.Blue)
+        KitAvatarPhoto(entry.displayName, entry.photoUrl, size = 30.dp, tone = if (entry.isMe) Kit.Pink else Kit.Blue)
         Column(Modifier.weight(1f)) {
-            NText(entry.displayName, 14.sp, weight = FontWeight.ExtraBold, maxLines = 1)
-            NText("@${entry.username}", 11.sp, color = Neon.Muted, maxLines = 1)
+            NText(entry.displayName, 13.sp, weight = FontWeight.ExtraBold, maxLines = 1)
+            NText("@${entry.username}", 10.sp, color = Neon.Muted, maxLines = 1)
         }
-        NText(entry.coins.toString(), 15.sp, weight = FontWeight.Black, color = Kit.Gold)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            DuelIcon(NeonIcons.Coin, tint = Kit.Gold, contentDescription = null, modifier = Modifier.size(12.dp))
+            NText(entry.coins.toString(), 14.sp, weight = FontWeight.Black, color = Kit.Gold)
+        }
     }
 }
 

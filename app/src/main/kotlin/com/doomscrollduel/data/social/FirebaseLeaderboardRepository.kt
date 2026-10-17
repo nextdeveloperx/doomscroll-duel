@@ -5,6 +5,7 @@ import com.doomscrollduel.domain.repository.AuthRepository
 import com.doomscrollduel.domain.repository.FriendsRepository
 import com.doomscrollduel.domain.social.LeaderboardBoard
 import com.doomscrollduel.domain.social.LeaderboardEntry
+import com.doomscrollduel.domain.social.LeaderboardPeriod
 import com.doomscrollduel.domain.social.LeaderboardRepository
 import com.doomscrollduel.domain.social.LeaderboardUi
 import com.google.firebase.firestore.AggregateSource
@@ -12,7 +13,6 @@ import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import java.time.LocalDate
-import java.time.temporal.IsoFields
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
@@ -63,18 +63,14 @@ class FirebaseLeaderboardRepository @Inject constructor(
         val docs = uids.chunked(MAX_WHERE_IN).flatMap { chunk ->
             db.collection("directory").whereIn(FieldPath.documentId(), chunk).get().await().documents
         }
-        val entries = docs.mapNotNull { it.toEntry(me, "weeklyCoins", "weeklyPeriodKey", currentWeekKey()) }
+        val entries = docs.mapNotNull { it.toEntry(me, "weeklyCoins", "weeklyPeriodKey", LeaderboardPeriod.weekKey(LocalDate.now())) }
             .sortedWith(compareByDescending<LeaderboardEntry> { it.coins }.thenBy { it.displayName.lowercase() })
-        val myIndex = entries.indexOfFirst { it.isMe }
-        return LeaderboardUi.Loaded(
-            entries = entries,
-            myRank = if (myIndex >= 0) myIndex + 1 else null,
-            myEntry = entries.getOrNull(myIndex),
-        )
+        val mine = LeaderboardPeriod.rankOf(entries)
+        return LeaderboardUi.Loaded(entries = entries, myRank = mine?.first, myEntry = mine?.second)
     }
 
     private suspend fun indiaBoard(me: String): LeaderboardUi {
-        val month = currentMonthKey()
+        val month = LeaderboardPeriod.monthKey(LocalDate.now())
         val top = db.collection("directory").orderBy("monthlyCoins", Query.Direction.DESCENDING).limit(TOP_N).get().await()
         var entries = top.documents.mapNotNull { it.toEntry(me, "monthlyCoins", "monthlyPeriodKey", month) }
         // orderBy skips people whose document has no monthlyCoins yet (they have not opened this version). They are on the
@@ -88,23 +84,16 @@ class FirebaseLeaderboardRepository @Inject constructor(
                 .sortedWith(compareByDescending<LeaderboardEntry> { it.coins }.thenBy { it.displayName.lowercase() })
                 .take(TOP_N.toInt())
         }
-        val myIndex = entries.indexOfFirst { it.isMe }
-        if (myIndex >= 0) return LeaderboardUi.Loaded(entries, myIndex + 1, entries[myIndex])
+        val mine = LeaderboardPeriod.rankOf(entries)
+        if (mine != null) return LeaderboardUi.Loaded(entries, mine.first, mine.second)
 
         // I'm not in the visible top N: one cheap count() instead of fetching everyone, to still show my rank.
-        val mine = db.collection("directory").document(me).get().await()
-        val myEntry = mine.toEntry(me, "monthlyCoins", "monthlyPeriodKey", month) ?: return LeaderboardUi.Loaded(entries, null, null)
+        val myDoc = db.collection("directory").document(me).get().await()
+        val myEntry = myDoc.toEntry(me, "monthlyCoins", "monthlyPeriodKey", month) ?: return LeaderboardUi.Loaded(entries, null, null)
         val ahead = db.collection("directory").whereGreaterThan("monthlyCoins", myEntry.coins)
             .count().get(AggregateSource.SERVER).await().count
         return LeaderboardUi.Loaded(entries, ahead.toInt() + 1, myEntry)
     }
-
-    private fun currentWeekKey(): String {
-        val now = LocalDate.now()
-        return "${now.get(IsoFields.WEEK_BASED_YEAR)}-W${now.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR)}"
-    }
-
-    private fun currentMonthKey(): String = LocalDate.now().toString().substring(0, 7)
 
     /** A score written in an earlier week / month (its period key is not the current one) no longer counts: it shows as 0. */
     private fun com.google.firebase.firestore.DocumentSnapshot.toEntry(
@@ -114,13 +103,14 @@ class FirebaseLeaderboardRepository @Inject constructor(
         currentPeriod: String,
     ): LeaderboardEntry? {
         val username = getString("username") ?: return null
-        val coins = if (getString(periodField) == currentPeriod) (getLong(scoreField) ?: 0L).toInt() else 0
+        val coins = LeaderboardPeriod.scoreFor(getLong(scoreField) ?: 0L, getString(periodField), currentPeriod)
         return LeaderboardEntry(
             uid = id,
             username = username,
             displayName = getString("displayName") ?: username,
             coins = coins,
             isMe = id == me,
+            photoUrl = getString("photoUrl")?.takeIf { it.isNotBlank() },
         )
     }
 
@@ -128,20 +118,20 @@ class FirebaseLeaderboardRepository @Inject constructor(
         val me = auth.session.first()?.uid ?: return
         try {
             val now = LocalDate.now()
-            val weekKey = currentWeekKey()
-            val monthKey = currentMonthKey() // "2026-10"
+            val weekKey = LeaderboardPeriod.weekKey(now)
+            val monthKey = LeaderboardPeriod.monthKey(now) // "2026-10"
             val weeklyStart = now.with(java.time.DayOfWeek.MONDAY).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
             val monthlyStart = now.withDayOfMonth(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant()
 
-            val mine = db.collection("directory").document(me).get().await()
-            val prevWeekKey = mine.getString("weeklyPeriodKey")
-            val prevMonthKey = mine.getString("monthlyPeriodKey")
-            val prevWeekly = mine.getLong("weeklyCoins") ?: 0L
-            val prevMonthly = mine.getLong("monthlyCoins") ?: 0L
+            val myDoc = db.collection("directory").document(me).get().await()
+            val prevWeekKey = myDoc.getString("weeklyPeriodKey")
+            val prevMonthKey = myDoc.getString("monthlyPeriodKey")
+            val prevWeekly = myDoc.getLong("weeklyCoins") ?: 0L
+            val prevMonthly = myDoc.getLong("monthlyCoins") ?: 0L
 
             val allWon = wonOps(me)
-            val weekly = allWon.filter { it.second >= weeklyStart }.sumOf { it.first }
-            val monthly = allWon.filter { it.second >= monthlyStart }.sumOf { it.first }
+            val weekly = LeaderboardPeriod.sumSince(allWon, weeklyStart)
+            val monthly = LeaderboardPeriod.sumSince(allWon, monthlyStart)
 
             if (weekKey != prevWeekKey || weekly.toLong() != prevWeekly) {
                 db.collection("directory").document(me).update(mapOf("weeklyCoins" to weekly, "weeklyPeriodKey" to weekKey)).await()

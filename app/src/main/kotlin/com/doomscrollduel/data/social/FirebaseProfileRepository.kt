@@ -185,7 +185,13 @@ class FirebaseProfileRepository @Inject constructor(auth: AuthRepository) : Prof
                 tx.set(nameRef, mapOf("uid" to user.uid, "createdAt" to FieldValue.serverTimestamp()))
                 tx.set(
                     db.collection("directory").document(user.uid),
-                    mapOf("username" to name.value, "displayName" to shown, "createdAt" to FieldValue.serverTimestamp()),
+                    mapOf(
+                        "username" to name.value,
+                        "displayName" to shown,
+                        "createdAt" to FieldValue.serverTimestamp(),
+                        // The Google account photo, if any — same field ProfilePhotoSync keeps fresh afterwards.
+                        "photoUrl" to (user.photoUrl?.toString() ?: ""),
+                    ),
                 )
                 tx.set(
                     userRef,

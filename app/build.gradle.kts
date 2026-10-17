@@ -156,6 +156,8 @@ dependencies {
     implementation(libs.androidx.credentials.play)
     // Voice rooms (Broadcast): peer-to-peer audio and chat between friends.
     implementation(libs.webrtc)
+    // Leaderboard profile pictures (Google account photo): async load + cache, circular crop.
+    implementation(libs.coil.compose)
     implementation(libs.googleid)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.functions)
